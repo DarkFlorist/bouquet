@@ -6,7 +6,7 @@ export const ssr = false
 
 export const wallets = writable<string[]>([])
 export const payload = writable<ImportPayload | null>(null)
-export const activeSession = derived([wallets, payload], ([$wallets, $payload]) => $wallets.length > 0 || $payload)
+export const activeSession = derived([wallets, payload], ([$wallets, $payload]) => $wallets.length > 0)
 
 if (browser) {
   wallets.set(JSON.parse(localStorage.getItem('wallets') ?? '[]'))

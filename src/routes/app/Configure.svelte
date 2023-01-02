@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
+  import { payload } from "$lib/state";
   import { circInOut } from "svelte/easing";
   import { slide } from "svelte/transition";
 
@@ -29,6 +30,17 @@
       transition:slide={{ duration: 400, easing: circInOut }}
     >
       <h3 class="text-xl">// @TODO: this section</h3>
+      <div class="flex-col flex gap-4">
+        {#each $payload ? $payload.transactions : [] as tx, index}
+          <ul class="rounded bg-secondary p-4">
+            <li>#{index}</li>
+            <li>From: {tx.from}</li>
+            <li>To: {tx.to}</li>
+            <li>Value: {tx.value}</li>
+            <li class="w-full break-all">Input: {tx.input}</li>
+          </ul>
+        {/each}
+      </div>
       <Button onClick={nextStage}>Next</Button>
     </div>
   {/if}

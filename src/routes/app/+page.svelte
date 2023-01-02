@@ -6,10 +6,10 @@
   import Import from "./Import.svelte";
   import Submit from "./Submit.svelte";
 
-  let activePanel = 0;
+  let activePanel = 1;
 
   onMount(() => {
-    if (activeSession) activePanel = 2;
+    if ($activeSession) activePanel = 2;
   });
 </script>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from "$lib/components/Button.svelte";
-  import { isImportPayload } from "$lib/types";
+  import { isImportPayload, type ImportPayload } from "$lib/types";
   import { payload } from "$lib/state";
   import { onMount } from "svelte";
   import { slide } from "svelte/transition";
@@ -32,6 +32,19 @@
     nextStage();
   }
 
+  async function importFromIntercepter() {
+    // @ts-ignore
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    const data: ImportPayload = {
+      // @ts-ignore
+      transactions: await window.ethereum.request({
+        method: "interceptor_getSimulatedUnsignedTransactions_v1",
+      }),
+    };
+    if (data.transactions.length > 0)
+      payloadInput = JSON.stringify(data, null, 2);
+  }
+
   onMount(() => {
     if ($payload) payloadInput = JSON.stringify($payload, null, 2);
   });
@@ -61,6 +74,9 @@
         class="w-full h-36 p-4 bg-secondary placeholder:text-primary/70"
         placeholder="Paste Payload Here"
       />
+      <Button onClick={importFromIntercepter}
+        >Import Payload from TheIntercepter</Button
+      >
       {#if payloadInput && validPayload}
         <Button onClick={setPayload}>Next</Button>
       {:else if payloadInput && !validPayload}

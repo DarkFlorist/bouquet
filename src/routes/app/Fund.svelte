@@ -28,6 +28,7 @@
       class="flex flex-col w-full gap-6"
       transition:slide={{ duration: 400, easing: circInOut }}
     >
+      <h3 class="text-xl">// @TODO: this section</h3>
       <Button onClick={nextStage}>Next</Button>
     </div>
   {/if}
