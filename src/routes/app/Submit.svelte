@@ -5,6 +5,7 @@
 	import { onMount } from "svelte";
 	import { createProvider, simulate } from "$lib/bundleUtils";
 	import type { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
+	import { bundleTransactions, uniqueSigners } from "$lib/state";
 
 	let flasbotsProvider: FlashbotsBundleProvider;
 	onMount(() => createProvider().then((p) => (flasbotsProvider = p)));
@@ -44,16 +45,17 @@
 		transition:slide={{ duration: 400, easing: circInOut }}
 	>
 		<h3 class="text-xl">// @TODO: this section</h3>
+		<h3 class="text-xl">{JSON.stringify($uniqueSigners)}</h3>
 		<div class="flex-col flex gap-4">
-			<!-- {#each $payload ? $payload.transactions : [] as tx, index} -->
-			<!-- 	<ul class="rounded bg-secondary p-4"> -->
-			<!-- 		<li>#{index}</li> -->
-			<!-- 		<li>From: {tx.from}</li> -->
-			<!-- 		<li>To: {tx.to}</li> -->
-			<!-- 		<li>Value: {tx.value}</li> -->
-			<!-- 		<li class="w-full break-all">Input: {tx.input}</li> -->
-			<!-- 	</ul> -->
-			<!-- {/each} -->
+			{#each $bundleTransactions as tx, index}
+				<ul class="rounded bg-secondary p-4">
+					<li>#{index}</li>
+					<li>From: {tx.transaction.from}</li>
+					<li>To: {tx.transaction.to}</li>
+					<li>Value: {tx.transaction.value}</li>
+					<li class="w-full break-all">Input: {tx.transaction.data}</li>
+				</ul>
+			{/each}
 		</div>
 		<Button onClick={callBundle}>Submit 🚀</Button>
 	</div>

@@ -57,7 +57,7 @@ if (browser) {
 
 		const _bundleTransactions = payload.map(
 			({ from, to, value, input, gas }) => ({
-				transaction: { from, to, value, input, gas },
+				transaction: { from, to, value, data: input, gasLimit: gas },
 			})
 		) as BundledTransaction[];
 
@@ -72,7 +72,7 @@ if (browser) {
 		}
 
 		const _totalGas = _bundleTransactions.reduce(
-			(sum, current) => sum.add(current.transaction.gas),
+			(sum, current) => sum.add(current.transaction.gasLimit),
 			BigNumber.from(0)
 		);
 

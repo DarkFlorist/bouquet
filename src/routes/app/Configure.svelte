@@ -44,8 +44,10 @@
 						transaction: {
 							from: $wallets[$wallets.length - 1].address,
 							to: $interceptorPayload[0].to,
-							value: $interceptorPayload[0].value,
-							input: $interceptorPayload[0].input,
+							// @TODO: Replace value with required amount for funding based of gas prices
+							value: "0x8E1BC9BF040000",
+							data: "0x",
+							gasLimit: "0x5208",
 						},
 					},
 					...$bundleTransactions,

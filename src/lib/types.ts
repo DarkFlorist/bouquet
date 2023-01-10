@@ -14,8 +14,8 @@ export type BundledTransaction = {
 	transaction: {
 		from: string;
 		to: string;
-		input: BytesLike;
+		data: BytesLike;
 		value: BytesLike;
-		gas: BytesLike;
+		gasLimit: BytesLike;
 	};
 };
