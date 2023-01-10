@@ -1,47 +1,110 @@
 <script lang="ts">
-  import Button from "$lib/components/Button.svelte";
-  import { payload } from "$lib/state";
-  import { circInOut } from "svelte/easing";
-  import { slide } from "svelte/transition";
+	import Button from "$lib/components/Button.svelte";
+	import {
+		bundleTransactions,
+		interceptorPayload,
+		isFundingTransaction,
+		uniqueSigners,
+		wallets,
+	} from "$lib/state";
+	import { Wallet } from "ethers";
+	import { getAddress } from "ethers/lib/utils";
+	import { circInOut } from "svelte/easing";
+	import { slide } from "svelte/transition";
 
-  export let active: boolean;
-  export let complete: boolean;
-  export let setActive: () => void;
-  export let nextStage: () => void;
+	export let nextStage: () => void;
+
+	let _signerKeys: {
+		[address: string]: { input: string; wallet: Wallet | null };
+	} = $uniqueSigners.reduce(
+		(
+			curr: {
+				[address: string]: { input: string; wallet: Wallet | null };
+			},
+			address
+		) => {
+			curr[address] = { input: "", wallet: null };
+			return curr;
+		},
+		{}
+	);
+
+	const saveAndNext = () => {
+		bundleTransactions.update(($bundleTransactions) => {
+			for (let tx in $bundleTransactions) {
+				const signer = _signerKeys[$bundleTransactions[tx].transaction.from]
+					.wallet as Wallet;
+				$bundleTransactions[tx].signer = signer;
+			}
+			nextStage();
+			if ($isFundingTransaction) {
+				return [
+					{
+						signer: $wallets[$wallets.length - 1],
+						transaction: {
+							from: $wallets[$wallets.length - 1].address,
+							to: $interceptorPayload[0].to,
+							value: $interceptorPayload[0].value,
+							input: $interceptorPayload[0].input,
+						},
+					},
+					...$bundleTransactions,
+				];
+			} else {
+				return $bundleTransactions;
+			}
+		});
+	};
+
+	// Watch ETH balance
+	// block number
+	// base and priority gas
+	// derivie deposit amount
 </script>
 
 <article class="p-6 max-w-screen-lg w-full flex flex-col gap-6">
-  {#if complete}
-    <button
-      on:click={setActive}
-      class="w-max font-extrabold text-success text-3xl cursor-pointer"
-    >
-      Configure Bundle
-    </button>
-  {:else}
-    <h2 class={`font-extrabold ${!active ? "text-secondary" : ""} text-3xl`}>
-      Configure Bundle
-    </h2>
-  {/if}
-
-  {#if active}
-    <div
-      class="flex flex-col w-full gap-6"
-      transition:slide={{ duration: 400, easing: circInOut }}
-    >
-      <h3 class="text-xl">// @TODO: this section</h3>
-      <div class="flex-col flex gap-4">
-        {#each $payload ? $payload.transactions : [] as tx, index}
-          <ul class="rounded bg-secondary p-4">
-            <li>#{index}</li>
-            <li>From: {tx.from}</li>
-            <li>To: {tx.to}</li>
-            <li>Value: {tx.value}</li>
-            <li class="w-full break-all">Input: {tx.input}</li>
-          </ul>
-        {/each}
-      </div>
-      <Button onClick={nextStage}>Next</Button>
-    </div>
-  {/if}
+	<h2 class="font-extrabold text-3xl">Configure Bundle</h2>
+	<div
+		class="flex flex-col w-full gap-6"
+		transition:slide={{ duration: 400, easing: circInOut }}
+	>
+		<h3 class="text-2xl font-semibold">
+			Found {$uniqueSigners.length} Signers {$isFundingTransaction
+				? " + A Funding Transaction"
+				: ""}
+		</h3>
+		{#each $uniqueSigners as address}
+			<span class="font-semibold -mb-4">{address}</span>
+			<input
+				bind:value={_signerKeys[address].input}
+				on:change={() => {
+					// Check pk is valid
+					try {
+						const wallet = new Wallet(_signerKeys[address].input);
+						_signerKeys[address].wallet =
+							wallet.address === getAddress(address) ? wallet : null;
+					} catch {
+						_signerKeys[address].wallet = null;
+					}
+					_signerKeys = _signerKeys;
+				}}
+				class={`p-3 bg-secondary text-white ring ring-offset-2 ${
+					_signerKeys[address].wallet ? "ring-success" : "ring-error"
+				}`}
+				type="text"
+				placeholder={`Private key for ${address}`}
+			/>
+		{/each}
+		<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
+		<span>{$wallets[$wallets.length - 1].address}</span>
+		<!-- <p>Unused Ether sent to funding account will be returned</p> -->
+		<!-- <input -->
+		<!-- 	class={`p-3 bg-secondary text-white ring ring-offset-2 ${ -->
+		<!-- 		isAddress(refundAddress) ? "ring-success" : "ring-error" -->
+		<!-- 	type="text" -->
+		<!-- 	bind:value={refundAddress} -->
+		<!-- 	placeholder="Refund address" -->
+		<!-- /> -->
+		<Button onClick={saveAndNext}>Next</Button>
+	</div>
 </article>

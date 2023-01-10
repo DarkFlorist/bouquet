@@ -1,89 +1,80 @@
 <script lang="ts">
-  import Button from "$lib/components/Button.svelte";
-  import { isImportPayload, type ImportPayload } from "$lib/types";
-  import { payload } from "$lib/state";
-  import { onMount } from "svelte";
-  import { slide } from "svelte/transition";
-  import { circInOut } from "svelte/easing";
+	import Button from "$lib/components/Button.svelte";
+	import {
+		bundleTransactions,
+		interceptorPayload,
+		isFundingTransaction,
+		totalGas,
+		totalValue,
+		uniqueSigners,
+		wallets,
+	} from "$lib/state";
+	import { slide } from "svelte/transition";
+	import { circInOut } from "svelte/easing";
+	import type { BundledTransaction, PayloadTransaction } from "$lib/types";
+	import { BigNumber, Wallet } from "ethers";
 
-  export let active: boolean = false;
-  export let complete: boolean = true;
-  export let setActive: () => void;
-  export let nextStage: () => void;
+	async function importFromInterceptor() {
+		if (window.ethereum === undefined) return;
+		// @ts-ignore
+		await window.ethereum.request({ method: "eth_requestAccounts" });
+		// @ts-ignore
+		const { payload } = (await window.ethereum.request({
+			method: "interceptor_getSimulationStack",
+		})) as { payload: PayloadTransaction[] };
 
-  let payloadInput = "";
-  $: validPayload = isValidPayload(payloadInput);
+		const _uniqueSigners = [...new Set(payload.map((tx) => tx.from))];
+		const _isFundingTransaction =
+			payload.length >= 2 && _uniqueSigners.includes(payload[0].to);
 
-  function isValidPayload(payload: string) {
-    try {
-      const parsed = JSON.parse(payload);
-      if (isImportPayload(parsed)) {
-        payloadInput = JSON.stringify(parsed, null, 2);
-        return true;
-      } else return false;
-    } catch {
-      return false;
-    }
-  }
+		const _bundleTransactions = payload.map(
+			({ from, to, value, input, gas }) => ({
+				transaction: { from, to, value, input, gas },
+			})
+		) as BundledTransaction[];
 
-  function setPayload() {
-    payload.set(JSON.parse(payloadInput));
-    localStorage.setItem("payload", JSON.stringify($payload));
-    nextStage();
-  }
+		let fundingTarget: string;
+		if (_isFundingTransaction) {
+			if ($wallets.length === 0) {
+				wallets.subscribe((x) => [...x, Wallet.createRandom()]);
+			}
+			fundingTarget = payload[0].to;
+			_uniqueSigners.shift();
+			_bundleTransactions.shift();
+		}
 
-  async function importFromIntercepter() {
-    // @ts-ignore
-    await window.ethereum.request({ method: "eth_requestAccounts" });
-    const data: ImportPayload = {
-      // @ts-ignore
-      transactions: await window.ethereum.request({
-        method: "interceptor_getSimulatedUnsignedTransactions_v1",
-      }),
-    };
-    if (data.transactions.length > 0)
-      payloadInput = JSON.stringify(data, null, 2);
-  }
+		const _totalGas = _bundleTransactions.reduce(
+			(sum, current) => sum.add(current.transaction.gas),
+			BigNumber.from(0)
+		);
 
-  onMount(() => {
-    if ($payload) payloadInput = JSON.stringify($payload, null, 2);
-  });
+		// @TODO: Check this properly based on simulation +- on each transaction in step
+		const _totalValue = _bundleTransactions
+			.filter((tx) => tx.transaction.from === fundingTarget)
+			.reduce(
+				(sum, current) => sum.add(current.transaction.value),
+				BigNumber.from(0)
+			);
+
+		localStorage.setItem("payload", JSON.stringify(payload));
+		interceptorPayload.set(payload);
+
+		uniqueSigners.set(_uniqueSigners);
+		bundleTransactions.set(_bundleTransactions);
+		isFundingTransaction.set(_isFundingTransaction);
+		totalGas.set(_totalGas);
+		totalValue.set(_totalValue);
+	}
 </script>
 
 <article class="p-6 max-w-screen-lg w-full flex flex-col gap-6">
-  {#if complete}
-    <button
-      on:click={setActive}
-      class="w-max font-extrabold text-success text-3xl cursor-pointer"
-    >
-      Import Transaction Payload
-    </button>
-  {:else}
-    <h2 class={`font-extrabold ${!active ? "text-secondary" : ""} text-3xl`}>
-      Import Transaction Payload
-    </h2>
-  {/if}
-
-  {#if active}
-    <div
-      class="flex flex-col w-full gap-6"
-      transition:slide={{ duration: 400, easing: circInOut }}
-    >
-      <textarea
-        bind:value={payloadInput}
-        class="w-full h-36 p-4 bg-secondary placeholder:text-primary/70"
-        placeholder="Paste Payload Here"
-      />
-      <Button onClick={importFromIntercepter}
-        >Import Payload from TheIntercepter</Button
-      >
-      {#if payloadInput && validPayload}
-        <Button onClick={setPayload}>Next</Button>
-      {:else if payloadInput && !validPayload}
-        <Button disabled={true} variant="error">Invalid Payload Format</Button>
-      {:else}
-        <Button disabled={true}>Missing Payload</Button>
-      {/if}
-    </div>
-  {/if}
+	<h2 class="font-extrabold text-3xl">Import Transaction Payload</h2>
+	<div
+		class="flex flex-col w-full gap-6"
+		transition:slide={{ duration: 400, easing: circInOut }}
+	>
+		<Button onClick={importFromInterceptor}
+			>Import Payload from TheInterceptor</Button
+		>
+	</div>
 </article>
