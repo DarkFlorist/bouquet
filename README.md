@@ -2,6 +2,12 @@
 
 ## Developing
 
+Add enviroment variables to `.env`, **PUBLIC\_\*** prefixed variables are exposed to client side components - We are not using anything serverside.
+
+```
+PUBLIC_RPC_URL=<url>
+```
+
 Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```bash
