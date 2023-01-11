@@ -1,9 +1,15 @@
 import { browser } from '$app/environment';
-import { BigNumber, Wallet } from 'ethers';
+import { env } from '$env/dynamic/public';
 import { derived, get, writable } from 'svelte/store';
-import type { BundledTransaction, PayloadTransaction } from './types';
+import { BigNumber, providers, Wallet } from 'ethers';
+import type { PayloadTransaction } from './types';
+import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle';
 
 export const ssr = false;
+
+export const provider = writable<providers.Provider>(
+	new providers.JsonRpcProvider(env.PUBLIC_RPC_URL)
+);
 
 export const wallets = writable<Wallet[]>([]);
 export const interceptorPayload = writable<PayloadTransaction[]>();
@@ -19,7 +25,7 @@ export const uniqueSigners = writable<string[]>();
 export const isFundingTransaction = writable<Boolean>();
 export const totalGas = writable<BigNumber>();
 export const totalValue = writable<BigNumber>();
-export const bundleTransactions = writable<BundledTransaction[]>();
+export const bundleTransactions = writable<FlashbotsBundleTransaction[]>();
 
 export const currentBlock = writable<number>();
 export const baseFee = writable<BigNumber>();
@@ -59,7 +65,7 @@ if (browser) {
 			({ from, to, value, input, gas }) => ({
 				transaction: { from, to, value, data: input, gasLimit: gas },
 			})
-		) as BundledTransaction[];
+		) as FlashbotsBundleTransaction[];
 
 		let fundingTarget: string;
 		if (_isFundingTransaction) {
@@ -72,7 +78,7 @@ if (browser) {
 		}
 
 		const _totalGas = _bundleTransactions.reduce(
-			(sum, current) => sum.add(current.transaction.gasLimit),
+			(sum, current) => sum.add(current?.transaction.gasLimit ?? '0'),
 			BigNumber.from(0)
 		);
 
@@ -80,7 +86,7 @@ if (browser) {
 		const _totalValue = _bundleTransactions
 			.filter((tx) => tx.transaction.from === fundingTarget)
 			.reduce(
-				(sum, current) => sum.add(current.transaction.value),
+				(sum, current) => sum.add(current?.transaction.value ?? '0'),
 				BigNumber.from(0)
 			);
 

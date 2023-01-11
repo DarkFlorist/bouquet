@@ -1,4 +1,4 @@
-import type { BytesLike, Wallet } from 'ethers';
+import type { BytesLike } from 'ethers';
 
 export type PayloadTransaction = {
 	from: string;
@@ -7,15 +7,4 @@ export type PayloadTransaction = {
 	value: BytesLike;
 	chainId: BytesLike;
 	gas: BytesLike;
-};
-
-export type BundledTransaction = {
-	signer?: Wallet;
-	transaction: {
-		from: string;
-		to: string;
-		data: BytesLike;
-		value: BytesLike;
-		gasLimit: BytesLike;
-	};
 };

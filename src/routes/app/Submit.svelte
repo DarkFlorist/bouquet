@@ -11,23 +11,9 @@
 	onMount(() => createProvider().then((p) => (flasbotsProvider = p)));
 
 	async function callBundle() {
-		if (flasbotsProvider) {
-			simulate(flasbotsProvider);
-			// 	const tmpProvider = new providers.JsonRpcProvider(
-			// 		"https://eth-mainnet.g.alchemy.com/v2/uDMIINAXEziTg9vsUyMwyEeyak1z_RUh"
-			// 	);
-			// 	const txs = $payload.transactions;
-			// 	const tmp = Wallet.createRandom();
-			// 	console.log(txs);
-			// 	const signed = await flasbotsProvider.signBundle(
-			// 		txs.map(({ to, value }) => ({
-			// 			signer: tmp.connect(tmpProvider),
-			// 			transaction: { from: tmp.address, to, value },
-			// 		}))
-			// 	);
-			// 	const block = await flasbotsProvider.getBlockNumber();
-			// 	const x = await flasbotsProvider.simulate(signed, block + 1);
-			// 	console.log(x);
+		if (!flasbotsProvider) {
+			const simulationResult = simulate(flasbotsProvider);
+			console.log({ simulationResult });
 		}
 	}
 </script>

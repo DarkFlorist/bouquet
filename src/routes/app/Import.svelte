@@ -11,8 +11,9 @@
 	} from "$lib/state";
 	import { slide } from "svelte/transition";
 	import { circInOut } from "svelte/easing";
-	import type { BundledTransaction, PayloadTransaction } from "$lib/types";
+	import type { PayloadTransaction } from "$lib/types";
 	import { BigNumber, Wallet } from "ethers";
+	import type { FlashbotsBundleTransaction } from "@flashbots/ethers-provider-bundle";
 
 	async function importFromInterceptor() {
 		if (window.ethereum === undefined) return;
@@ -31,7 +32,7 @@
 			({ from, to, value, input, gas }) => ({
 				transaction: { from, to, value, data: input, gasLimit: gas },
 			})
-		) as BundledTransaction[];
+		) as FlashbotsBundleTransaction[];
 
 		let fundingTarget: string;
 		if (_isFundingTransaction) {
@@ -44,7 +45,7 @@
 		}
 
 		const _totalGas = _bundleTransactions.reduce(
-			(sum, current) => sum.add(current.transaction.gasLimit),
+			(sum, current) => sum.add(current.transaction.gasLimit ?? "0"),
 			BigNumber.from(0)
 		);
 
@@ -52,7 +53,7 @@
 		const _totalValue = _bundleTransactions
 			.filter((tx) => tx.transaction.from === fundingTarget)
 			.reduce(
-				(sum, current) => sum.add(current.transaction.value),
+				(sum, current) => sum.add(current.transaction.value ?? "0"),
 				BigNumber.from(0)
 			);
 
