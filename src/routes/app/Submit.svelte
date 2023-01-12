@@ -2,19 +2,28 @@
 	import Button from "$lib/components/Button.svelte";
 	import { circInOut } from "svelte/easing";
 	import { slide } from "svelte/transition";
-	import { onMount } from "svelte";
-	import { createProvider, simulate } from "$lib/bundleUtils";
-	import type { FlashbotsBundleProvider } from "@flashbots/ethers-provider-bundle";
-	import { bundleTransactions, uniqueSigners } from "$lib/state";
+	import { createProvider, sendBundle, simulate } from "$lib/bundleUtils";
+	import type {
+		FlashbotsBundleProvider,
+		SimulationResponse,
+	} from "@flashbots/ethers-provider-bundle";
+	import { bundleTransactions } from "$lib/state";
 
 	let flasbotsProvider: FlashbotsBundleProvider;
-	onMount(() => createProvider().then((p) => (flasbotsProvider = p)));
+	let simulationResultPromise: Promise<SimulationResponse>;
 
-	async function callBundle() {
+	async function simulateBundle() {
 		if (!flasbotsProvider) {
-			const simulationResult = simulate(flasbotsProvider);
-			console.log({ simulationResult });
+			flasbotsProvider = await createProvider();
 		}
+		simulationResultPromise = simulate(flasbotsProvider);
+	}
+
+	async function submitBundle() {
+		if (!flasbotsProvider) {
+			flasbotsProvider = await createProvider();
+		}
+		sendBundle(flasbotsProvider);
 	}
 </script>
 
@@ -31,7 +40,6 @@
 		transition:slide={{ duration: 400, easing: circInOut }}
 	>
 		<h3 class="text-xl">// @TODO: this section</h3>
-		<h3 class="text-xl">{JSON.stringify($uniqueSigners)}</h3>
 		<div class="flex-col flex gap-4">
 			{#each $bundleTransactions as tx, index}
 				<ul class="rounded bg-secondary p-4">
@@ -43,6 +51,18 @@
 				</ul>
 			{/each}
 		</div>
-		<Button onClick={callBundle}>Submit 🚀</Button>
+		<Button onClick={simulateBundle}>Simulate</Button>
+		{#await simulationResultPromise}
+			Waiting for simulation to complete...
+		{:then result}
+			{#if result}
+				<p>Simulate Result:</p>
+				<span>{JSON.stringify(result, null, 2)}</span>
+			{/if}
+		{:catch error}
+			<p>Simulate Promise Rejected:</p>
+			<span>{JSON.stringify(error, null, 2)}</span>
+		{/await}
+		<Button onClick={submitBundle}>Submit</Button>
 	</div>
 </article>

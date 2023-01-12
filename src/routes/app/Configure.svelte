@@ -43,10 +43,11 @@
 						signer: $wallets[$wallets.length - 1],
 						transaction: {
 							from: $wallets[$wallets.length - 1].address,
-							to: $interceptorPayload[0].to,
+							to: utils.getAddress($interceptorPayload[0].to),
 							// @TODO: Replace value with required amount for funding based of gas prices
 							value: "0x8E1BC9BF040000", // 0.04 ETH hardcoded
 							data: "0x",
+							type: 2,
 							gasLimit: "0x5208",
 						},
 					},

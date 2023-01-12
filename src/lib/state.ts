@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { derived, get, writable } from 'svelte/store';
-import { BigNumber, providers, Wallet } from 'ethers';
+import { BigNumber, providers, utils, Wallet } from 'ethers';
 import type { PayloadTransaction } from './types';
 import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle';
 
@@ -57,13 +57,23 @@ if (browser) {
 		localStorage.getItem('payload') ?? 'null'
 	) as PayloadTransaction[];
 	if (payload) {
-		const _uniqueSigners = [...new Set(payload.map((tx) => tx.from))];
+		const _uniqueSigners = [
+			...new Set(payload.map((tx) => utils.getAddress(tx.from))),
+		];
 		const _isFundingTransaction =
-			payload.length >= 2 && _uniqueSigners.includes(payload[0].to);
+			payload.length >= 2 &&
+			_uniqueSigners.includes(utils.getAddress(payload[0].to));
 
 		const _bundleTransactions = payload.map(
-			({ from, to, value, input, gas }) => ({
-				transaction: { from, to, value, data: input, gasLimit: gas },
+			({ from, to, value, input, gas, type }) => ({
+				transaction: {
+					type: Number(type),
+					from: utils.getAddress(from),
+					to: utils.getAddress(to),
+					value,
+					data: input,
+					gasLimit: gas,
+				},
 			})
 		) as FlashbotsBundleTransaction[];
 

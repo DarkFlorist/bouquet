@@ -7,4 +7,5 @@ export type PayloadTransaction = {
 	value: BytesLike;
 	chainId: BytesLike;
 	gas: BytesLike;
+	type: BytesLike;
 };
