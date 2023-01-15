@@ -98,8 +98,10 @@
 				placeholder={`Private key for ${address}`}
 			/>
 		{/each}
-		<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
-		<span>{$wallets[$wallets.length - 1].address}</span>
+		{#if $wallets.length > 0}
+			<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
+			<span>{$wallets[$wallets.length - 1].address}</span>
+		{/if}
 		<Button onClick={saveAndNext}>Next</Button>
 	</div>
 </article>

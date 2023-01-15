@@ -24,6 +24,8 @@
 			method: "interceptor_getSimulationStack",
 		})) as { payload: PayloadTransaction[] };
 
+		console.log({ payload });
+
 		const _uniqueSigners = [...new Set(payload.map((tx) => tx.from))];
 		const _isFundingTransaction =
 			payload.length >= 2 && _uniqueSigners.includes(payload[0].to);
@@ -56,6 +58,14 @@
 				(sum, current) => sum.add(current.transaction.value ?? "0"),
 				BigNumber.from(0)
 			);
+
+		console.log({
+			fundingTarget,
+			_isFundingTransaction,
+			_totalGas,
+			_totalValue,
+			_bundleTransactions,
+		});
 
 		localStorage.setItem("payload", JSON.stringify(payload));
 		interceptorPayload.set(payload);

@@ -18,7 +18,7 @@ export const completedSession = writable<Boolean>(false);
 export const activeSession = derived(
 	[wallets, interceptorPayload, completedSession],
 	([$wallets, $interceptorPayload, $completedSession]) =>
-		$completedSession || ($wallets.length > 0 && $interceptorPayload)
+		$completedSession || $interceptorPayload || $wallets.length > 0
 );
 
 export const uniqueSigners = writable<string[]>();

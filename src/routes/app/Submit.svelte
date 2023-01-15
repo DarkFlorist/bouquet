@@ -64,5 +64,9 @@
 			<span>{JSON.stringify(error, null, 2)}</span>
 		{/await}
 		<Button onClick={submitBundle}>Submit</Button>
+		<p>
+			Once bundle has been submitted and mined then state + localStorage should
+			get cleaned up - for now manually clear Cookies + Site Data
+		</p>
 	</div>
 </article>
