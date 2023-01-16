@@ -4,12 +4,18 @@ import { derived, get, writable } from 'svelte/store';
 import { BigNumber, providers, Wallet } from 'ethers';
 import type { PayloadTransaction } from './types';
 import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle';
+import type { Sync } from 'ether-state';
 
 export const ssr = false;
 
 export const provider = writable<providers.Provider>(
 	new providers.JsonRpcProvider(env.PUBLIC_RPC_URL)
 );
+export const blockSync = writable<Sync>();
+export const latestBlock = writable<{
+	blockNumber: BigNumber;
+	baseFee: BigNumber;
+}>();
 
 export const wallets = writable<Wallet[]>([]);
 export const interceptorPayload = writable<PayloadTransaction[]>();
