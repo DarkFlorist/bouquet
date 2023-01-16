@@ -1,0 +1,30 @@
+name: deploy-gh-pages
+on:
+  push:
+    branches:
+      - main
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 'v18.13.0'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+      - name: Deploy to GH Pages
+        run: |
+          git checkout -B gh-pages
+          mv build docs
+          cp CNAME docs/
+          touch docs/.nojekyll
+          git config user.name "GitHub Actions Bot"
+          git config user.email "<>"
+          git add docs/
+          git commit -m 'Artifacts'
+          git push -f origin gh-pages
