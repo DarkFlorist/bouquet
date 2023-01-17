@@ -4,7 +4,7 @@
 // import { get } from 'svelte/store';
 
 // Don't run on server
-export const ssr = false;
+export const ssr = false
 
 // const IMulticall = new utils.Interface([
 // 	'function getEthBalance(address addr) external view returns (uint256 balance)',
