@@ -10,7 +10,7 @@
 	import { bundleTransactions } from '$lib/state';
 
 	let flasbotsProvider: FlashbotsBundleProvider;
-	let simulationResultPromise: Promise<SimulationResponse>;
+	let simulationResultPromise: Promise<SimulationResponse> | undefined;
 
 	async function simulateBundle() {
 		if (!flasbotsProvider) {
