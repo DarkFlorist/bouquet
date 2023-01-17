@@ -1,62 +1,63 @@
 <script lang="ts">
-	import Button from "$lib/components/Button.svelte";
+	import Button from '$lib/components/Button.svelte'
 	import {
 		bundleTransactions,
 		interceptorPayload,
-		isFundingTransaction,
+		bundleContainsFundingTx,
 		uniqueSigners,
 		wallets,
-	} from "$lib/state";
-	import { Wallet, utils } from "ethers";
-	import { circInOut } from "svelte/easing";
-	import { slide } from "svelte/transition";
+	} from '$lib/state'
+	import { Wallet, utils } from 'ethers'
+	import { circInOut } from 'svelte/easing'
+	import { slide } from 'svelte/transition'
 
-	export let nextStage: () => void;
+	export let nextStage: () => void
 
 	let _signerKeys: {
-		[address: string]: { input: string; wallet: Wallet | null };
+		[address: string]: { input: string; wallet: Wallet | null }
 	} = $uniqueSigners.reduce(
 		(
 			curr: {
-				[address: string]: { input: string; wallet: Wallet | null };
+				[address: string]: { input: string; wallet: Wallet | null }
 			},
 			address
 		) => {
-			curr[address] = { input: "", wallet: null };
-			return curr;
+			curr[address] = { input: '', wallet: null }
+			return curr
 		},
 		{}
-	);
+	)
 
 	const saveAndNext = () => {
 		bundleTransactions.update(($bundleTransactions) => {
 			for (let tx in $bundleTransactions) {
 				const signer = _signerKeys[
 					$bundleTransactions[tx].transaction.from as string
-				].wallet as Wallet;
-				$bundleTransactions[tx].signer = signer;
+				].wallet as Wallet
+				$bundleTransactions[tx].signer = signer
 			}
-			nextStage();
-			if ($isFundingTransaction) {
+			nextStage()
+			if ($bundleContainsFundingTx) {
 				return [
 					{
 						signer: $wallets[$wallets.length - 1],
 						transaction: {
 							from: $wallets[$wallets.length - 1].address,
-							to: $interceptorPayload[0].to,
+							to: utils.getAddress($interceptorPayload[0].to),
 							// @TODO: Replace value with required amount for funding based of gas prices
-							value: "0x8E1BC9BF040000", // 0.04 ETH hardcoded
-							data: "0x",
-							gasLimit: "0x5208",
+							value: '0x8E1BC9BF040000', // 0.04 ETH hardcoded
+							data: '0x',
+							type: 2,
+							gasLimit: '0x5208',
 						},
 					},
 					...$bundleTransactions,
-				];
+				]
 			} else {
-				return $bundleTransactions;
+				return $bundleTransactions
 			}
-		});
-	};
+		})
+	}
 
 	// @TODO: Track baseFee and determine required amount of ETH needed in the burner wallet
 	// - Watch ETH balance of burner
@@ -71,7 +72,7 @@
 		transition:slide={{ duration: 400, easing: circInOut }}
 	>
 		<h3 class="text-2xl font-semibold">
-			Found {$uniqueSigners.length} Signers {$isFundingTransaction
+			Found {$uniqueSigners.length} Signers {$bundleContainsFundingTx
 				? " + A Funding Transaction"
 				: ""}
 		</h3>
@@ -97,8 +98,10 @@
 				placeholder={`Private key for ${address}`}
 			/>
 		{/each}
-		<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
-		<span>{$wallets[$wallets.length - 1].address}</span>
+		{#if $wallets.length > 0}
+			<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
+			<span>{$wallets[$wallets.length - 1].address}</span>
+		{/if}
 		<Button onClick={saveAndNext}>Next</Button>
 	</div>
 </article>

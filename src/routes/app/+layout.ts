@@ -1,21 +1,21 @@
-import { browser } from '$app/environment';
+import { browser } from '$app/environment'
 import {
 	blockSync,
 	fundingAccountBalance,
 	latestBlock,
 	provider,
 	wallets,
-} from '$lib/state';
-import { Sync, Trigger } from 'ether-state';
-import { BigNumber, constants, utils } from 'ethers';
-import { get } from 'svelte/store';
+} from '$lib/state'
+import { Sync, Trigger } from 'ether-state'
+import { BigNumber, constants, utils } from 'ethers'
+import { get } from 'svelte/store'
 
 // Don't run on server
-export const ssr = false;
+export const ssr = false
 
 const IMulticall = new utils.Interface([
 	'function getEthBalance(address addr) external view returns (uint256 balance)',
-]);
+])
 
 if (!get(blockSync) && browser) {
 	blockSync.set(
@@ -24,13 +24,13 @@ if (!get(blockSync) && browser) {
 				{
 					trigger: Trigger.BLOCK,
 					input: (blockNumber: BigNumber) => {
-						updateLatestBlock(blockNumber);
+						updateLatestBlock(blockNumber.toBigInt())
 
 						return [
 							get(wallets).length > 0
 								? get(wallets)[get(wallets).length - 1].address
 								: constants.AddressZero,
-						];
+						]
 					},
 					call: {
 						// Multicall2: Balance of funding account
@@ -39,21 +39,21 @@ if (!get(blockSync) && browser) {
 						selector: 'getEthBalance',
 					},
 					output: ([balance]: [BigNumber]) => {
-						fundingAccountBalance.set(balance);
+						fundingAccountBalance.set(balance.toBigInt())
 					},
 				},
 			],
-			get(provider)
-		)
-	);
+			get(provider),
+		),
+	)
 }
 
-async function updateLatestBlock(blockNumber: BigNumber) {
-	const block = await get(provider).getBlock(blockNumber.toNumber());
-	const baseFee = block.baseFeePerGas ?? BigNumber.from(0);
+async function updateLatestBlock(blockNumber: bigint) {
+	const block = await get(provider).getBlock(Number(blockNumber))
+	const baseFee = block.baseFeePerGas?.toBigInt() ?? 0n
 	latestBlock.update((lastBlock) => {
-		if (!lastBlock || blockNumber.gt(lastBlock.blockNumber)) {
-			return { blockNumber, baseFee };
-		} else return lastBlock;
-	});
+		if (!lastBlock || blockNumber > lastBlock.blockNumber) {
+			return { blockNumber, baseFee }
+		} else return lastBlock
+	})
 }
