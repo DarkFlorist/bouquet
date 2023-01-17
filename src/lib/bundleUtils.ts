@@ -1,20 +1,17 @@
+import { get } from 'svelte/store'
 import { BigNumber, providers, Wallet } from 'ethers'
 import {
 	FlashbotsBundleProvider,
 	FlashbotsBundleResolution,
 	type FlashbotsBundleTransaction,
 } from '@flashbots/ethers-provider-bundle'
-import { bundleTransactions } from './state'
-import { get } from 'svelte/store'
-import { env } from '$env/dynamic/public'
-import { MEV_RELAY_GOERLI } from './constants'
+import { MEV_RELAY_GOERLI } from '$lib/constants'
+import { bundleTransactions, provider, latestBlock } from '$lib/state'
 
 export const createProvider = async () => {
-	// Standard json rpc provider directly from ethers.js (NOT Flashbots)
-	const provider = new providers.JsonRpcProvider(env.PUBLIC_RPC_URL)
-	const authSigner = Wallet.createRandom().connect(provider)
+	const authSigner = Wallet.createRandom().connect(get(provider))
 	const flashbotsProvider = await FlashbotsBundleProvider.create(
-		provider,
+		get(provider) as providers.BaseProvider,
 		authSigner,
 		MEV_RELAY_GOERLI,
 		'goerli',
@@ -27,7 +24,7 @@ export const signBundle = async (
 	maxBaseFee: bigint,
 	provider: providers.Provider,
 ) => {
-	const PRIORITY_FEE = 10n ** 10n * 3n
+	const PRIORITY_FEE = 10n ** 9n * 3n
 	let transactions = [] as string[]
 	for (let tx of bundle) {
 		const signerWithProvider = tx.signer.connect(provider)
@@ -42,16 +39,10 @@ export const signBundle = async (
 }
 
 export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
-	const provider = new providers.JsonRpcProvider(env.PUBLIC_RPC_URL)
-
-	const currentBlock = await provider.getBlockNumber()
-
-	// Get latest baseFee and sign bundle
-	const lastBlock = await provider.getBlock(currentBlock)
 	const maxBaseFee = FlashbotsBundleProvider.getMaxBaseFeeInFutureBlock(
-		lastBlock.baseFeePerGas ?? BigNumber.from(-1),
+		BigNumber.from(get(latestBlock).baseFee),
 		2,
-	)
+	).toBigInt()
 
 	// @DEV: Signed TX's with gave invalid signer address when attempting to broadcost via blockexplorer
 	//
@@ -65,14 +56,14 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const signedTransactions = await signBundle(
 		get(bundleTransactions),
-		maxBaseFee.toBigInt(),
-		provider,
+		maxBaseFee,
+		get(provider),
 	)
 	console.log(signedTransactions)
 
 	const simulation = await flashbotsProvider.simulate(
 		signedTransactions,
-		currentBlock + 2,
+		Number(get(latestBlock).blockNumber) + 2,
 	)
 
 	console.log(simulation)
@@ -81,16 +72,10 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 }
 
 export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
-	const provider = new providers.JsonRpcProvider(env.PUBLIC_RPC_URL)
-
-	const currentBlock = await provider.getBlockNumber()
-
-	// Get latest baseFee and sign bundle
-	const lastBlock = await provider.getBlock(currentBlock)
 	const maxBaseFee = FlashbotsBundleProvider.getMaxBaseFeeInFutureBlock(
-		lastBlock.baseFeePerGas ?? BigNumber.from(-1),
+		BigNumber.from(get(latestBlock).baseFee),
 		2,
-	)
+	).toBigInt()
 
 	// @DEV: Signed TX's with gave invalid signer address when attempting to broadcost via blockexplorer
 	//
@@ -104,14 +89,14 @@ export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const signedTransactions = await signBundle(
 		get(bundleTransactions),
-		maxBaseFee.toBigInt(),
-		provider,
+		maxBaseFee,
+		get(provider),
 	)
 	console.log(signedTransactions)
 
 	const bundleSubmission = await flashbotsProvider.sendRawBundle(
 		signedTransactions,
-		currentBlock + 2,
+		Number(get(latestBlock).blockNumber) + 2,
 	)
 
 	console.log('bundle submitted, waiting')
