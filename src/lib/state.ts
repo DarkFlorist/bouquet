@@ -22,7 +22,7 @@ export const activeSession = derived(
 )
 
 export const uniqueSigners = writable<string[]>()
-export const isFundingTransaction = writable<Boolean>()
+export const bundleContainsFundingTx = writable<Boolean>()
 export const totalGas = writable<BigInt>()
 export const totalValue = writable<BigInt>()
 export const bundleTransactions = writable<FlashbotsBundleTransaction[]>()
@@ -57,14 +57,14 @@ if (browser) {
 		localStorage.getItem('payload') ?? 'null',
 	) as PayloadTransaction[]
 	if (payload) {
-		const _uniqueSigners = [
+		const uniqueSigningAccounts = [
 			...new Set(payload.map((tx) => utils.getAddress(tx.from))),
 		]
-		const _isFundingTransaction =
+		const isFundingTransaction =
 			payload.length >= 2 &&
-			_uniqueSigners.includes(utils.getAddress(payload[0].to))
+			uniqueSigningAccounts.includes(utils.getAddress(payload[0].to))
 
-		const _bundleTransactions = payload.map(
+		const transactions = payload.map(
 			({ from, to, value, input, gas, type }) => ({
 				transaction: {
 					type: Number(type),
@@ -78,35 +78,37 @@ if (browser) {
 		) as FlashbotsBundleTransaction[]
 
 		let fundingTarget: string
-		if (_isFundingTransaction) {
+		if (isFundingTransaction) {
 			if (get(wallets).length === 0) {
 				wallets.subscribe((x) => [...x, Wallet.createRandom()])
 			}
 			fundingTarget = payload[0].to
-			_uniqueSigners.shift()
-			_bundleTransactions.shift()
+			uniqueSigningAccounts.shift()
+			transactions.shift()
 		}
 
-		const _totalGas = _bundleTransactions.reduce(
-			(sum, current) =>
-				sum + BigInt(current?.transaction.gasLimit?.toString() ?? 0n),
-			0n,
+		totalGas.set(
+			transactions.reduce(
+				(sum, current) =>
+					sum + BigInt(current?.transaction.gasLimit?.toString() ?? 0n),
+				0n,
+			),
 		)
 
 		// @TODO: Check this properly based on simulation +- on each transaction in step
-		const _totalValue = _bundleTransactions
-			.filter((tx) => tx.transaction.from === fundingTarget)
-			.reduce(
-				(sum, current) =>
-					sum + BigInt(current?.transaction.value?.toString() ?? '0'),
-				0n,
-			)
+		totalValue.set(
+			transactions
+				.filter((tx) => tx.transaction.from === fundingTarget)
+				.reduce(
+					(sum, current) =>
+						sum + BigInt(current?.transaction.value?.toString() ?? '0'),
+					0n,
+				),
+		)
 
-		uniqueSigners.set(_uniqueSigners)
-		bundleTransactions.set(_bundleTransactions)
-		isFundingTransaction.set(_isFundingTransaction)
-		totalGas.set(_totalGas)
-		totalValue.set(_totalValue)
+		uniqueSigners.set(uniqueSigningAccounts)
+		bundleTransactions.set(transactions)
+		bundleContainsFundingTx.set(isFundingTransaction)
 		interceptorPayload.set(payload)
 	}
 	completedSession.set(

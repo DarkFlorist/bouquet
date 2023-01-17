@@ -3,7 +3,7 @@
 	import {
 		bundleTransactions,
 		interceptorPayload,
-		isFundingTransaction,
+		bundleContainsFundingTx,
 		uniqueSigners,
 		wallets,
 	} from '$lib/state'
@@ -37,7 +37,7 @@
 				$bundleTransactions[tx].signer = signer
 			}
 			nextStage()
-			if ($isFundingTransaction) {
+			if ($bundleContainsFundingTx) {
 				return [
 					{
 						signer: $wallets[$wallets.length - 1],
@@ -72,7 +72,7 @@
 		transition:slide={{ duration: 400, easing: circInOut }}
 	>
 		<h3 class="text-2xl font-semibold">
-			Found {$uniqueSigners.length} Signers {$isFundingTransaction
+			Found {$uniqueSigners.length} Signers {$bundleContainsFundingTx
 				? " + A Funding Transaction"
 				: ""}
 		</h3>
