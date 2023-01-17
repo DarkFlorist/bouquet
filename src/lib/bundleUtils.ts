@@ -24,15 +24,15 @@ export const createProvider = async () => {
 
 export const signBundle = async (
 	bundle: FlashbotsBundleTransaction[],
-	maxBaseFee: BigNumber,
+	maxBaseFee: bigint,
 	provider: providers.Provider,
 ) => {
-	const PRIORITY_FEE = BigNumber.from(10).pow(10).mul(3)
+	const PRIORITY_FEE = 10n ** 10n * 3n
 	let transactions = [] as string[]
 	for (let tx of bundle) {
 		const signerWithProvider = tx.signer.connect(provider)
 		tx.transaction.maxPriorityFeePerGas = PRIORITY_FEE
-		tx.transaction.maxFeePerGas = PRIORITY_FEE.add(maxBaseFee)
+		tx.transaction.maxFeePerGas = PRIORITY_FEE + maxBaseFee
 		const signedTx = await tx.signer.signTransaction(
 			await signerWithProvider.populateTransaction(tx.transaction),
 		)
@@ -65,7 +65,7 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const signedTransactions = await signBundle(
 		get(bundleTransactions),
-		maxBaseFee,
+		maxBaseFee.toBigInt(),
 		provider,
 	)
 	console.log(signedTransactions)
@@ -104,7 +104,7 @@ export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const signedTransactions = await signBundle(
 		get(bundleTransactions),
-		maxBaseFee,
+		maxBaseFee.toBigInt(),
 		provider,
 	)
 	console.log(signedTransactions)
@@ -115,9 +115,8 @@ export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
 	)
 
 	console.log('bundle submitted, waiting')
-	if ('error' in bundleSubmission) {
+	if ('error' in bundleSubmission)
 		throw new Error(bundleSubmission.error.message)
-	}
 
 	const waitResponse = await bundleSubmission.wait()
 	console.log(`Wait Response: ${FlashbotsBundleResolution[waitResponse]}`)
