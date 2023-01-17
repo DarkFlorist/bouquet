@@ -1,7 +1,7 @@
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 
-import { providers } from 'ethers';
+import { providers } from 'ethers'
 
 // and what to do when importing types
 declare namespace App {
@@ -13,6 +13,6 @@ declare namespace App {
 
 declare global {
 	interface Window {
-		ethereum: providers.ExternalProvider;
+		ethereum: providers.ExternalProvider
 	}
 }

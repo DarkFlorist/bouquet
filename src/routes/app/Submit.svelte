@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Button from "$lib/components/Button.svelte";
-	import { circInOut } from "svelte/easing";
-	import { slide } from "svelte/transition";
-	import { createProvider, sendBundle, simulate } from "$lib/bundleUtils";
+	import Button from '$lib/components/Button.svelte';
+	import { circInOut } from 'svelte/easing';
+	import { slide } from 'svelte/transition';
+	import { createProvider, sendBundle, simulate } from '$lib/bundleUtils';
 	import type {
 		FlashbotsBundleProvider,
 		SimulationResponse,
-	} from "@flashbots/ethers-provider-bundle";
-	import { bundleTransactions } from "$lib/state";
+	} from '@flashbots/ethers-provider-bundle';
+	import { bundleTransactions } from '$lib/state';
 
 	let flasbotsProvider: FlashbotsBundleProvider;
 	let simulationResultPromise: Promise<SimulationResponse>;
