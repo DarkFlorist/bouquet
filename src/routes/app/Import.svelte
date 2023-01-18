@@ -39,7 +39,7 @@
 		let fundingTarget: string
 		if (isFundingTransaction) {
 			if ($wallets.length === 0) {
-				wallets.subscribe((x) => [...x, Wallet.createRandom()])
+				wallets.update((x) => [...x, Wallet.createRandom()])
 			}
 			fundingTarget = payload[0].to
 			uniqueSigningAccounts.shift()

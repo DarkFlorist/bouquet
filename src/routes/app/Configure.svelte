@@ -6,6 +6,7 @@
 		bundleContainsFundingTx,
 		uniqueSigners,
 		wallets,
+		fundingAccountBalance,
 	} from '$lib/state'
 	import { Wallet, utils } from 'ethers'
 	import { circInOut } from 'svelte/easing'
@@ -98,9 +99,10 @@
 				placeholder={`Private key for ${address}`}
 			/>
 		{/each}
-		{#if $wallets.length > 0}
+		{#if $bundleContainsFundingTx}
 			<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
 			<span>{$wallets[$wallets.length - 1].address}</span>
+			<span>Wallet Balance: {utils.formatEther($fundingAccountBalance)} ETH</span>
 		{/if}
 		<Button onClick={saveAndNext}>Next</Button>
 	</div>
