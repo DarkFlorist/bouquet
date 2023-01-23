@@ -39,7 +39,12 @@ if (!get(blockSync) && browser) {
 						selector: 'getEthBalance',
 					},
 					output: ([balance]: [BigNumber]) => {
-						fundingAccountBalance.set(balance.toBigInt())
+						fundingAccountBalance.set(
+							get(wallets)[get(wallets).length - 1].address !==
+								constants.AddressZero
+								? balance.toBigInt()
+								: 0n,
+						)
 					},
 				},
 			],

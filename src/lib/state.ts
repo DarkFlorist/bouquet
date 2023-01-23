@@ -1,9 +1,8 @@
 import { browser } from '$app/environment'
 import { env } from '$env/dynamic/public'
-import { derived, get, writable } from 'svelte/store'
+import { derived, get, readable, writable } from 'svelte/store'
 import { providers, utils, Wallet } from 'ethers'
-import type { PayloadTransaction } from './types'
-import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle'
+import type { PayloadTransaction, FlashbotsBundleTransaction } from '$lib/types'
 import type { Sync } from 'ether-state'
 
 export const ssr = false
@@ -16,7 +15,7 @@ export const blockSync = writable<Sync>()
 export const latestBlock = writable<{
 	blockNumber: bigint
 	baseFee: bigint
-}>()
+}>({ blockNumber: 0n, baseFee: 0n })
 
 export const wallets = writable<Wallet[]>([])
 export const interceptorPayload = writable<PayloadTransaction[]>()
@@ -30,15 +29,13 @@ export const activeSession = derived(
 
 export const uniqueSigners = writable<string[]>()
 export const bundleContainsFundingTx = writable<Boolean>()
-export const totalGas = writable<BigInt>()
-export const totalValue = writable<BigInt>()
+export const totalGas = writable<bigint>(0n)
+export const totalValue = writable<bigint>(0n)
 export const bundleTransactions = writable<FlashbotsBundleTransaction[]>()
 
-export const currentBlock = writable<number>()
-export const baseFee = writable<bigint>()
-export const gasPrice = writable<bigint>()
-export const fundingAmountMin = writable<bigint>()
-export const fundingAccountBalance = writable<bigint>()
+export const priorityFee = readable<bigint>(10n ** 9n * 3n)
+export const fundingAmountMin = writable<bigint>(0n)
+export const fundingAccountBalance = writable<bigint>(0n)
 
 // Sync stores on page load
 if (browser) {
@@ -77,12 +74,12 @@ if (browser) {
 					type: Number(type),
 					from: utils.getAddress(from),
 					to: utils.getAddress(to),
-					value,
+					value: BigInt(value.toString()),
 					data: input,
-					gasLimit: gas,
+					gasLimit: BigInt(gas.toString()),
 				},
 			}),
-		) as FlashbotsBundleTransaction[]
+		)
 
 		let fundingTarget: string
 		if (isFundingTransaction) {

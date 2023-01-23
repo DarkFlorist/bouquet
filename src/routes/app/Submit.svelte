@@ -1,29 +1,56 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
-	import { circInOut } from 'svelte/easing';
-	import { slide } from 'svelte/transition';
-	import { createProvider, sendBundle, simulate } from '$lib/bundleUtils';
+	import Button from '$lib/components/Button.svelte'
+	import { circInOut } from 'svelte/easing'
+	import { slide } from 'svelte/transition'
+	import { createProvider, sendBundle, simulate } from '$lib/bundleUtils'
 	import type {
 		FlashbotsBundleProvider,
 		SimulationResponse,
-	} from '@flashbots/ethers-provider-bundle';
-	import { bundleTransactions } from '$lib/state';
+	} from '@flashbots/ethers-provider-bundle'
+	import {
+		bundleContainsFundingTx,
+		interceptorPayload,
+		latestBlock,
+		wallets,
+		priorityFee,
+		bundleTransactions,
+	} from '$lib/state'
+	import { utils } from 'ethers'
+	import { targetFundingBalance } from '$lib/configure'
 
-	let flasbotsProvider: FlashbotsBundleProvider;
-	let simulationResultPromise: Promise<SimulationResponse> | undefined;
+	let flasbotsProvider: FlashbotsBundleProvider
+	let simulationResultPromise: Promise<SimulationResponse> | undefined
+
+	$: fundingTx = $bundleContainsFundingTx
+		? [
+				{
+					signer: $wallets[$wallets.length - 1],
+					transaction: {
+						from: $wallets[$wallets.length - 1].address,
+						to: utils.getAddress($interceptorPayload[0].to),
+						value:
+							$targetFundingBalance -
+							21000n * ($latestBlock.baseFee + $priorityFee),
+						data: '0x',
+						type: 2,
+						gasLimit: 21000n,
+					},
+				},
+		  ]
+		: []
 
 	async function simulateBundle() {
 		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider();
+			flasbotsProvider = await createProvider()
 		}
-		simulationResultPromise = simulate(flasbotsProvider);
+		simulationResultPromise = simulate(flasbotsProvider)
 	}
 
 	async function submitBundle() {
 		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider();
+			flasbotsProvider = await createProvider()
 		}
-		sendBundle(flasbotsProvider);
+		sendBundle(flasbotsProvider)
 	}
 </script>
 
@@ -41,7 +68,7 @@
 	>
 		<h3 class="text-xl">// @TODO: this section</h3>
 		<div class="flex-col flex gap-4">
-			{#each $bundleTransactions as tx, index}
+			{#each [...fundingTx, ...$bundleTransactions] as tx, index}
 				<ul class="rounded bg-secondary p-4">
 					<li>#{index}</li>
 					<li>From: {tx.transaction.from}</li>
