@@ -14,7 +14,7 @@
 
 	export let nextStage: () => void
 
-	let signerKeys: {
+	const signerKeys: {
 		[address: string]: { input: string; wallet: Wallet | null }
 	} = $uniqueSigners.reduce(
 		(
@@ -73,7 +73,6 @@
 					} catch {
 						signerKeys[address].wallet = null
 					}
-					signerKeys = signerKeys
 				}}
 				class={`p-3 bg-secondary text-white ring ring-offset-2 ${
 					signerKeys[address].wallet ? 'ring-success' : 'ring-error'
