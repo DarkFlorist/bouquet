@@ -17,21 +17,21 @@
 
 	const bundle = derived([latestBlock], () => createBundleTransactions())
 
-	let flasbotsProvider: FlashbotsBundleProvider
+	let flashbotsProvider: FlashbotsBundleProvider
 	let simulationResultPromise: Promise<SimulationResponse> | undefined
 
 	async function simulateBundle() {
-		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider()
+		if (!flashbotsProvider) {
+			flashbotsProvider = await createProvider()
 		}
-		simulationResultPromise = simulate(flasbotsProvider)
+		simulationResultPromise = simulate(flashbotsProvider)
 	}
 
 	async function submitBundle() {
-		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider()
+		if (!flashbotsProvider) {
+			flashbotsProvider = await createProvider()
 		}
-		sendBundle(flasbotsProvider)
+		sendBundle(flashbotsProvider)
 	}
 </script>
 
