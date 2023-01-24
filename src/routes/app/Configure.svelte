@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte'
-	import { targetFundingBalance } from '$lib/configure'
 	import {
-		bundleTransactions,
 		bundleContainsFundingTx,
 		uniqueSigners,
-		wallets,
+		wallet,
 		fundingAccountBalance,
+		signingAccounts,
+		fundingAmountMin,
 	} from '$lib/state'
 	import { Wallet, utils } from 'ethers'
 	import { circInOut } from 'svelte/easing'
@@ -23,7 +23,7 @@
 			},
 			address,
 		) => {
-			curr[address] = { input: '', wallet: null }
+			curr[utils.getAddress(address)] = { input: '', wallet: null }
 			return curr
 		},
 		{},
@@ -31,18 +31,20 @@
 
 	$: requirementsMet =
 		Object.values(signerKeys).filter(({ wallet }) => !wallet).length === 0 &&
-		$fundingAccountBalance >= $targetFundingBalance
+		$fundingAccountBalance >= $fundingAmountMin
 
 	const saveAndNext = () => {
-		bundleTransactions.update(($bundleTransactions) => {
-			for (let tx in $bundleTransactions) {
-				const signer = signerKeys[
-					$bundleTransactions[tx].transaction.from as string
-				].wallet as Wallet
-				$bundleTransactions[tx].signer = signer
-			}
-			return $bundleTransactions
-		})
+		signingAccounts.set(
+			Object.values(signerKeys).reduce(
+				(acc: { [account: string]: Wallet }, wallet) => {
+					if (wallet.wallet) {
+						acc[wallet.wallet.address] = wallet.wallet
+					}
+					return acc
+				},
+				{},
+			),
+		)
 		nextStage()
 	}
 </script>
@@ -82,10 +84,10 @@
 		{/each}
 		{#if $bundleContainsFundingTx}
 			<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
-			<span>{$wallets[$wallets.length - 1].address}</span>
+			<span>{$wallet.address}</span>
 			<span
 				>Wallet Balance: {utils.formatEther($fundingAccountBalance)} ETH / Needed:
-				{utils.formatEther($targetFundingBalance)} ETH</span
+				{utils.formatEther($fundingAmountMin)} ETH</span
 			>
 		{/if}
 		<Button disabled={!requirementsMet} onClick={saveAndNext}>Next</Button>

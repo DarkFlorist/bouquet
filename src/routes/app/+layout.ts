@@ -4,7 +4,7 @@ import {
 	fundingAccountBalance,
 	latestBlock,
 	provider,
-	wallets,
+	wallet,
 } from '$lib/state'
 import { Sync, Trigger } from 'ether-state'
 import { BigNumber, constants, utils } from 'ethers'
@@ -26,11 +26,7 @@ if (!get(blockSync) && browser) {
 					input: (blockNumber: BigNumber) => {
 						updateLatestBlock(blockNumber.toBigInt())
 
-						return [
-							get(wallets).length > 0
-								? get(wallets)[get(wallets).length - 1].address
-								: constants.AddressZero,
-						]
+						return [get(wallet)?.address ?? constants.AddressZero]
 					},
 					call: {
 						// Multicall2: Balance of funding account
@@ -40,8 +36,7 @@ if (!get(blockSync) && browser) {
 					},
 					output: ([balance]: [BigNumber]) => {
 						fundingAccountBalance.set(
-							get(wallets)[get(wallets).length - 1].address !==
-								constants.AddressZero
+							get(wallet)?.address !== constants.AddressZero
 								? balance.toBigInt()
 								: 0n,
 						)

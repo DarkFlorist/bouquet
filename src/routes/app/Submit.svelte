@@ -2,42 +2,23 @@
 	import Button from '$lib/components/Button.svelte'
 	import { circInOut } from 'svelte/easing'
 	import { slide } from 'svelte/transition'
-	import { createProvider, sendBundle, simulate } from '$lib/bundleUtils'
+	import {
+		createBundleTransactions,
+		createProvider,
+		sendBundle,
+		simulate,
+	} from '$lib/bundleUtils'
+	import { latestBlock } from '$lib/state'
+	import { derived } from 'svelte/store'
 	import type {
 		FlashbotsBundleProvider,
 		SimulationResponse,
 	} from '@flashbots/ethers-provider-bundle'
-	import {
-		bundleContainsFundingTx,
-		interceptorPayload,
-		latestBlock,
-		wallets,
-		priorityFee,
-		bundleTransactions,
-	} from '$lib/state'
-	import { utils } from 'ethers'
-	import { targetFundingBalance } from '$lib/configure'
+
+	const bundle = derived([latestBlock], () => createBundleTransactions())
 
 	let flasbotsProvider: FlashbotsBundleProvider
 	let simulationResultPromise: Promise<SimulationResponse> | undefined
-
-	$: fundingTx = $bundleContainsFundingTx
-		? [
-				{
-					signer: $wallets[$wallets.length - 1],
-					transaction: {
-						from: $wallets[$wallets.length - 1].address,
-						to: utils.getAddress($interceptorPayload[0].to),
-						value:
-							$targetFundingBalance -
-							21000n * ($latestBlock.baseFee + $priorityFee),
-						data: '0x',
-						type: 2,
-						gasLimit: 21000n,
-					},
-				},
-		  ]
-		: []
 
 	async function simulateBundle() {
 		if (!flasbotsProvider) {
@@ -68,7 +49,7 @@
 	>
 		<h3 class="text-xl">// @TODO: this section</h3>
 		<div class="flex-col flex gap-4">
-			{#each [...fundingTx, ...$bundleTransactions] as tx, index}
+			{#each $bundle as tx, index}
 				<ul class="rounded bg-secondary p-4">
 					<li>#{index}</li>
 					<li>From: {tx.transaction.from}</li>
