@@ -1,6 +1,6 @@
 import { browser } from '$app/environment'
 import { env } from '$env/dynamic/public'
-import { derived, readable, writable } from 'svelte/store'
+import { derived, get, readable, writable } from 'svelte/store'
 import { providers, utils, Wallet } from 'ethers'
 import type { PayloadTransaction } from '$lib/types'
 import type { Sync } from 'ether-state'
@@ -106,8 +106,10 @@ if (browser) {
 	)
 
 	// Set interceptorPayload
-	const payload = JSON.parse(
-		localStorage.getItem('payload') ?? 'null',
-	) as PayloadTransaction[]
+	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 	if (payload) interceptorPayload.set(payload)
+
+	bundleContainsFundingTx.subscribe((x) => {
+		if (x && !get(wallet)) wallet.set(Wallet.createRandom())
+	})
 }
