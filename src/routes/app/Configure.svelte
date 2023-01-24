@@ -82,7 +82,7 @@
 				placeholder={`Private key for ${address}`}
 			/>
 		{/each}
-		{#if $bundleContainsFundingTx}
+		{#if $bundleContainsFundingTx && $wallet}
 			<h3 class="text-2xl font-semibold">Deposit To Funding Account</h3>
 			<span>{$wallet.address}</span>
 			<span

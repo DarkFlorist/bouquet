@@ -1,31 +1,27 @@
-import type { BytesLike } from 'ethers'
+import * as f from 'funtypes'
 
-export type PayloadTransaction = {
-	type: BytesLike
-	from: string
-	nonce: BytesLike
-	maxFeePerGas: BytesLike
-	maxPriorityFeePerGas: BytesLike
-	gas: BytesLike
-	to: string
-	value: BytesLike
-	input: BytesLike
-	chainId: BytesLike
-	gasSpent: BytesLike
-	returnValue: BytesLike
-	events: [
-		{
-			loggersAddress: string
-			data: string
-			topics: string[]
-		},
-	]
-	balanceChanges: [
-		{
-			address: string
-			before: BytesLike
-			after: BytesLike
-		},
-	]
-	gasLimit: BytesLike
-}
+export type PayloadTransaction = f.Static<typeof PayloadTransaction>
+export const PayloadTransaction = f.Object({
+	type: f.String,
+	from: f.String,
+	nonce: f.String,
+	maxFeePerGas: f.String,
+	maxPriorityFeePerGas: f.String,
+	gas: f.String,
+	to: f.String,
+	value: f.String,
+	input: f.String,
+	chainId: f.String,
+	gasSpent: f.String,
+	returnValue: f.String,
+	balanceChanges: f.Array(
+		f.Object({
+			address: f.String,
+			before: f.String,
+			after: f.String,
+		}),
+	),
+	gasLimit: f.String,
+})
+
+export const Payload = f.Array(PayloadTransaction)

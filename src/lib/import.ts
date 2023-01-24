@@ -1,4 +1,4 @@
-import type { PayloadTransaction } from '$lib/types'
+import { Payload } from '$lib/types'
 import { interceptorPayload } from '$lib/state'
 
 export async function importFromInterceptor() {
@@ -9,14 +9,16 @@ export async function importFromInterceptor() {
 		await window.ethereum.request({ method: 'eth_requestAccounts' })
 
 		// @ts-ignore
-		const { payload } = (await window.ethereum.request({
+		const { payload } = await window.ethereum.request({
 			method: 'interceptor_getSimulationStack',
-		})) as { payload: PayloadTransaction[] }
+			params: ['1.0.0'],
+		})
 
-		if (payload.length === 0) throw 'Empty Stack'
+		const parsed = Payload.parse(payload)
+		if (parsed.length === 0) throw 'Empty Stack'
 
-		localStorage.setItem('payload', JSON.stringify(payload))
-		interceptorPayload.set(payload)
+		localStorage.setItem('payload', JSON.stringify(parsed))
+		interceptorPayload.set(parsed)
 	} catch (err: any) {
 		if (err === 'No Wallet') {
 			return 'Import Error: No Ethereum wallet detected'
