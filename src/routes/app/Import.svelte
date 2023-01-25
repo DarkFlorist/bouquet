@@ -4,7 +4,7 @@
 	import { circInOut } from 'svelte/easing'
 	import { importFromInterceptor } from '$lib/import'
 
-	let importRequest: Promise<String | undefined> | null = null
+	let importRequest: Promise<void> | null = null
 </script>
 
 <article class="p-6 max-w-screen-lg w-full flex flex-col gap-6">
@@ -16,17 +16,15 @@
 		<Button onClick={() => (importRequest = importFromInterceptor())}
 			>Import Payload from The Interceptor</Button
 		>
-		{#await importRequest then error}
-			{#if error}
-				<span>{error}</span>
-				{#if error === 'Import Error: Wallet does not support returning simulations'}
-					<h3 class="text-xl">
-						Don't have The Interceptor Installed? Install it here <a
-							class="font-bold hover:underline"
-							href="https://dark.florist">here</a
-						>.
-					</h3>
-				{/if}
+		{#await importRequest catch error}
+			<span>{error}</span>
+			{#if error === 'Import Error: Wallet does not support returning simulations'}
+				<h3 class="text-xl">
+					Don't have The Interceptor Installed? Install it here <a
+						class="font-bold hover:underline"
+						href="https://dark.florist">here</a
+					>.
+				</h3>
 			{/if}
 		{/await}
 	</div>
