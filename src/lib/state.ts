@@ -2,7 +2,7 @@ import { browser } from '$app/environment'
 import { env } from '$env/dynamic/public'
 import { derived, get, readable, writable } from 'svelte/store'
 import { providers, utils, Wallet } from 'ethers'
-import type { PayloadTransaction } from '$lib/types'
+import { EthereumAddress, GetSimulationStackReply, serialize } from '$lib/types'
 import type { Sync } from 'ether-state'
 import { getMaxBaseFeeInFutureBlock } from './bundleUtils'
 
@@ -19,7 +19,7 @@ export const latestBlock = writable<{
 	baseFee: bigint
 }>({ blockNumber: 0n, baseFee: 0n })
 export const wallet = writable<Wallet>()
-export const interceptorPayload = writable<PayloadTransaction[]>()
+export const interceptorPayload = writable<GetSimulationStackReply>()
 export const completedSession = writable<boolean>(false)
 export const fundingAccountBalance = writable<bigint>(0n)
 export const signingAccounts = writable<{ [account: string]: Wallet }>({})
@@ -44,11 +44,16 @@ export const uniqueSigners = derived(
 	([$interceptorPayload, $bundleContainsFundingTx]) => {
 		if ($interceptorPayload) {
 			const addresses = [
-				...new Set($interceptorPayload.map((x) => utils.getAddress(x.from))),
+				...new Set(
+					$interceptorPayload.map((x) =>
+						utils.getAddress(serialize(EthereumAddress, x.from)),
+					),
+				),
 			]
 			if ($bundleContainsFundingTx) addresses.shift()
 			return addresses
-		} else return []
+		}
+		return []
 	},
 )
 export const totalGas = derived(
@@ -62,7 +67,8 @@ export const totalGas = derived(
 						: BigInt(tx.gasLimit.toString()) + sum,
 				0n,
 			)
-		} else return 0n
+		}
+		return 0n
 	},
 )
 // @TODO: Change this to track minimum amount of ETH needed to deposit
@@ -77,7 +83,8 @@ export const totalValue = derived(
 						: BigInt(tx.value.toString()) + sum,
 				0n,
 			)
-		} else return 0n
+		}
+		return 0n
 	},
 )
 export const fundingAmountMin = derived(
@@ -90,9 +97,9 @@ export const fundingAmountMin = derived(
 
 // Sync stores on page load
 if (browser) {
-	const burnerPk = localStorage.getItem('wallet')
-	if (burnerPk) {
-		wallet.set(new Wallet(burnerPk))
+	const burnerPrivateKey = localStorage.getItem('wallet')
+	if (burnerPrivateKey) {
+		wallet.set(new Wallet(burnerPrivateKey))
 	}
 
 	// @dev: Automatically update localStorage on state change, manually update payload
@@ -107,7 +114,7 @@ if (browser) {
 
 	// Set interceptorPayload
 	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
-	if (payload) interceptorPayload.set(payload)
+	if (payload) interceptorPayload.set(GetSimulationStackReply.parse(payload))
 
 	bundleContainsFundingTx.subscribe((x) => {
 		if (x && !get(wallet)) wallet.set(Wallet.createRandom())

@@ -1,4 +1,4 @@
-import { Payload } from '$lib/types'
+import { GetSimulationStackReply } from '$lib/types'
 import { interceptorPayload } from '$lib/state'
 
 export async function importFromInterceptor() {
@@ -14,10 +14,13 @@ export async function importFromInterceptor() {
 			params: ['1.0.0'],
 		})
 
-		const parsed = Payload.parse(payload)
+		const parsed = GetSimulationStackReply.parse(payload)
 		if (parsed.length === 0) throw 'Empty Stack'
 
-		localStorage.setItem('payload', JSON.stringify(parsed))
+		localStorage.setItem(
+			'payload',
+			JSON.stringify(GetSimulationStackReply.serialize(parsed)),
+		)
 		interceptorPayload.set(parsed)
 	} catch (err: any) {
 		if (err === 'No Wallet') {
@@ -29,6 +32,7 @@ export async function importFromInterceptor() {
 		} else if (err?.code === -32601) {
 			return 'Import Error: Wallet does not support returning simulations'
 		} else {
+			console.log(err)
 			return `Unknown Error: ${JSON.stringify(err)}`
 		}
 	}

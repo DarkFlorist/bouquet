@@ -1,5 +1,5 @@
 import { get } from 'svelte/store'
-import { BigNumber, providers, utils, Wallet } from 'ethers'
+import { providers, utils, Wallet } from 'ethers'
 import {
 	FlashbotsBundleProvider,
 	FlashbotsBundleResolution,
@@ -16,6 +16,7 @@ import {
 	fundingAmountMin,
 	signingAccounts,
 } from '$lib/state'
+import { serialize, EthereumAddress, EthereumData } from './types'
 
 export const getMaxBaseFeeInFutureBlock = (
 	baseFee: bigint,
@@ -61,44 +62,54 @@ export const signBundle = async (
 export const createBundleTransactions = (): FlashbotsBundleTransaction[] => {
 	if (!get(interceptorPayload)) return []
 	return get(interceptorPayload).map(
-		({ from, to, nonce, gasLimit, value, input, chainId, type }, index) => {
-			const gasOpts =
-				Number(type) === 2
-					? {
-							maxPriorityFeePerGas: get(priorityFee),
-							maxFeePerGas:
-								get(priorityFee) +
-								getMaxBaseFeeInFutureBlock(get(latestBlock).baseFee, 2),
-					  }
-					: {}
+		({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
+			const gasOpts = {
+				maxPriorityFeePerGas: get(priorityFee),
+				type: 2,
+				maxFeePerGas:
+					get(priorityFee) +
+					getMaxBaseFeeInFutureBlock(get(latestBlock).baseFee, 2),
+			}
 			if (index === 0 && get(bundleContainsFundingTx))
 				return {
 					signer: get(wallet),
 					transaction: {
 						from: get(wallet).address,
-						to: utils.getAddress(get(interceptorPayload)[0].to),
+						...(get(interceptorPayload)[0].to
+							? {
+									to: utils.getAddress(
+										serialize(
+											EthereumAddress,
+											get(interceptorPayload)[0].to as bigint,
+										),
+									),
+							  }
+							: {}),
 						value:
 							get(fundingAmountMin) -
 							21000n *
 								(getMaxBaseFeeInFutureBlock(get(latestBlock).baseFee, 2) +
 									get(priorityFee)),
 						data: '0x',
-						type: 2,
 						gasLimit: 21000n,
 						...gasOpts,
 					},
 				}
 			else
 				return {
-					signer: get(signingAccounts)[utils.getAddress(from)],
+					signer:
+						get(signingAccounts)[
+							utils.getAddress(serialize(EthereumAddress, from))
+						],
 					transaction: {
-						from,
-						to,
+						from: utils.getAddress(serialize(EthereumAddress, from)),
+						...(to
+							? { to: utils.getAddress(serialize(EthereumAddress, to)) }
+							: {}),
 						nonce,
 						gasLimit,
-						data: input,
+						data: serialize(EthereumData, input),
 						value,
-						type: Number(type),
 						chainId: Number(chainId),
 						...gasOpts,
 					},

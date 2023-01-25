@@ -77,7 +77,7 @@
 				class={`p-3 bg-secondary text-white ring ring-offset-2 ${
 					signerKeys[address].wallet ? 'ring-success' : 'ring-error'
 				}`}
-				type='text'
+				type="text"
 				placeholder={`Private key for ${address}`}
 			/>
 		{/each}
