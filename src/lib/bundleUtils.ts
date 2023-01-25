@@ -22,11 +22,14 @@ export const getMaxBaseFeeInFutureBlock = (
 	baseFee: bigint,
 	blocksInFuture: number,
 ) => {
-	let maxBaseFee = baseFee
-	for (let i = 0; i < blocksInFuture; i++) {
-		maxBaseFee = (maxBaseFee * 1125n) / 1000n + 1n
-	}
-	return maxBaseFee
+	if (blocksInFuture <= 0)
+		throw new Error('blocksInFuture needs to be positive')
+	return (
+		[...Array(blocksInFuture)].reduce(
+			(accumulator, _currentValue) => (accumulator * 1125n) / 1000n,
+			baseFee,
+		) + 1n
+	)
 }
 
 export const createProvider = async () => {
