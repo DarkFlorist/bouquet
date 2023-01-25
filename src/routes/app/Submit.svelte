@@ -1,29 +1,37 @@
 <script lang="ts">
-	import Button from '$lib/components/Button.svelte';
-	import { circInOut } from 'svelte/easing';
-	import { slide } from 'svelte/transition';
-	import { createProvider, sendBundle, simulate } from '$lib/bundleUtils';
+	import Button from '$lib/components/Button.svelte'
+	import { circInOut } from 'svelte/easing'
+	import { slide } from 'svelte/transition'
+	import {
+		createBundleTransactions,
+		createProvider,
+		sendBundle,
+		simulate,
+	} from '$lib/bundleUtils'
+	import { latestBlock } from '$lib/state'
+	import { derived } from 'svelte/store'
 	import type {
 		FlashbotsBundleProvider,
 		SimulationResponse,
-	} from '@flashbots/ethers-provider-bundle';
-	import { bundleTransactions } from '$lib/state';
+	} from '@flashbots/ethers-provider-bundle'
 
-	let flasbotsProvider: FlashbotsBundleProvider;
-	let simulationResultPromise: Promise<SimulationResponse> | undefined;
+	const bundle = derived([latestBlock], () => createBundleTransactions())
+
+	let flashbotsProvider: FlashbotsBundleProvider
+	let simulationResultPromise: Promise<SimulationResponse> | undefined
 
 	async function simulateBundle() {
-		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider();
+		if (!flashbotsProvider) {
+			flashbotsProvider = await createProvider()
 		}
-		simulationResultPromise = simulate(flasbotsProvider);
+		simulationResultPromise = simulate(flashbotsProvider)
 	}
 
 	async function submitBundle() {
-		if (!flasbotsProvider) {
-			flasbotsProvider = await createProvider();
+		if (!flashbotsProvider) {
+			flashbotsProvider = await createProvider()
 		}
-		sendBundle(flasbotsProvider);
+		sendBundle(flashbotsProvider)
 	}
 </script>
 
@@ -41,7 +49,7 @@
 	>
 		<h3 class="text-xl">// @TODO: this section</h3>
 		<div class="flex-col flex gap-4">
-			{#each $bundleTransactions as tx, index}
+			{#each $bundle as tx, index}
 				<ul class="rounded bg-secondary p-4">
 					<li>#{index}</li>
 					<li>From: {tx.transaction.from}</li>

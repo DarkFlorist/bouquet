@@ -1,124 +1,122 @@
 import { browser } from '$app/environment'
 import { env } from '$env/dynamic/public'
-import { derived, get, writable } from 'svelte/store'
+import { derived, get, readable, writable } from 'svelte/store'
 import { providers, utils, Wallet } from 'ethers'
-import type { PayloadTransaction } from './types'
-import type { FlashbotsBundleTransaction } from '@flashbots/ethers-provider-bundle'
+import { EthereumAddress, GetSimulationStackReply, serialize } from '$lib/types'
 import type { Sync } from 'ether-state'
+import { getMaxBaseFeeInFutureBlock } from './bundleUtils'
 
 export const ssr = false
 
+// Primary Stores
 export const provider = writable<providers.Provider>(
 	new providers.JsonRpcProvider(env.PUBLIC_RPC_URL),
 )
-
 export const blockSync = writable<Sync>()
+
 export const latestBlock = writable<{
 	blockNumber: bigint
 	baseFee: bigint
-}>()
-
-export const wallets = writable<Wallet[]>([])
-export const interceptorPayload = writable<PayloadTransaction[]>()
-export const completedSession = writable<Boolean>(false)
+}>({ blockNumber: 0n, baseFee: 0n })
+export const wallet = writable<Wallet>()
+export const interceptorPayload = writable<GetSimulationStackReply>()
+export const completedSession = writable<boolean>(false)
+export const fundingAccountBalance = writable<bigint>(0n)
+export const signingAccounts = writable<{ [account: string]: Wallet }>({})
+export const priorityFee = readable<bigint>(10n ** 9n * 3n)
 
 export const activeSession = derived(
-	[wallets, interceptorPayload, completedSession],
-	([$wallets, $interceptorPayload, $completedSession]) =>
-		$completedSession || $interceptorPayload || $wallets.length > 0,
+	[wallet, interceptorPayload, completedSession],
+	([$wallet, $interceptorPayload, $completedSession]) =>
+		$completedSession || $interceptorPayload || $wallet,
 )
 
-export const uniqueSigners = writable<string[]>()
-export const bundleContainsFundingTx = writable<Boolean>()
-export const totalGas = writable<BigInt>()
-export const totalValue = writable<BigInt>()
-export const bundleTransactions = writable<FlashbotsBundleTransaction[]>()
-
-export const currentBlock = writable<number>()
-export const baseFee = writable<bigint>()
-export const gasPrice = writable<bigint>()
-export const fundingAmountMin = writable<bigint>()
-export const fundingAccountBalance = writable<bigint>()
+// Derived State
+export const bundleContainsFundingTx = derived(
+	[interceptorPayload],
+	([$interceptorPayload]) =>
+		$interceptorPayload &&
+		$interceptorPayload.length > 1 &&
+		$interceptorPayload[0].to === $interceptorPayload[1].from,
+)
+export const uniqueSigners = derived(
+	[interceptorPayload, bundleContainsFundingTx],
+	([$interceptorPayload, $bundleContainsFundingTx]) => {
+		if ($interceptorPayload) {
+			const addresses = [
+				...new Set(
+					$interceptorPayload.map((x) =>
+						utils.getAddress(serialize(EthereumAddress, x.from)),
+					),
+				),
+			]
+			if ($bundleContainsFundingTx) addresses.shift()
+			return addresses
+		}
+		return []
+	},
+)
+export const totalGas = derived(
+	[interceptorPayload, bundleContainsFundingTx],
+	([$interceptorPayload, $bundleContainsFundingTx]) => {
+		if ($interceptorPayload) {
+			return $interceptorPayload.reduce(
+				(sum, tx, index) =>
+					index === 0 && $bundleContainsFundingTx
+						? 21000n
+						: BigInt(tx.gasLimit.toString()) + sum,
+				0n,
+			)
+		}
+		return 0n
+	},
+)
+// @TODO: Change this to track minimum amount of ETH needed to deposit
+export const totalValue = derived(
+	[interceptorPayload, bundleContainsFundingTx],
+	([$interceptorPayload, $bundleContainsFundingTx]) => {
+		if ($interceptorPayload) {
+			return $interceptorPayload.reduce(
+				(sum, tx, index) =>
+					index === 0 && $bundleContainsFundingTx
+						? 0n
+						: BigInt(tx.value.toString()) + sum,
+				0n,
+			)
+		}
+		return 0n
+	},
+)
+export const fundingAmountMin = derived(
+	[totalGas, totalValue, priorityFee, latestBlock],
+	([$totalGas, $totalValue, $priorityFee, $latestBlock]) => {
+		const maxBaseFee = getMaxBaseFeeInFutureBlock($latestBlock.baseFee, 2)
+		return $totalGas * ($priorityFee + maxBaseFee) + $totalValue
+	},
+)
 
 // Sync stores on page load
 if (browser) {
-	wallets.set(
-		JSON.parse(localStorage.getItem('wallets') ?? '[]').map(
-			(pk: string) => new Wallet(pk),
-		),
-	)
+	const burnerPrivateKey = localStorage.getItem('wallet')
+	if (burnerPrivateKey) {
+		wallet.set(new Wallet(burnerPrivateKey))
+	}
 
 	// @dev: Automatically update localStorage on state change, manually update payload
-	wallets.subscribe((data) =>
-		localStorage.setItem(
-			'wallets',
-			JSON.stringify(data.map((wallet) => wallet.privateKey)),
-		),
-	)
+	wallet.subscribe((w) => {
+		if (w) localStorage.setItem('wallet', w.privateKey)
+		else localStorage.removeItem('wallet')
+	})
+
 	completedSession.subscribe((status) =>
 		localStorage.setItem('completedSession', JSON.stringify(status)),
 	)
 
 	// Set interceptorPayload
-	const payload = JSON.parse(
-		localStorage.getItem('payload') ?? 'null',
-	) as PayloadTransaction[]
-	if (payload) {
-		const uniqueSigningAccounts = [
-			...new Set(payload.map((tx) => utils.getAddress(tx.from))),
-		]
-		const isFundingTransaction =
-			payload.length >= 2 &&
-			uniqueSigningAccounts.includes(utils.getAddress(payload[0].to))
+	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
+	if (payload) interceptorPayload.set(GetSimulationStackReply.parse(payload))
 
-		const transactions = payload.map(
-			({ from, to, value, input, gas, type }) => ({
-				transaction: {
-					type: Number(type),
-					from: utils.getAddress(from),
-					to: utils.getAddress(to),
-					value,
-					data: input,
-					gasLimit: gas,
-				},
-			}),
-		) as FlashbotsBundleTransaction[]
-
-		let fundingTarget: string
-		if (isFundingTransaction) {
-			if (get(wallets).length === 0) {
-				wallets.subscribe((x) => [...x, Wallet.createRandom()])
-			}
-			fundingTarget = payload[0].to
-			uniqueSigningAccounts.shift()
-			transactions.shift()
-		}
-
-		totalGas.set(
-			transactions.reduce(
-				(sum, current) =>
-					sum + BigInt(current?.transaction.gasLimit?.toString() ?? 0n),
-				0n,
-			),
-		)
-
-		// @TODO: Check this properly based on simulation +- on each transaction in step
-		totalValue.set(
-			transactions
-				.filter((tx) => tx.transaction.from === fundingTarget)
-				.reduce(
-					(sum, current) =>
-						sum + BigInt(current?.transaction.value?.toString() ?? '0'),
-					0n,
-				),
-		)
-
-		uniqueSigners.set(uniqueSigningAccounts)
-		bundleTransactions.set(transactions)
-		bundleContainsFundingTx.set(isFundingTransaction)
-		interceptorPayload.set(payload)
-	}
-	completedSession.set(
-		JSON.parse(localStorage.getItem('completedSession') ?? 'false'),
-	)
+	bundleContainsFundingTx.subscribe((x) => {
+		if (x && !get(wallet)) wallet.set(Wallet.createRandom())
+	})
 }
