@@ -25,7 +25,6 @@
 	"type": "module",
 	"dependencies": {
 		"@flashbots/ethers-provider-bundle": "0.6.1",
-		"ether-state": "0.1.0",
 		"ethers": "5.7.2",
 		"funtypes": "5.0.3"
 	}

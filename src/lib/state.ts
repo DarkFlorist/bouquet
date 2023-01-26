@@ -3,7 +3,6 @@ import { env } from '$env/dynamic/public'
 import { derived, get, readable, writable } from 'svelte/store'
 import { providers, utils, Wallet } from 'ethers'
 import { EthereumAddress, GetSimulationStackReply, serialize } from '$lib/types'
-import type { Sync } from 'ether-state'
 import { getMaxBaseFeeInFutureBlock } from './bundleUtils'
 
 export const ssr = false
@@ -12,8 +11,6 @@ export const ssr = false
 export const provider = writable<providers.Provider>(
 	new providers.JsonRpcProvider(env.PUBLIC_RPC_URL),
 )
-export const blockSync = writable<Sync>()
-
 export const latestBlock = writable<{
 	blockNumber: bigint
 	baseFee: bigint
@@ -88,8 +85,15 @@ export const totalValue = derived(
 	},
 )
 export const fundingAmountMin = derived(
-	[totalGas, totalValue, priorityFee, latestBlock],
-	([$totalGas, $totalValue, $priorityFee, $latestBlock]) => {
+	[bundleContainsFundingTx, totalGas, totalValue, priorityFee, latestBlock],
+	([
+		$bundleContainsFundingTx,
+		$totalGas,
+		$totalValue,
+		$priorityFee,
+		$latestBlock,
+	]) => {
+		if (!$bundleContainsFundingTx) return 0n
 		const maxBaseFee = getMaxBaseFeeInFutureBlock($latestBlock.baseFee, 2)
 		return $totalGas * ($priorityFee + maxBaseFee) + $totalValue
 	},
