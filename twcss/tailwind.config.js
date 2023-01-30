@@ -1,15 +1,3 @@
-// module.exports = {
-// 	content: ['../app/ts/**/*.(ts|tsx)'],
-// 	theme: {},
-// 	plugins: [],
-// 	experimental: {
-// 		optimizeUniversalDefaults: true,
-// 	},
-// 	corePlugins: {
-// 		preflight: false,
-// 	},
-// }
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
 	content: ['../app/ts/**/*.(ts|tsx)'],

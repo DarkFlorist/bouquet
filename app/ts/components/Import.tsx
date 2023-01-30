@@ -3,7 +3,7 @@ import { importFromInterceptor } from '../library/import.js'
 import { Button } from './Button.js'
 
 export const Import = () => {
-	const [error, setError] = useState<string>('')
+	const [error, setError] = useState<string | undefined>(undefined)
 
 	return (
 		<article class='p-6 max-w-screen-lg w-full flex flex-col gap-6'>

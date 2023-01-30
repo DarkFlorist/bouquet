@@ -16,9 +16,9 @@ export const createProvider = async () => {
 }
 
 export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Provider) => {
-	const PRIORITY_FEE = 10n ** 9n * 3n
-	let transactions = [] as string[]
-	for (let tx of bundle) {
+	const PRIORITY_FEE = 10n ** 9n * 3n // TODO, change to not hardcoded value
+	let transactions: string[] = []
+	for (const tx of bundle) {
 		const signerWithProvider = tx.signer.connect(provider)
 		tx.transaction.maxPriorityFeePerGas = PRIORITY_FEE
 		tx.transaction.maxFeePerGas = PRIORITY_FEE + maxBaseFee
