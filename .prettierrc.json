@@ -3,6 +3,5 @@
 	"jsxSingleQuote": true,
 	"useTabs": true,
 	"semi": false,
-	"trailingComma": "all",
-	"plugins": ["prettier-plugin-svelte"]
+	"trailingComma": "all"
 }

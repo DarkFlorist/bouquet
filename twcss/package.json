@@ -1,0 +1,6 @@
+{
+	"scripts": {
+		"poststyles": "npx prettier --config ../.prettierrc.json --cache false ../app/css/index.css -w",
+		"styles": "npx tailwindcss -c tailwind.config.js -i tailwind.globals.css -o ../app/css/index.css"
+	}
+}
