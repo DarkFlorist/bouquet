@@ -7,6 +7,7 @@ module.exports = {
 				background: '#16161D',
 				primary: '#FFFFFC',
 				secondary: '#757780',
+				card: '#2e2f30',
 				accent: '#6CCFF6',
 				success: '#98CE00',
 				error: '#DB5461',

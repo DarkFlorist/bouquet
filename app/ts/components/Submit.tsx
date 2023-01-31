@@ -1,15 +1,6 @@
-import {
-	createBundleTransactions,
-	createProvider,
-	sendBundle,
-	simulate,
-} from '../library/bundleUtils.js'
-import { latestBlock } from '../store.js'
-import { useMemo, useState } from 'preact/hooks'
-import {
-	FlashbotsBundleProvider,
-	SimulationResponse,
-} from '../library/flashbots-ethers-provider.js'
+import { useState } from 'preact/hooks'
+import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
+import { FlashbotsBundleProvider, SimulationResponse } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 
 const PromiseBlock = ({
@@ -34,7 +25,6 @@ const PromiseBlock = ({
 }
 
 export const Submit = () => {
-	const bundle = useMemo(() => createBundleTransactions(), [latestBlock.value])
 	const [result, setResult] = useState<
 		| {
 				status: 'pending' | 'resolved' | 'rejected'
@@ -63,35 +53,14 @@ export const Submit = () => {
 	}
 
 	return (
-		<article className='p-6 max-w-screen-lg w-full flex flex-col gap-6'>
-			<h2
-				className='font-extrabold
-		 text-3xl'
-			>
-				Review And Submit
-			</h2>
-
+		<>
+			<h2 className='font-extrabold text-3xl'>Submit</h2>
 			<div className='flex flex-col w-full gap-6'>
-				<h3 className='text-xl'> @TODO: this section</h3>
-				<div className='flex-col flex gap-4'>
-					{bundle.map((tx: any, index: number) => (
-						<ul className='rounded bg-secondary p-4'>
-							<li>#{index}</li>
-							<li>From: {tx.transaction.from}</li>
-							<li>To: {tx.transaction.to}</li>
-							<li>Value: {tx.transaction.value}</li>
-							<li className='w-full break-all'>Input: {tx.transaction.data}</li>
-						</ul>
-					))}
-				</div>
 				<Button onClick={simulateBundle}>Simulate</Button>
 				<PromiseBlock state={result} />
 				<Button onClick={submitBundle}>Submit</Button>
-				<p>
-					Once bundle has been submitted and mined then state + localStorage
-					should get cleaned up - for now manually clear Cookies + Site Data
-				</p>
+				<p>Once bundle has been submitted and mined then state + localStorage should get cleaned up - for now manually clear Cookies + Site Data</p>
 			</div>
-		</article>
+		</>
 	)
 }

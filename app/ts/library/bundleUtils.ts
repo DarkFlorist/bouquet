@@ -36,13 +36,13 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFe
 	return transactions
 }
 
-export const createBundleTransactions = (): FlashbotsBundleTransaction[] => {
+export const createBundleTransactions = (latestBlock: { baseFee: bigint }): FlashbotsBundleTransaction[] => {
 	if (!interceptorPayload.value || (bundleContainsFundingTx.value && !wallet.value)) return []
 	return interceptorPayload.value.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: priorityFee.peek(),
 			type: 2,
-			maxFeePerGas: priorityFee.peek() + getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2),
+			maxFeePerGas: priorityFee.peek() + getMaxBaseFeeInFutureBlock(latestBlock.baseFee, 2),
 		}
 		if (index === 0 && bundleContainsFundingTx.value && wallet.value)
 			return {
@@ -54,7 +54,7 @@ export const createBundleTransactions = (): FlashbotsBundleTransaction[] => {
 								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.value[0].to)),
 						  }
 						: {}),
-					value: fundingAmountMin.peek() - 21000n * (getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2) + priorityFee.peek()),
+					value: fundingAmountMin.peek() - 21000n * (getMaxBaseFeeInFutureBlock(latestBlock.baseFee, 2) + priorityFee.peek()),
 					data: '0x',
 					gasLimit: 21000n,
 					chainId: Number(chainId),
@@ -83,7 +83,7 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
 
-	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.value)
+	const signedTransactions = await signBundle(createBundleTransactions(latestBlock.peek()), maxBaseFee, provider.value)
 
 	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
 
@@ -95,7 +95,7 @@ export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
 
-	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.value)
+	const signedTransactions = await signBundle(createBundleTransactions(latestBlock.peek()), maxBaseFee, provider.value)
 
 	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
 
