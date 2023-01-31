@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>absurd-use</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="./favicon.png" />
+		<link rel="stylesheet" href="./css/index.css" />
+	</head>
+
+	<body>
+		<script type="importmap">
+			{
+				"imports": {
+					"preact": "./vendor/preact/preact.module.js",
+					"preact/jsx-runtime": "./vendor/preact/jsx-runtime/jsxRuntime.module.js",
+					"preact/hooks": "./vendor/preact/hooks/hooks.module.js",
+					"ethers": "./vendor/ethers/ethers.esm.js",
+					"@preact/signals-core": "./vendor/@preact/signals-core/signals-core.module.js",
+					"@preact/signals": "./vendor/@preact/signals/signals.module.js",
+					"funtypes": "./vendor/funtypes/index.mjs"
+				}
+			}
+		</script>
+
+		<main></main>
+
+		<script async type="module" src="./js/index.js"></script>
+	</body>
+</html>

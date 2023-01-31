@@ -4,5 +4,5 @@
 	"useTabs": true,
 	"semi": false,
 	"trailingComma": "all",
-	"plugins": ["prettier-plugin-svelte"]
+	"printWidth": 160
 }
