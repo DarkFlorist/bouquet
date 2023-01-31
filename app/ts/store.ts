@@ -2,29 +2,28 @@ import { computed, signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { EthereumAddress, GetSimulationStackReply, serialize } from './types.js'
 import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
-import { DEFAULT_JSON_RPC } from './constants.js'
 
 export const ssr = false
 
 // Primary Stores
-export const provider = signal<providers.Provider>(new providers.JsonRpcProvider(DEFAULT_JSON_RPC))
+export const provider = signal<providers.Provider | undefined>(undefined)
 export const latestBlock = signal<{
 	blockNumber: bigint
 	baseFee: bigint
 }>({ blockNumber: 0n, baseFee: 0n })
-export const wallet = signal<Wallet | null>(null)
-export const interceptorPayload = signal<GetSimulationStackReply | null>(null)
+export const wallet = signal<Wallet | undefined>(undefined)
+export const interceptorPayload = signal<GetSimulationStackReply | undefined>(undefined)
 export const completedSession = signal<boolean>(false)
 export const fundingAccountBalance = signal<bigint>(0n)
 export const signingAccounts = signal<{ [account: string]: Wallet }>({})
 export const priorityFee = signal<bigint>(10n ** 9n * 3n)
 
 // Computed State
-export const activeSession = computed(() => completedSession.value || interceptorPayload.value || wallet.value)
+export const activeSession = computed(() => completedSession.value || interceptorPayload.value)
 export const bundleContainsFundingTx = computed(() => interceptorPayload.value && interceptorPayload.value.length > 1 && interceptorPayload.value[0].to === interceptorPayload.value[1].from)
 export const uniqueSigners = computed(() => {
 	if (interceptorPayload.value) {
-		const addresses = [...new Set(interceptorPayload.value.map(x => utils.getAddress(serialize(EthereumAddress, x.from))))]
+		const addresses = [...new Set(interceptorPayload.value.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))]
 		if (bundleContainsFundingTx.value) addresses.shift()
 		return addresses
 	}
@@ -56,17 +55,17 @@ if (burnerPrivateKey) {
 }
 
 // @dev: Automatically update localStorage on state change, manually update payload
-wallet.subscribe(w => {
+wallet.subscribe((w) => {
 	if (w) localStorage.setItem('wallet', w.privateKey)
 	else localStorage.removeItem('wallet')
 })
 
-completedSession.subscribe(status => localStorage.setItem('completedSession', JSON.stringify(status)))
+completedSession.subscribe((status) => localStorage.setItem('completedSession', JSON.stringify(status)))
 
 // Set interceptorPayload
 const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 if (payload) interceptorPayload.value = GetSimulationStackReply.parse(payload)
 
-bundleContainsFundingTx.subscribe(x => {
+bundleContainsFundingTx.subscribe((x) => {
 	if (x && !wallet.value) wallet.value = Wallet.createRandom()
 })

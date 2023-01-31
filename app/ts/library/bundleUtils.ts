@@ -10,20 +10,28 @@ export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: numb
 }
 
 export const createProvider = async () => {
+	if (!provider.value) throw new Error('User not connected')
 	const authSigner = Wallet.createRandom().connect(provider.value)
 	const flashbotsProvider = await FlashbotsBundleProvider.create(provider.value as providers.BaseProvider, authSigner, MEV_RELAY_GOERLI, 'goerli')
 	return flashbotsProvider
 }
 
 export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Provider) => {
-	const PRIORITY_FEE = 10n ** 9n * 3n // TODO, change to not hardcoded value
-	let transactions: string[] = []
+	const transactions: string[] = []
+	const accNonces: { [address: string]: bigint } = {}
 	for (const tx of bundle) {
-		const signerWithProvider = tx.signer.connect(provider)
-		tx.transaction.maxPriorityFeePerGas = PRIORITY_FEE
-		tx.transaction.maxFeePerGas = PRIORITY_FEE + maxBaseFee
-		const signedTx = await tx.signer?.signTransaction(await signerWithProvider.populateTransaction(tx.transaction))
-		transactions.push(signedTx)
+		tx.transaction.maxPriorityFeePerGas = priorityFee.value
+		tx.transaction.maxFeePerGas = priorityFee.value + maxBaseFee
+		if (!tx.transaction.from) throw new Error('BundleTransaction missing from address')
+		if (!tx.transaction.chainId) throw new Error('BundleTransaction missing chainId')
+		if (accNonces[tx.transaction.from]) {
+			accNonces[tx.transaction.from] = accNonces[tx.transaction.from] + 1n
+		} else {
+			accNonces[tx.transaction.from] = BigInt(await provider.getTransactionCount(tx.transaction.from, 'latest'))
+		}
+		tx.transaction.nonce = accNonces[tx.transaction.from]
+		const signedTx = await tx.signer.signTransaction(tx.transaction)
+		transactions.push(signedTx as string)
 	}
 	return transactions
 }
@@ -49,6 +57,7 @@ export const createBundleTransactions = (): FlashbotsBundleTransaction[] => {
 					value: fundingAmountMin.peek() - 21000n * (getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2) + priorityFee.peek()),
 					data: '0x',
 					gasLimit: 21000n,
+					chainId: Number(chainId),
 					...gasOpts,
 				},
 			}
@@ -70,9 +79,11 @@ export const createBundleTransactions = (): FlashbotsBundleTransaction[] => {
 }
 
 export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
+	if (!provider.value) throw new Error('User not connected')
+
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
 
-	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.peek())
+	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.value)
 
 	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
 
@@ -80,9 +91,11 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 }
 
 export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
+	if (!provider.value) throw new Error('User not connected')
+
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
 
-	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.peek())
+	const signedTransactions = await signBundle(createBundleTransactions(), maxBaseFee, provider.value)
 
 	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
 
