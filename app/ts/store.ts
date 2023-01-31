@@ -20,7 +20,9 @@ export const priorityFee = signal<bigint>(10n ** 9n * 3n)
 
 // Computed State
 export const activeSession = computed(() => completedSession.value || interceptorPayload.value)
-export const bundleContainsFundingTx = computed(() => interceptorPayload.value && interceptorPayload.value.length > 1 && interceptorPayload.value[0].to === interceptorPayload.value[1].from)
+export const bundleContainsFundingTx = computed(
+	() => interceptorPayload.value && interceptorPayload.value.length > 1 && interceptorPayload.value[0].to === interceptorPayload.value[1].from,
+)
 export const uniqueSigners = computed(() => {
 	if (interceptorPayload.value) {
 		const addresses = [...new Set(interceptorPayload.value.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))]
@@ -31,7 +33,10 @@ export const uniqueSigners = computed(() => {
 })
 export const totalGas = computed(() => {
 	if (interceptorPayload.value) {
-		return interceptorPayload.value.reduce((sum, tx, index) => (index === 0 && bundleContainsFundingTx.value ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
+		return interceptorPayload.value.reduce(
+			(sum, tx, index) => (index === 0 && bundleContainsFundingTx.value ? 21000n : BigInt(tx.gasLimit.toString()) + sum),
+			0n,
+		)
 	}
 	return 0n
 })
@@ -63,8 +68,8 @@ wallet.subscribe((w) => {
 completedSession.subscribe((status) => localStorage.setItem('completedSession', JSON.stringify(status)))
 
 // Set interceptorPayload
-const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
-if (payload) interceptorPayload.value = GetSimulationStackReply.parse(payload)
+const payload = localStorage.getItem('payload')
+if (payload) interceptorPayload.value = GetSimulationStackReply.parse(JSON.parse(payload))
 
 bundleContainsFundingTx.subscribe((x) => {
 	if (x && !wallet.value) wallet.value = Wallet.createRandom()
