@@ -553,10 +553,6 @@ video {
 	max-width: 1024px;
 }
 
-.flex-grow {
-	flex-grow: 1;
-}
-
 .flex-col {
 	flex-direction: column;
 }
@@ -583,6 +579,10 @@ video {
 
 .gap-2 {
 	gap: 0.5rem;
+}
+
+.break-all {
+	word-break: break-all;
 }
 
 .rounded-md {

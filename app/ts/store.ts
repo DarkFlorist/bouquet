@@ -6,7 +6,7 @@ import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
 export const ssr = false
 
 // Primary Stores
-export const provider = signal<providers.Provider | undefined>(undefined)
+export const provider = signal<providers.Web3Provider | undefined>(undefined)
 export const latestBlock = signal<{
 	blockNumber: bigint
 	baseFee: bigint
@@ -20,7 +20,9 @@ export const priorityFee = signal<bigint>(10n ** 9n * 3n)
 
 // Computed State
 export const activeSession = computed(() => completedSession.value || interceptorPayload.value)
-export const bundleContainsFundingTx = computed(() => interceptorPayload.value && interceptorPayload.value.length > 1 && interceptorPayload.value[0].to === interceptorPayload.value[1].from)
+export const bundleContainsFundingTx = computed(
+	() => interceptorPayload.value && interceptorPayload.value.length > 1 && interceptorPayload.value[0].to === interceptorPayload.value[1].from,
+)
 export const uniqueSigners = computed(() => {
 	if (interceptorPayload.value) {
 		const addresses = [...new Set(interceptorPayload.value.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))]
@@ -31,7 +33,10 @@ export const uniqueSigners = computed(() => {
 })
 export const totalGas = computed(() => {
 	if (interceptorPayload.value) {
-		return interceptorPayload.value.reduce((sum, tx, index) => (index === 0 && bundleContainsFundingTx.value ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
+		return interceptorPayload.value.reduce(
+			(sum, tx, index) => (index === 0 && bundleContainsFundingTx.value ? 21000n : BigInt(tx.gasLimit.toString()) + sum),
+			0n,
+		)
 	}
 	return 0n
 })

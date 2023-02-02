@@ -37,9 +37,15 @@ async function connectWallet() {
 		}
 	})
 
-	provider.value = new providers.Web3Provider(window.ethereum)
-	if (provider.value && provider.value.listenerCount('block') === 0) {
+	const ethereumProvider = new providers.Web3Provider(window.ethereum, 'any')
+	const { chainId } = await ethereumProvider.getNetwork()
+
+	// We only support goerli right now
+	if (chainId === 5) {
+		provider.value = ethereumProvider
 		provider.value.on('block', blockCallback)
+	} else {
+		ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: '0x5' }])
 	}
 }
 

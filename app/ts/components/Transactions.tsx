@@ -19,7 +19,7 @@ export const TransactionList = ({ transactions }: { transactions: Signal<Flashbo
 							<span class='text-lg font-light'>#{index}</span>
 						</div>
 					)}
-					<div class='bg-card flex flex-grow justify-center flex-col gap-2 rounded-r p-4 text-sm font-semibold'>
+					<div class='bg-card flex w-full justify-center flex-col gap-2 rounded-r p-4 text-sm font-semibold'>
 						<p>
 							From <span class='rounded bg-background p-1 font-mono'>{tx.transaction.from}</span> ➝ To{' '}
 							<span class='rounded bg-background p-1 font-mono'>{tx.transaction.to}</span>
@@ -28,8 +28,8 @@ export const TransactionList = ({ transactions }: { transactions: Signal<Flashbo
 							Value: <span class='font-mono'>{utils.formatEther(tx.transaction.value ?? 0n)}</span> Ether
 						</p>
 						{tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0 ? (
-							<p>
-								Calldata: <span class='rounded bg-background p-1 font-mono'>0xd0e30db0</span>
+							<p class='flex gap-2'>
+								Calldata: <span class='rounded bg-background p-1 font-mono w-full break-all'>{tx.transaction.data.toString()}</span>
 							</p>
 						) : undefined}
 					</div>

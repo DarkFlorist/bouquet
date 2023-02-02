@@ -2,7 +2,7 @@ import { providers, utils, Wallet } from 'ethers'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { latestBlock, bundleContainsFundingTx, wallet, interceptorPayload, priorityFee, fundingAmountMin, signingAccounts, provider } from '../store.js'
 import { serialize, EthereumAddress, EthereumData } from '../types.js'
-import { FlashbotsBundleProvider, FlashbotsBundleTransaction } from './flashbots-ethers-provider.js'
+import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse, FlashbotsBundleResolution } from './flashbots-ethers-provider.js'
 
 export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: number) => {
 	if (blocksInFuture <= 0) throw new Error('blocksInFuture needs to be positive')
@@ -16,7 +16,7 @@ export const createProvider = async () => {
 	return flashbotsProvider
 }
 
-export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Provider) => {
+export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Web3Provider) => {
 	const transactions: string[] = []
 	const accNonces: { [address: string]: bigint } = {}
 	for (const tx of bundle) {
@@ -82,25 +82,42 @@ export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
 	if (!provider.value) throw new Error('User not connected')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
-
 	const signedTransactions = await signBundle(createBundleTransactions(latestBlock.peek()), maxBaseFee, provider.value)
-
 	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
-
 	return simulation
 }
 
-export async function sendBundle(flashbotsProvider: FlashbotsBundleProvider) {
+async function sendBundle(
+	flashbotsProvider: FlashbotsBundleProvider,
+	signingProvider: providers.Web3Provider,
+	blockNumber: bigint,
+	baseFee: bigint,
+): Promise<FlashbotsTransactionResponse> {
 	if (!provider.value) throw new Error('User not connected')
 
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
-
-	const signedTransactions = await signBundle(createBundleTransactions(latestBlock.peek()), maxBaseFee, provider.value)
-
-	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, 2)
+	const signedTransactions = await signBundle(createBundleTransactions({ baseFee }), maxBaseFee, signingProvider)
+	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(blockNumber) + 10)
 
 	if ('error' in bundleSubmission) throw new Error(bundleSubmission.error.message)
+	return bundleSubmission
+}
 
-	const waitResponse = await bundleSubmission.wait()
-	console.log(`Wait Response: ${waitResponse}`)
+export async function createBundleSubmission(flashbotsProvider: FlashbotsBundleProvider) {
+	if (!provider.value) throw new Error('User not connected')
+	const signingProvider = provider.value
+
+	const clearSubscription = latestBlock.subscribe(async ({ blockNumber, baseFee }) => {
+		console.log('New block, creating new submission', blockNumber)
+		const bundleSubmission = await sendBundle(flashbotsProvider, signingProvider, blockNumber, baseFee)
+		console.log(bundleSubmission)
+		const status = await bundleSubmission.wait()
+		console.log(`Status: ${FlashbotsBundleResolution[status]}`)
+		if (status === FlashbotsBundleResolution.BundleIncluded) {
+			console.log('Subscription cleared')
+			clearSubscription()
+		}
+	})
+
+	return clearSubscription
 }
