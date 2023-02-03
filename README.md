@@ -1,5 +1,10 @@
 # Absurd-Use
 
+Turn your [Interceptor](https://github.com/DarkFlorist/TheInterceptor) simulations into MEV bundles.
+
+URL: [https://absurd-use.dark.florist/](https://absurd-use.dark.florist/)
+IPFS: Soon
+
 ## Install
 
 ```bash
