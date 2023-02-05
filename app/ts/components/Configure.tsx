@@ -1,11 +1,36 @@
-import { computed } from '@preact/signals'
+import { computed, ReadonlySignal, Signal } from '@preact/signals'
 import { Wallet, utils } from 'ethers'
 import { useState } from 'preact/hooks'
 import { JSX } from 'preact/jsx-runtime'
-import { bundleContainsFundingTx, uniqueSigners, wallet, fundingAccountBalance, signingAccounts, fundingAmountMin } from '../store.js'
+import { EthereumAddress, GetSimulationStackReply } from '../types.js'
 import { Button } from './Button.js'
 
-export const Configure = (props: { nextStage: () => void }) => {
+export const Configure = ({
+	nextStage,
+	interceptorPayload,
+	bundleContainsFundingTx,
+	fundingAmountMin,
+	fundingAccountBalance,
+	signingAccounts,
+	wallet,
+}: {
+	nextStage: () => void
+	interceptorPayload: Signal<GetSimulationStackReply | undefined>
+	bundleContainsFundingTx: ReadonlySignal<boolean | undefined>
+	fundingAmountMin: ReadonlySignal<bigint>
+	fundingAccountBalance: Signal<bigint>
+	signingAccounts: Signal<{ [account: string]: Wallet }>
+	wallet: Signal<Wallet | undefined>
+}) => {
+	const uniqueSigners = computed(() => {
+		if (interceptorPayload.value) {
+			const addresses = [...new Set(interceptorPayload.value.map((x) => utils.getAddress(EthereumAddress.serialize(x.from) as string)))]
+			if (bundleContainsFundingTx.value) addresses.shift()
+			return addresses
+		}
+		return []
+	})
+
 	const [signerKeys, setSignerKeys] = useState<{
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>(
@@ -34,7 +59,7 @@ export const Configure = (props: { nextStage: () => void }) => {
 			}
 			return acc
 		}, {})
-		props.nextStage()
+		nextStage()
 	}
 
 	return (

@@ -15,6 +15,19 @@ module.exports = {
 			fontFamily: {
 				serif: ['Poppins', 'sans-serif'],
 			},
+			keyframes: {
+				scale: {
+					'0%, 100%': {
+						transform: 'scale(1.0)',
+					},
+					'50%': {
+						transform: 'scale(0)',
+					},
+				},
+			},
+			animation: {
+				scale: 'scale 2s infinite',
+			},
 		},
 	},
 	plugins: [],

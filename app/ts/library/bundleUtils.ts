@@ -1,27 +1,27 @@
+import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { MEV_RELAY_GOERLI } from '../constants.js'
-import { latestBlock, bundleContainsFundingTx, wallet, interceptorPayload, priorityFee, fundingAmountMin, signingAccounts, provider } from '../store.js'
-import { serialize, EthereumAddress, EthereumData } from '../types.js'
-import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse, FlashbotsBundleResolution } from './flashbots-ethers-provider.js'
+import { serialize, EthereumAddress, EthereumData, GetSimulationStackReply } from '../types.js'
+import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
 
-export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: number) => {
-	if (blocksInFuture <= 0) throw new Error('blocksInFuture needs to be positive')
+export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigint) => {
+	if (blocksInFuture <= 0n) throw new Error('blocksInFuture needs to be positive')
 	return [...Array(blocksInFuture)].reduce((accumulator, _currentValue) => (accumulator * 1125n) / 1000n, baseFee) + 1n
 }
 
-export const createProvider = async () => {
+export const createProvider = async (provider: Signal<providers.Web3Provider | undefined>) => {
 	if (!provider.value) throw new Error('User not connected')
 	const authSigner = Wallet.createRandom().connect(provider.value)
 	const flashbotsProvider = await FlashbotsBundleProvider.create(provider.value as providers.BaseProvider, authSigner, MEV_RELAY_GOERLI, 'goerli')
 	return flashbotsProvider
 }
 
-export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Web3Provider) => {
+export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Web3Provider, priorityFee: bigint) => {
 	const transactions: string[] = []
 	const accNonces: { [address: string]: bigint } = {}
 	for (const tx of bundle) {
-		tx.transaction.maxPriorityFeePerGas = priorityFee.value
-		tx.transaction.maxFeePerGas = priorityFee.value + maxBaseFee
+		tx.transaction.maxPriorityFeePerGas = priorityFee
+		tx.transaction.maxFeePerGas = priorityFee + maxBaseFee
 		if (!tx.transaction.from) throw new Error('BundleTransaction missing from address')
 		if (!tx.transaction.chainId) throw new Error('BundleTransaction missing chainId')
 		if (accNonces[tx.transaction.from]) {
@@ -36,25 +36,34 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFe
 	return transactions
 }
 
-export const createBundleTransactions = (latestBlock: { baseFee: bigint }): FlashbotsBundleTransaction[] => {
-	if (!interceptorPayload.value || (bundleContainsFundingTx.value && !wallet.value)) return []
-	return interceptorPayload.value.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
+export const createBundleTransactions = (
+	interceptorPayload: GetSimulationStackReply | undefined,
+	signingAccounts: { [account: string]: Wallet },
+	wallet: Wallet | undefined,
+	bundleContainsFundingTx: boolean | undefined,
+	blocksInFuture: bigint,
+	priorityFee: bigint,
+	baseFee: bigint,
+	fundingAmountMin: bigint,
+): FlashbotsBundleTransaction[] => {
+	if (!interceptorPayload || (bundleContainsFundingTx && !wallet)) return []
+	return interceptorPayload.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
-			maxPriorityFeePerGas: priorityFee.peek(),
+			maxPriorityFeePerGas: priorityFee,
 			type: 2,
-			maxFeePerGas: priorityFee.peek() + getMaxBaseFeeInFutureBlock(latestBlock.baseFee, 2),
+			maxFeePerGas: priorityFee + getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture),
 		}
-		if (index === 0 && bundleContainsFundingTx.value && wallet.value)
+		if (index === 0 && bundleContainsFundingTx && wallet)
 			return {
-				signer: wallet.value,
+				signer: wallet,
 				transaction: {
-					from: wallet.value?.address,
-					...(interceptorPayload.value && interceptorPayload.value[0].to
+					from: wallet.address,
+					...(interceptorPayload && interceptorPayload[0].to
 						? {
-								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.value[0].to)),
+								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload[0].to)),
 						  }
 						: {}),
-					value: fundingAmountMin.peek() - 21000n * (getMaxBaseFeeInFutureBlock(latestBlock.baseFee, 2) + priorityFee.peek()),
+					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture) + priorityFee),
 					data: '0x',
 					gasLimit: 21000n,
 					chainId: Number(chainId),
@@ -63,7 +72,7 @@ export const createBundleTransactions = (latestBlock: { baseFee: bigint }): Flas
 			}
 		else
 			return {
-				signer: signingAccounts.peek()[utils.getAddress(serialize(EthereumAddress, from))],
+				signer: signingAccounts[utils.getAddress(serialize(EthereumAddress, from))],
 				transaction: {
 					from: utils.getAddress(serialize(EthereumAddress, from)),
 					...(to ? { to: utils.getAddress(serialize(EthereumAddress, to)) } : {}),
@@ -78,46 +87,56 @@ export const createBundleTransactions = (latestBlock: { baseFee: bigint }): Flas
 	})
 }
 
-export async function simulate(flashbotsProvider: FlashbotsBundleProvider) {
-	if (!provider.value) throw new Error('User not connected')
+export async function simulate(
+	flashbotsProvider: FlashbotsBundleProvider,
+	walletProvider: providers.Web3Provider | undefined,
+	currentBlock: bigint,
+	blocksInFuture: bigint,
+	baseFee: bigint,
+	priorityFee: bigint,
+	interceptorPayload: GetSimulationStackReply | undefined,
+	bundleContainsFundingTx: boolean,
+	wallet: Wallet | undefined,
+	signingAccounts: { [account: string]: Wallet },
+	fundingAmountMin: bigint,
+) {
+	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
+	if (!walletProvider) throw new Error('User not connected')
 
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(latestBlock.peek().baseFee, 2)
-	const signedTransactions = await signBundle(createBundleTransactions(latestBlock.peek()), maxBaseFee, provider.value)
-	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(latestBlock.peek().blockNumber) + 2)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture)
+	const signedTransactions = await signBundle(
+		createBundleTransactions(interceptorPayload, signingAccounts, wallet, bundleContainsFundingTx, blocksInFuture, priorityFee, baseFee, fundingAmountMin),
+		maxBaseFee,
+		walletProvider,
+		priorityFee,
+	)
+	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(currentBlock + blocksInFuture))
 	return simulation
 }
 
-async function sendBundle(
+export async function sendBundle(
 	flashbotsProvider: FlashbotsBundleProvider,
-	signingProvider: providers.Web3Provider,
-	blockNumber: bigint,
+	walletProvider: providers.Web3Provider,
+	currentBlock: bigint,
+	blocksInFuture: bigint,
 	baseFee: bigint,
+	priorityFee: bigint,
+	interceptorPayload: GetSimulationStackReply | undefined,
+	bundleContainsFundingTx: boolean,
+	wallet: Wallet | undefined,
+	signingAccounts: { [account: string]: Wallet },
+	fundingAmountMin: bigint,
 ): Promise<FlashbotsTransactionResponse> {
-	if (!provider.value) throw new Error('User not connected')
+	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
 
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, 2)
-	const signedTransactions = await signBundle(createBundleTransactions({ baseFee }), maxBaseFee, signingProvider)
-	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(blockNumber) + 10)
-
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture)
+	const signedTransactions = await signBundle(
+		createBundleTransactions(interceptorPayload, signingAccounts, wallet, bundleContainsFundingTx, blocksInFuture, priorityFee, baseFee, fundingAmountMin),
+		maxBaseFee,
+		walletProvider,
+		priorityFee,
+	)
+	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(currentBlock + blocksInFuture))
 	if ('error' in bundleSubmission) throw new Error(bundleSubmission.error.message)
 	return bundleSubmission
-}
-
-export async function createBundleSubmission(flashbotsProvider: FlashbotsBundleProvider) {
-	if (!provider.value) throw new Error('User not connected')
-	const signingProvider = provider.value
-
-	const clearSubscription = latestBlock.subscribe(async ({ blockNumber, baseFee }) => {
-		console.log('New block, creating new submission', blockNumber)
-		const bundleSubmission = await sendBundle(flashbotsProvider, signingProvider, blockNumber, baseFee)
-		console.log(bundleSubmission)
-		const status = await bundleSubmission.wait()
-		console.log(`Status: ${FlashbotsBundleResolution[status]}`)
-		if (status === FlashbotsBundleResolution.BundleIncluded) {
-			console.log('Subscription cleared')
-			clearSubscription()
-		}
-	})
-
-	return clearSubscription
 }

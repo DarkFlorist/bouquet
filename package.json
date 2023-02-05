@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "tsc",
+		"watch": "tsc --watch",
 		"serve": "npx http-server ./app",
 		"vendor": "npm ci --ignore-scripts && cd build && npm ci --ignore-scripts && npm run vendor",
 		"styles": "cd twcss && npm run styles"

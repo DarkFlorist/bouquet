@@ -1,10 +1,16 @@
-import { Signal } from '@preact/signals'
-import { utils } from 'ethers'
+import { ReadonlySignal, Signal } from '@preact/signals'
+import { utils, Wallet } from 'ethers'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider'
-import { bundleContainsFundingTx, fundingAccountBalance, interceptorPayload, signingAccounts, wallet } from '../store.js'
+import { GetSimulationStackReply } from '../types'
 import { Button } from './Button.js'
 
-export const TransactionList = ({ transactions }: { transactions: Signal<FlashbotsBundleTransaction[]> }) => {
+export const TransactionList = ({
+	transactions,
+	bundleContainsFundingTx,
+}: {
+	transactions: Signal<FlashbotsBundleTransaction[]>
+	bundleContainsFundingTx: ReadonlySignal<boolean | undefined>
+}) => {
 	return (
 		<div class='flex w-full flex-col gap-4'>
 			{transactions.value.map((tx, index) => (
@@ -39,22 +45,35 @@ export const TransactionList = ({ transactions }: { transactions: Signal<Flashbo
 	)
 }
 
-const clearPayload = () => {
-	interceptorPayload.value = undefined
-	signingAccounts.value = {}
-	localStorage.removeItem('payload')
-	// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
-	if (fundingAccountBalance.value === 0n) wallet.value = undefined
-}
-
-export const Transactions = ({ transactions }: { transactions: Signal<FlashbotsBundleTransaction[]> }) => {
+export const Transactions = ({
+	transactions,
+	interceptorPayload,
+	wallet,
+	signingAccounts,
+	fundingAccountBalance,
+	bundleContainsFundingTx,
+}: {
+	transactions: Signal<FlashbotsBundleTransaction[]>
+	interceptorPayload: Signal<GetSimulationStackReply | undefined>
+	wallet: Signal<Wallet | undefined>
+	fundingAccountBalance: Signal<bigint>
+	signingAccounts: Signal<{ [account: string]: Wallet }>
+	bundleContainsFundingTx: ReadonlySignal<boolean | undefined>
+}) => {
+	const clearPayload = () => {
+		interceptorPayload.value = undefined
+		signingAccounts.value = {}
+		localStorage.removeItem('payload')
+		// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
+		if (fundingAccountBalance.value === 0n) wallet.value = undefined
+	}
 	return (
 		<>
 			<div class='flex gap-4 items-center'>
 				<h2 class='text-3xl font-extrabold'>Your Transactions</h2>
 				<Button onClick={clearPayload}>Reset</Button>
 			</div>
-			<TransactionList transactions={transactions} />
+			<TransactionList {...{ transactions, bundleContainsFundingTx }} />
 		</>
 	)
 }

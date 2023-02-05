@@ -2,7 +2,7 @@ import { ethers } from 'ethers'
 import * as t from 'funtypes'
 
 const BigIntParser: t.ParsedValue<t.String, bigint>['config'] = {
-	parse: value => {
+	parse: (value) => {
 		if (!/^0x([a-fA-F0-9]{1,64})$/.test(value))
 			return {
 				success: false,
@@ -10,14 +10,14 @@ const BigIntParser: t.ParsedValue<t.String, bigint>['config'] = {
 			}
 		else return { success: true, value: BigInt(value) }
 	},
-	serialize: value => {
+	serialize: (value) => {
 		if (typeof value !== 'bigint') return { success: false, message: `${typeof value} is not a bigint.` }
 		return { success: true, value: `0x${value.toString(16)}` }
 	},
 }
 
 export const AddressParser: t.ParsedValue<t.String, bigint>['config'] = {
-	parse: value => {
+	parse: (value) => {
 		if (!/^0x([a-fA-F0-9]{40})$/.test(value))
 			return {
 				success: false,
@@ -25,14 +25,14 @@ export const AddressParser: t.ParsedValue<t.String, bigint>['config'] = {
 			}
 		else return { success: true, value: BigInt(value) }
 	},
-	serialize: value => {
+	serialize: (value) => {
 		if (typeof value !== 'bigint') return { success: false, message: `${typeof value} is not a bigint.` }
 		return { success: true, value: `0x${value.toString(16).padStart(40, '0')}` }
 	},
 }
 
 const Bytes32Parser: t.ParsedValue<t.String, bigint>['config'] = {
-	parse: value => {
+	parse: (value) => {
 		if (!/^0x([a-fA-F0-9]{64})$/.test(value))
 			return {
 				success: false,
@@ -40,14 +40,14 @@ const Bytes32Parser: t.ParsedValue<t.String, bigint>['config'] = {
 			}
 		else return { success: true, value: BigInt(value) }
 	},
-	serialize: value => {
+	serialize: (value) => {
 		if (typeof value !== 'bigint') return { success: false, message: `${typeof value} is not a bigint.` }
 		return { success: true, value: `0x${value.toString(16).padStart(64, '0')}` }
 	},
 }
 
 const BytesParser: t.ParsedValue<t.String, Uint8Array>['config'] = {
-	parse: value => {
+	parse: (value) => {
 		const match = /^(?:0x)?([a-fA-F0-9]*)$/.exec(value)
 		if (match === null)
 			return {
@@ -66,7 +66,7 @@ const BytesParser: t.ParsedValue<t.String, Uint8Array>['config'] = {
 		}
 		return { success: true, value: new Uint8Array(bytes) }
 	},
-	serialize: value => {
+	serialize: (value) => {
 		if (!(value instanceof Uint8Array)) return { success: false, message: `${typeof value} is not a Uint8Array.` }
 		let result = ''
 		for (let i = 0; i < value.length; ++i) {
@@ -77,14 +77,17 @@ const BytesParser: t.ParsedValue<t.String, Uint8Array>['config'] = {
 }
 
 const OptionalBytesParser: t.ParsedValue<t.Union<[t.String, t.Literal<undefined>]>, Uint8Array>['config'] = {
-	parse: value => BytesParser.parse(value || '0x'),
-	serialize: value => BytesParser.serialize!(value || new Uint8Array()),
+	parse: (value) => BytesParser.parse(value || '0x'),
+	serialize: (value) => BytesParser.serialize!(value || new Uint8Array()),
 }
 
-const LiteralConverterParserFactory: <TInput, TOutput>(input: TInput, output: TOutput) => t.ParsedValue<t.Runtype<TInput>, TOutput>['config'] = (input, output) => {
+const LiteralConverterParserFactory: <TInput, TOutput>(input: TInput, output: TOutput) => t.ParsedValue<t.Runtype<TInput>, TOutput>['config'] = (
+	input,
+	output,
+) => {
 	return {
-		parse: value => (value === input ? { success: true, value: output } : { success: false, message: `${value} was expected to be literal.` }),
-		serialize: value => (value === output ? { success: true, value: input } : { success: false, message: `${value} was expected to be literal.` }),
+		parse: (value) => (value === input ? { success: true, value: output } : { success: false, message: `${value} was expected to be literal.` }),
+		serialize: (value) => (value === output ? { success: true, value: input } : { success: false, message: `${value} was expected to be literal.` }),
 	}
 }
 
@@ -109,7 +112,7 @@ const EthereumAccessList = t.ReadonlyArray(
 			address: EthereumAddress,
 			storageKeys: t.ReadonlyArray(EthereumBytes32),
 		})
-		.asReadonly()
+		.asReadonly(),
 )
 type EthereumAccessList = t.Static<typeof EthereumAccessList>
 
@@ -117,7 +120,10 @@ type EthereumUnsignedTransactionLegacy = t.Static<typeof EthereumUnsignedTransac
 const EthereumUnsignedTransactionLegacy = t.Intersect(
 	t
 		.Object({
-			type: t.Union(t.Literal('0x0').withParser(LiteralConverterParserFactory('0x0', 'legacy' as const)), t.Literal(undefined).withParser(LiteralConverterParserFactory(undefined, 'legacy' as const))),
+			type: t.Union(
+				t.Literal('0x0').withParser(LiteralConverterParserFactory('0x0', 'legacy' as const)),
+				t.Literal(undefined).withParser(LiteralConverterParserFactory(undefined, 'legacy' as const)),
+			),
 			from: EthereumAddress,
 			nonce: EthereumQuantity,
 			gasPrice: EthereumQuantity,
@@ -131,7 +137,7 @@ const EthereumUnsignedTransactionLegacy = t.Intersect(
 		.Partial({
 			chainId: EthereumQuantity,
 		})
-		.asReadonly()
+		.asReadonly(),
 )
 
 type EthereumUnsignedTransaction2930 = t.Static<typeof EthereumUnsignedTransaction2930>
@@ -151,7 +157,7 @@ const EthereumUnsignedTransaction2930 = t.Intersect(
 		.asReadonly(),
 	t.Partial({
 		accessList: EthereumAccessList,
-	})
+	}),
 )
 
 type EthereumUnsignedTransaction1559 = t.Static<typeof EthereumUnsignedTransaction1559>
@@ -172,20 +178,20 @@ const EthereumUnsignedTransaction1559 = t.Intersect(
 		.asReadonly(),
 	t.Partial({
 		accessList: EthereumAccessList,
-	})
+	}),
 )
 type EthereumUnsignedTransaction = t.Static<typeof EthereumUnsignedTransaction>
 const EthereumUnsignedTransaction = t.Union(EthereumUnsignedTransactionLegacy, EthereumUnsignedTransaction2930, EthereumUnsignedTransaction1559)
 
 const RevertErrorParser: t.ParsedValue<t.String, string>['config'] = {
-	parse: value => {
+	parse: (value) => {
 		if (!value.startsWith('Reverted ')) return { success: true, value }
 		const parseResult = BytesParser.parse(value.slice('Reverted '.length))
 		if (!parseResult.success) return parseResult
 		const decoded = new TextDecoder().decode(parseResult.value)
 		return { success: true, value: decoded }
 	},
-	serialize: value => {
+	serialize: (value) => {
 		const encoded = new TextEncoder().encode(value)
 		const serializationResult = BytesParser.serialize!(encoded)
 		if (!serializationResult.success) return serializationResult
@@ -213,7 +219,7 @@ const EthBalanceChanges = t.ReadonlyArray(
 			before: EthereumQuantity,
 			after: EthereumQuantity,
 		})
-		.asReadonly()
+		.asReadonly(),
 )
 
 type SingleMulticallResponse = t.Static<typeof SingleMulticallResponse>
@@ -234,7 +240,7 @@ const SingleMulticallResponse = t.Union(
 			error: t.String.withParser(RevertErrorParser),
 			returnValue: EthereumData,
 		})
-		.asReadonly()
+		.asReadonly(),
 )
 
 export type GetSimulationStackReply = t.Static<typeof GetSimulationStackReply>
@@ -247,8 +253,8 @@ export const GetSimulationStackReply = t.ReadonlyArray(
 				realizedGasPrice: EthereumQuantity,
 				gasLimit: EthereumQuantity,
 			})
-			.asReadonly()
-	)
+			.asReadonly(),
+	),
 )
 
 export function serialize<T, U extends t.Codec<T>>(funtype: U, value: T) {
@@ -257,7 +263,33 @@ export function serialize<T, U extends t.Codec<T>>(funtype: U, value: T) {
 
 export type UnionToIntersection<T> = (T extends unknown ? (k: T) => void : never) extends (k: infer I) => void ? I : never
 
-export type ToWireType<T> = T extends t.Intersect<infer U> ? UnionToIntersection<{ [I in keyof U]: ToWireType<U[I]> }[number]> : T extends t.Union<infer U> ? { [I in keyof U]: ToWireType<U[I]> }[number] : T extends t.Record<infer U, infer V> ? Record<t.Static<U>, ToWireType<V>> : T extends t.Partial<infer U, infer V> ? (V extends true ? { readonly [K in keyof U]?: ToWireType<U[K]> } : { [K in keyof U]?: ToWireType<U[K]> }) : T extends t.Object<infer U, infer V> ? (V extends true ? { readonly [K in keyof U]: ToWireType<U[K]> } : { [K in keyof U]: ToWireType<U[K]> }) : T extends t.Readonly<t.Tuple<infer U>> ? { readonly [P in keyof U]: ToWireType<U[P]> } : T extends t.Tuple<infer U> ? { [P in keyof U]: ToWireType<U[P]> } : T extends t.ReadonlyArray<infer U> ? readonly ToWireType<U>[] : T extends t.Array<infer U> ? ToWireType<U>[] : T extends t.ParsedValue<infer U, infer _> ? ToWireType<U> : T extends t.Codec<infer U> ? U : never
+export type ToWireType<T> = T extends t.Intersect<infer U>
+	? UnionToIntersection<{ [I in keyof U]: ToWireType<U[I]> }[number]>
+	: T extends t.Union<infer U>
+	? { [I in keyof U]: ToWireType<U[I]> }[number]
+	: T extends t.Record<infer U, infer V>
+	? Record<t.Static<U>, ToWireType<V>>
+	: T extends t.Partial<infer U, infer V>
+	? V extends true
+		? { readonly [K in keyof U]?: ToWireType<U[K]> }
+		: { [K in keyof U]?: ToWireType<U[K]> }
+	: T extends t.Object<infer U, infer V>
+	? V extends true
+		? { readonly [K in keyof U]: ToWireType<U[K]> }
+		: { [K in keyof U]: ToWireType<U[K]> }
+	: T extends t.Readonly<t.Tuple<infer U>>
+	? { readonly [P in keyof U]: ToWireType<U[P]> }
+	: T extends t.Tuple<infer U>
+	? { [P in keyof U]: ToWireType<U[P]> }
+	: T extends t.ReadonlyArray<infer U>
+	? readonly ToWireType<U>[]
+	: T extends t.Array<infer U>
+	? ToWireType<U>[]
+	: T extends t.ParsedValue<infer U, infer _>
+	? ToWireType<U>
+	: T extends t.Codec<infer U>
+	? U
+	: never
 
 export type Web3Provider = ethers.providers.Web3Provider
 export type ExternalProvider = ethers.providers.ExternalProvider
@@ -272,3 +304,6 @@ declare global {
 }
 
 export type HexString = `0x${string}`
+
+export type PromiseState = 'pending' | 'resolved' | 'rejected'
+export type BundleInfo = { hash: string; state: PromiseState; details: string }
