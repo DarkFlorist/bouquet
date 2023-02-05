@@ -5,7 +5,7 @@ import { Button } from './Button.js'
 import { providers, Wallet } from 'ethers'
 import { Transactions } from './Transactions.js'
 import { createBundleTransactions, getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
-import { computed, effect, signal } from '@preact/signals'
+import { computed, effect, useSignal } from '@preact/signals'
 import { GetSimulationStackReply } from '../types.js'
 import { connectWallet, updateLatestBlock } from '../library/provider.js'
 
@@ -16,18 +16,18 @@ function getDefaultBurnerWallet() {
 
 export function App() {
 	// Global State
-	const provider = signal<providers.Web3Provider | undefined>(undefined)
-	const latestBlock = signal<{
+	const provider = useSignal<providers.Web3Provider | undefined>(undefined)
+	const latestBlock = useSignal<{
 		blockNumber: bigint
 		baseFee: bigint
 		priorityFee: bigint
 	}>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
-	const wallet = signal<Wallet | undefined>(getDefaultBurnerWallet())
-	const interceptorPayload = signal<GetSimulationStackReply | undefined>(undefined)
-	const completedSession = signal<boolean>(false)
-	const fundingAccountBalance = signal<bigint>(0n)
-	const signingAccounts = signal<{ [account: string]: Wallet }>({})
-	const showConfig = signal<boolean>(!completedSession.value)
+	const wallet = useSignal<Wallet | undefined>(getDefaultBurnerWallet())
+	const interceptorPayload = useSignal<GetSimulationStackReply | undefined>(undefined)
+	const completedSession = useSignal<boolean>(false)
+	const fundingAccountBalance = useSignal<bigint>(0n)
+	const signingAccounts = useSignal<{ [account: string]: Wallet }>({})
+	const showConfig = useSignal<boolean>(!completedSession.value)
 
 	// Sync localStorage
 	wallet.subscribe((w) => {
@@ -99,7 +99,7 @@ export function App() {
 					provider.value ? (
 						<>
 							<Transactions {...{ transactions: bundle, interceptorPayload, wallet, signingAccounts, fundingAccountBalance, bundleContainsFundingTx }} />
-							{showConfig ? (
+							{showConfig.value ? (
 								<Configure
 									{...{
 										nextStage: () => (showConfig.value = false),
