@@ -1,21 +1,16 @@
-import { ReadonlySignal, Signal } from '@preact/signals'
-import { utils, Wallet } from 'ethers'
+import { batch, ReadonlySignal, Signal } from '@preact/signals'
+import { utils } from 'ethers'
+import { createBundleTransactions } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider'
-import { GetSimulationStackReply } from '../types'
+import { AppSettings, AppStages, BlockInfo, BundleState, Signers } from '../library/types'
 import { Button } from './Button.js'
 
-export const TransactionList = ({
-	transactions,
-	bundleContainsFundingTx,
-}: {
-	transactions: Signal<FlashbotsBundleTransaction[]>
-	bundleContainsFundingTx: ReadonlySignal<boolean | undefined>
-}) => {
+export const TransactionList = ({ transactions, fundingTx }: { transactions: FlashbotsBundleTransaction[]; fundingTx: boolean }) => {
 	return (
 		<div class='flex w-full flex-col gap-4'>
-			{transactions.value.map((tx, index) => (
+			{transactions.map((tx, index) => (
 				<div class='flex w-full min-h-[96px]'>
-					{index === 0 && bundleContainsFundingTx.value ? (
+					{index === 0 && fundingTx ? (
 						<div class='flex w-24 flex-col items-center justify-center rounded-l bg-success text-background'>
 							<span class='text-xs font-semibold'>Funding TX</span>
 							<span class='text-lg font-light'>#{index}</span>
@@ -46,34 +41,46 @@ export const TransactionList = ({
 }
 
 export const Transactions = ({
-	transactions,
 	interceptorPayload,
-	wallet,
-	signingAccounts,
-	fundingAccountBalance,
-	bundleContainsFundingTx,
+	signers,
+	blockInfo,
+	appSettings,
+	fundingAmountMin,
+	stage,
 }: {
-	transactions: Signal<FlashbotsBundleTransaction[]>
-	interceptorPayload: Signal<GetSimulationStackReply | undefined>
-	wallet: Signal<Wallet | undefined>
-	fundingAccountBalance: Signal<bigint>
-	signingAccounts: Signal<{ [account: string]: Wallet }>
-	bundleContainsFundingTx: ReadonlySignal<boolean | undefined>
+	interceptorPayload: Signal<BundleState | undefined>
+	blockInfo: Signal<BlockInfo>
+	signers: Signal<Signers>
+	appSettings: Signal<AppSettings>
+	fundingAmountMin: ReadonlySignal<bigint>
+	stage: Signal<AppStages>
 }) => {
 	const clearPayload = () => {
-		interceptorPayload.value = undefined
-		signingAccounts.value = {}
-		localStorage.removeItem('payload')
-		// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
-		if (fundingAccountBalance.value === 0n) wallet.value = undefined
+		batch(() => {
+			interceptorPayload.value = undefined
+			localStorage.removeItem('payload')
+			signers.value.bundleSigners = {}
+			// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
+			// if (fundingAccountBalance.value === 0n) signers.value.burner = undefined
+			stage.value = 'import'
+		})
 	}
+
+	const transactions = createBundleTransactions(
+		interceptorPayload.peek(),
+		signers.peek(),
+		blockInfo.peek(),
+		appSettings.peek().blocksInFuture,
+		fundingAmountMin.peek(),
+	)
+
 	return (
 		<>
 			<div class='flex gap-4 items-center'>
 				<h2 class='text-3xl font-extrabold'>Your Transactions</h2>
 				<Button onClick={clearPayload}>Reset</Button>
 			</div>
-			<TransactionList {...{ transactions, bundleContainsFundingTx }} />
+			<TransactionList {...{ transactions, fundingTx: interceptorPayload.peek()?.containsFundingTx ?? false }} />
 		</>
 	)
 }

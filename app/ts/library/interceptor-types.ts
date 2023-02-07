@@ -304,6 +304,3 @@ declare global {
 }
 
 export type HexString = `0x${string}`
-
-export type PromiseState = 'pending' | 'resolved' | 'rejected'
-export type BundleInfo = { hash: string; state: PromiseState; details: string }

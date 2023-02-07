@@ -1,8 +1,9 @@
 import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { MEV_RELAY_GOERLI } from '../constants.js'
-import { serialize, EthereumAddress, EthereumData, GetSimulationStackReply } from '../types.js'
 import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
+import { EthereumAddress, EthereumData, serialize } from './interceptor-types.js'
+import { BlockInfo, BundleState, Signers } from './types.js'
 
 export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigint) => {
 	if (blocksInFuture <= 0n) throw new Error('blocksInFuture needs to be positive')
@@ -16,12 +17,12 @@ export const createProvider = async (provider: Signal<providers.Web3Provider | u
 	return flashbotsProvider
 }
 
-export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFee: bigint, provider: providers.Web3Provider, priorityFee: bigint) => {
+export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider: providers.Web3Provider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
 	const transactions: string[] = []
 	const accNonces: { [address: string]: bigint } = {}
 	for (const tx of bundle) {
-		tx.transaction.maxPriorityFeePerGas = priorityFee
-		tx.transaction.maxFeePerGas = priorityFee + maxBaseFee
+		tx.transaction.maxPriorityFeePerGas = blockInfo.priorityFee
+		tx.transaction.maxFeePerGas = blockInfo.priorityFee + maxBaseFee
 		if (!tx.transaction.from) throw new Error('BundleTransaction missing from address')
 		if (!tx.transaction.chainId) throw new Error('BundleTransaction missing chainId')
 		if (accNonces[tx.transaction.from]) {
@@ -37,33 +38,30 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], maxBaseFe
 }
 
 export const createBundleTransactions = (
-	interceptorPayload: GetSimulationStackReply | undefined,
-	signingAccounts: { [account: string]: Wallet },
-	wallet: Wallet | undefined,
-	bundleContainsFundingTx: boolean | undefined,
+	interceptorPayload: BundleState | undefined,
+	signers: Signers,
+	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
-	priorityFee: bigint,
-	baseFee: bigint,
 	fundingAmountMin: bigint,
 ): FlashbotsBundleTransaction[] => {
-	if (!interceptorPayload || (bundleContainsFundingTx && !wallet)) return []
-	return interceptorPayload.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
+	if (!interceptorPayload) return []
+	return interceptorPayload.payload.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
-			maxPriorityFeePerGas: priorityFee,
+			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
-			maxFeePerGas: priorityFee + getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture),
+			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
-		if (index === 0 && bundleContainsFundingTx && wallet)
+		if (index === 0 && interceptorPayload.containsFundingTx && signers.burner)
 			return {
-				signer: wallet,
+				signer: signers.burner,
 				transaction: {
-					from: wallet.address,
-					...(interceptorPayload && interceptorPayload[0].to
+					from: signers.burner.address,
+					...(interceptorPayload && interceptorPayload.payload[0].to
 						? {
-								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload[0].to)),
+								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.payload[0].to)),
 						  }
 						: {}),
-					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture) + priorityFee),
+					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
 					data: '0x',
 					gasLimit: 21000n,
 					chainId: Number(chainId),
@@ -72,7 +70,7 @@ export const createBundleTransactions = (
 			}
 		else
 			return {
-				signer: signingAccounts[utils.getAddress(serialize(EthereumAddress, from))],
+				signer: signers.bundleSigners[utils.getAddress(serialize(EthereumAddress, from))],
 				transaction: {
 					from: utils.getAddress(serialize(EthereumAddress, from)),
 					...(to ? { to: utils.getAddress(serialize(EthereumAddress, to)) } : {}),
@@ -89,54 +87,45 @@ export const createBundleTransactions = (
 
 export async function simulate(
 	flashbotsProvider: FlashbotsBundleProvider,
-	walletProvider: providers.Web3Provider | undefined,
-	currentBlock: bigint,
+	walletProvider: providers.Web3Provider,
+	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
-	baseFee: bigint,
-	priorityFee: bigint,
-	interceptorPayload: GetSimulationStackReply | undefined,
-	bundleContainsFundingTx: boolean,
-	wallet: Wallet | undefined,
-	signingAccounts: { [account: string]: Wallet },
+	bundleData: BundleState,
+	signers: Signers,
 	fundingAmountMin: bigint,
 ) {
 	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
-	if (!walletProvider) throw new Error('User not connected')
 
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
-		createBundleTransactions(interceptorPayload, signingAccounts, wallet, bundleContainsFundingTx, blocksInFuture, priorityFee, baseFee, fundingAmountMin),
-		maxBaseFee,
+		createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin),
 		walletProvider,
-		priorityFee,
+		blockInfo,
+		maxBaseFee,
 	)
-	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(currentBlock + blocksInFuture))
+	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 	return simulation
 }
 
 export async function sendBundle(
 	flashbotsProvider: FlashbotsBundleProvider,
 	walletProvider: providers.Web3Provider,
-	currentBlock: bigint,
+	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
-	baseFee: bigint,
-	priorityFee: bigint,
-	interceptorPayload: GetSimulationStackReply | undefined,
-	bundleContainsFundingTx: boolean,
-	wallet: Wallet | undefined,
-	signingAccounts: { [account: string]: Wallet },
+	bundleData: BundleState,
+	signers: Signers,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsTransactionResponse> {
 	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
 
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(baseFee, blocksInFuture)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
-		createBundleTransactions(interceptorPayload, signingAccounts, wallet, bundleContainsFundingTx, blocksInFuture, priorityFee, baseFee, fundingAmountMin),
-		maxBaseFee,
+		createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin),
 		walletProvider,
-		priorityFee,
+		blockInfo,
+		maxBaseFee,
 	)
-	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(currentBlock + blocksInFuture))
+	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 	if ('error' in bundleSubmission) throw new Error(bundleSubmission.error.message)
 	return bundleSubmission
 }
