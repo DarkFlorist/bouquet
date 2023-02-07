@@ -4,12 +4,13 @@ import { Submit } from './Submit.js'
 import { Button } from './Button.js'
 import { providers, utils, Wallet } from 'ethers'
 import { Transactions } from './Transactions.js'
-import { computed, useSignal } from '@preact/signals'
+import { useComputed, useSignal } from '@preact/signals'
 import { EthereumAddress, GetSimulationStackReply, serialize } from '../library/interceptor-types.js'
 import { connectWallet } from '../library/provider.js'
 import { AppSettings, AppStages, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { NetworkDetails } from './NetworkDetails.js'
 
 function fetchBurnerWalletFromStorage() {
 	const burnerPrivateKey = localStorage.getItem('wallet')
@@ -51,7 +52,7 @@ export function App() {
 		else localStorage.removeItem('wallet')
 	})
 
-	const fundingAmountMin = computed(() => {
+	const fundingAmountMin = useComputed(() => {
 		if (!interceptorPayload.value) return 0n
 		if (!interceptorPayload.value.containsFundingTx) return 0n
 		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture)
@@ -70,6 +71,7 @@ export function App() {
 						<Transactions {...{ interceptorPayload, signers, blockInfo, fundingAmountMin, appSettings, stage }} />
 						{stage.value === 'configure' ? <Configure {...{ provider, interceptorPayload, fundingAmountMin, appSettings, signers, blockInfo, stage }} /> : null}
 						{stage.value === 'submit' ? <Submit {...{ provider, interceptorPayload, fundingAmountMin, signers, appSettings, blockInfo, stage }} /> : null}
+						<NetworkDetails {...{ blockInfo }} />
 					</>
 				) : (
 					<article className='text-center flex flex-col gap-4 py-8'>

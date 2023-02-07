@@ -10,7 +10,7 @@ import {
 } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { providers } from 'ethers'
-import { ReadonlySignal, Signal, useSignal } from '@preact/signals'
+import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, AppStages, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 
 const PromiseBlock = ({
@@ -36,10 +36,10 @@ const PromiseBlock = ({
 	return <></>
 }
 
-export const Bundles = ({ pendingBundles }: { pendingBundles: BundleInfo[] }) => {
+export const Bundles = ({ pendingBundles }: { pendingBundles: Signal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }> }) => {
 	return (
 		<div class='flex flex-col gap-4'>
-			{pendingBundles.map((bundle) => (
+			{pendingBundles.value.pendingBundles.map((bundle) => (
 				<div class='flex items-center font-semibold text-white'>
 					<div class='w-8 h-8'>
 						<span class='relative isolate inline-flex items-center justify-center'>
@@ -80,9 +80,17 @@ export const Submit = ({
 
 	const flashbotsProvider = useSignal<FlashbotsBundleProvider | undefined>(undefined)
 
-	const bundleStatus = useSignal<{ cancel: (() => void) | undefined; pendingBundles: BundleInfo[] }>({
-		cancel: undefined,
+	const bundleStatus = useSignal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }>({
+		active: false,
+		lastBlock: blockInfo.peek().blockNumber,
 		pendingBundles: [],
+	})
+
+	useSignalEffect(() => {
+		blockInfo.value.blockNumber // trigger effect
+		if (bundleStatus.peek().active && blockInfo.value.blockNumber > bundleStatus.peek().lastBlock) {
+			bundleSubmission(blockInfo.value.blockNumber)
+		}
 	})
 
 	async function simulateBundle() {
@@ -107,65 +115,66 @@ export const Submit = ({
 			.catch((err) => console.log('Unhandled Error: ', err))
 	}
 
+	async function bundleSubmission(blockNumber: bigint) {
+		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
+		if (!provider.value) throw 'User not connected'
+		if (!interceptorPayload.value) throw 'No imported bundle found'
+
+		const bundleSubmission = await sendBundle(
+			relayProvider,
+			provider.value,
+			{ ...blockInfo.peek(), blockNumber },
+			appSettings.peek().blocksInFuture,
+			interceptorPayload.value,
+			signers.peek(),
+			fundingAmountMin.peek(),
+		).catch(() => {
+			bundleStatus.value = {
+				active: bundleStatus.value.active,
+				lastBlock: blockNumber,
+				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: '', state: 'rejected', details: `RPC Error: ${blockNumber.toString()}` }],
+			}
+		})
+
+		if (bundleSubmission) {
+			bundleStatus.value = {
+				active: bundleStatus.value.active,
+				lastBlock: blockNumber,
+				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: bundleSubmission.bundleHash, state: 'pending', details: blockNumber.toString() }],
+			}
+
+			const status = await bundleSubmission.wait()
+			console.log(`Status for ${bundleSubmission.bundleHash}: ${FlashbotsBundleResolution[status]}`)
+
+			if (status === FlashbotsBundleResolution.BundleIncluded) {
+				const pendingBundles = bundleStatus.value.pendingBundles
+				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
+				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Minded` }
+				bundleStatus.value = { ...bundleStatus.value, active: false, pendingBundles }
+			} else {
+				const pendingBundles = bundleStatus.value.pendingBundles
+				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
+				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `${FlashbotsBundleResolution[status]}` }
+				bundleStatus.value = { ...bundleStatus.value, pendingBundles }
+			}
+		}
+	}
+
 	async function toggleSubmission() {
-		if (!bundleStatus.value.cancel) {
+		if (!bundleStatus.peek().active) {
 			const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
 			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 			if (!provider.value) throw 'User not connected'
 			if (!interceptorPayload.value) throw 'No imported bundle found'
-
 			bundleStatus.value = {
-				cancel: blockInfo.subscribe(async (newBlockInfo) => {
-					if (!provider.value || !interceptorPayload.value) return
-					const bundleSubmission = await sendBundle(
-						relayProvider,
-						provider.value,
-						blockInfo.peek(),
-						appSettings.peek().blocksInFuture,
-						interceptorPayload.value,
-						signers.peek(),
-						fundingAmountMin.peek(),
-					).catch((error) => {
-						console.log('Error: ', error)
-						bundleStatus.value = {
-							cancel: bundleStatus.value.cancel,
-							pendingBundles: [
-								...bundleStatus.value.pendingBundles,
-								{ hash: 'None', state: 'rejected', details: `RPC Error: ${newBlockInfo.blockNumber.toString()}` },
-							],
-						}
-					})
-					console.log(bundleSubmission)
-					if (!bundleSubmission) return
-					bundleStatus.value = {
-						cancel: bundleStatus.value.cancel,
-						pendingBundles: [
-							...bundleStatus.value.pendingBundles,
-							{ hash: bundleSubmission.bundleHash, state: 'pending', details: newBlockInfo.blockNumber.toString() },
-						],
-					}
-
-					const status = await bundleSubmission.wait()
-					console.log(`Status: ${FlashbotsBundleResolution[status]}`)
-
-					if (status === FlashbotsBundleResolution.BundleIncluded) {
-						const pendingBundles = bundleStatus.value.pendingBundles
-						const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
-						pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Minded` }
-						if (bundleStatus.value.cancel) bundleStatus.value.cancel()
-						bundleStatus.value = { cancel: undefined, pendingBundles }
-					} else {
-						const pendingBundles = bundleStatus.value.pendingBundles
-						const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
-						pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `${FlashbotsBundleResolution[status]}` }
-						bundleStatus.value = { cancel: bundleStatus.value.cancel, pendingBundles }
-					}
-				}),
-				pendingBundles: [],
+				active: true,
+				lastBlock: bundleStatus.value.lastBlock,
+				pendingBundles: bundleStatus.value.pendingBundles.filter((x) => x.state === 'pending'),
 			}
+			bundleSubmission(blockInfo.value.blockNumber)
 		} else {
-			bundleStatus.value.cancel()
-			bundleStatus.value.cancel = undefined
+			bundleStatus.value.active = false
 		}
 	}
 
@@ -180,13 +189,8 @@ export const Submit = ({
 					resolved={(value: SimulationResponse) => <div>Result: {JSON.stringify(value)}</div>}
 					rejected={(value: RelayResponseError) => <div>Error: {value.error.message}</div>}
 				/>
-				<Button onClick={toggleSubmission}>{bundleStatus.value.cancel ? 'Stop' : 'Submit'}</Button>
-				<Bundles pendingBundles={bundleStatus.value.pendingBundles} />
-				{bundleStatus.value.pendingBundles.map((tx) => (
-					<p>{JSON.stringify(tx)}</p>
-				))}
-				{JSON.stringify(bundleStatus.value)}
-				{`Block: ${blockInfo.value.blockNumber.toString()} - BaseFee: ${blockInfo.value.baseFee.toString()}`}
+				<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
+				<Bundles pendingBundles={bundleStatus} />
 			</div>
 		</>
 	)
