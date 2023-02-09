@@ -1,9 +1,8 @@
-import { batch, ReadonlySignal, Signal } from '@preact/signals'
+import { ReadonlySignal, Signal } from '@preact/signals'
 import { utils } from 'ethers'
 import { createBundleTransactions } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider'
-import { AppSettings, AppStages, BlockInfo, BundleState, Signers } from '../library/types'
-import { Button } from './Button.js'
+import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types'
 
 export const TransactionList = ({ transactions, fundingTx }: { transactions: FlashbotsBundleTransaction[]; fundingTx: boolean }) => {
 	return (
@@ -46,26 +45,13 @@ export const Transactions = ({
 	blockInfo,
 	appSettings,
 	fundingAmountMin,
-	stage,
 }: {
 	interceptorPayload: Signal<BundleState | undefined>
 	blockInfo: Signal<BlockInfo>
 	signers: Signal<Signers>
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
-	stage: Signal<AppStages>
 }) => {
-	const clearPayload = () => {
-		batch(() => {
-			interceptorPayload.value = undefined
-			localStorage.removeItem('payload')
-			signers.value.bundleSigners = {}
-			// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
-			// if (fundingAccountBalance.value === 0n) signers.value.burner = undefined
-			stage.value = 'import'
-		})
-	}
-
 	const transactions = createBundleTransactions(
 		interceptorPayload.peek(),
 		signers.peek(),
@@ -76,10 +62,7 @@ export const Transactions = ({
 
 	return (
 		<>
-			<div class='flex gap-4 items-center'>
-				<h2 class='text-3xl font-extrabold'>Your Transactions</h2>
-				<Button onClick={clearPayload}>Reset</Button>
-			</div>
+			<h2 className='font-bold text-2xl'>Your Transactions</h2>
 			<TransactionList {...{ transactions, fundingTx: interceptorPayload.peek()?.containsFundingTx ?? false }} />
 		</>
 	)

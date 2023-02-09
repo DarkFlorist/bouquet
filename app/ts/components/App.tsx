@@ -7,7 +7,7 @@ import { Transactions } from './Transactions.js'
 import { useComputed, useSignal } from '@preact/signals'
 import { EthereumAddress, GetSimulationStackReply, serialize } from '../library/interceptor-types.js'
 import { connectWallet } from '../library/provider.js'
-import { AppSettings, AppStages, BlockInfo, BundleState, Signers } from '../library/types.js'
+import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { NetworkDetails } from './NetworkDetails.js'
@@ -27,7 +27,7 @@ function fetchPayloadFromStorage() {
 		(_, index) => !(index === 0 && containsFundingTx),
 	)
 	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-	// // @TODO: Change this to track minimum amount of ETH needed to deposit
+	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
 	return { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
@@ -59,28 +59,27 @@ export function App() {
 		return interceptorPayload.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + interceptorPayload.value.inputValue
 	})
 
-	const stage = useSignal<AppStages>(interceptorPayload.peek() ? 'configure' : 'import')
-
 	return (
 		<main class='bg-background text-primary w-full min-h-screen px-6 font-serif flex flex-col items-center'>
-			<article className='p-4 max-w-screen-lg w-full flex flex-col gap-8'>
-				{stage.value === 'import' ? (
-					<Import {...{ provider, interceptorPayload, blockInfo, stage }} />
-				) : provider.value ? (
-					<>
-						<Transactions {...{ interceptorPayload, signers, blockInfo, fundingAmountMin, appSettings, stage }} />
-						{stage.value === 'configure' ? <Configure {...{ provider, interceptorPayload, fundingAmountMin, appSettings, signers, blockInfo, stage }} /> : null}
-						{stage.value === 'submit' ? <Submit {...{ provider, interceptorPayload, fundingAmountMin, signers, appSettings, blockInfo, stage }} /> : null}
-						<NetworkDetails {...{ blockInfo }} />
-					</>
-				) : (
-					<article className='text-center flex flex-col gap-4 py-8'>
-						<h2 class='text-3xl font-extrabold'>Welcome Back</h2>
-						<Button onClick={() => connectWallet(provider, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined)}>
-							Connect Wallet
-						</Button>
-					</article>
-				)}
+			<article className='p-4 max-w-screen-lg w-full'>
+				<NetworkDetails {...{ blockInfo, provider }} />
+				<div className='p-4 mt-4 flex flex-col gap-8'>
+					{!provider.value && interceptorPayload.value ? (
+						<article className='items-center flex flex-col gap-4 py-8'>
+							<h2 class='text-2xl font-bold'>Welcome Back</h2>
+							<Button onClick={() => connectWallet(provider, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined)}>
+								Connect Wallet
+							</Button>
+						</article>
+					) : (
+						<>
+							<Import {...{ provider, interceptorPayload, blockInfo, signers }} />
+							{interceptorPayload.value ? <Transactions {...{ interceptorPayload, signers, blockInfo, fundingAmountMin, appSettings }} /> : null}
+							<Configure {...{ provider, interceptorPayload, fundingAmountMin, appSettings, signers, blockInfo }} />
+							<Submit {...{ provider, interceptorPayload, fundingAmountMin, signers, appSettings, blockInfo }} />
+						</>
+					)}
+				</div>
 			</article>
 		</main>
 	)

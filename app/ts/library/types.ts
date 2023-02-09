@@ -7,7 +7,6 @@ declare global {
 	}
 }
 
-export type AppStages = 'import' | 'configure' | 'submit'
 export type BlockInfo = { blockNumber: bigint; baseFee: bigint; priorityFee: bigint }
 export type BundleState = { payload: GetSimulationStackReply; containsFundingTx: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
 export type AppSettings = { blocksInFuture: bigint; priorityFee: bigint; relayEndpoint: string }

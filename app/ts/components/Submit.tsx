@@ -10,8 +10,8 @@ import {
 } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { providers } from 'ethers'
-import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
-import { AppSettings, AppStages, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 
 const PromiseBlock = ({
 	state,
@@ -68,7 +68,6 @@ export const Submit = ({
 	fundingAmountMin: ReadonlySignal<bigint>
 	appSettings: Signal<AppSettings>
 	blockInfo: Signal<BlockInfo>
-	stage: Signal<AppStages>
 }) => {
 	const [simulationResult, setSimulationResult] = useState<
 		| {
@@ -91,6 +90,16 @@ export const Submit = ({
 		if (bundleStatus.peek().active && blockInfo.value.blockNumber > bundleStatus.peek().lastBlock) {
 			bundleSubmission(blockInfo.value.blockNumber)
 		}
+	})
+
+	const missingRequirements = useComputed(() => {
+		if (!interceptorPayload.value) return 'No transactions imported yet.'
+		const missingSigners = interceptorPayload.value.uniqueSigners.length !== Object.keys(signers.value.bundleSigners).length
+		const insufficientBalance = signers.value.burnerBalance < fundingAmountMin.value
+		if (missingSigners && insufficientBalance) return 'Missing private keys for signing accounts and funding wallet has insufficent balance.'
+		if (missingSigners) return 'Missing private keys for signing accounts.'
+		if (insufficientBalance) return 'Funding wallet has insufficent balance.'
+		return false
 	})
 
 	async function simulateBundle() {
@@ -150,7 +159,7 @@ export const Submit = ({
 			if (status === FlashbotsBundleResolution.BundleIncluded) {
 				const pendingBundles = bundleStatus.value.pendingBundles
 				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
-				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Minded` }
+				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Included` }
 				bundleStatus.value = { ...bundleStatus.value, active: false, pendingBundles }
 			} else {
 				const pendingBundles = bundleStatus.value.pendingBundles
@@ -180,18 +189,24 @@ export const Submit = ({
 
 	return (
 		<>
-			<h2 className='font-extrabold text-3xl'>Submit</h2>
-			<div className='flex flex-col w-full gap-6'>
-				<Button onClick={simulateBundle}>Simulate</Button>
-				<PromiseBlock
-					state={simulationResult}
-					pending={() => <div>Pending...</div>}
-					resolved={(value: SimulationResponse) => <div>Result: {JSON.stringify(value)}</div>}
-					rejected={(value: RelayResponseError) => <div>Error: {value.error.message}</div>}
-				/>
-				<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
-				<Bundles pendingBundles={bundleStatus} />
-			</div>
+			<h2 className='font-bold text-2xl'>3. Submit</h2>
+			{missingRequirements.value ? (
+				<p>{missingRequirements.peek()}</p>
+			) : (
+				<div className='flex flex-col w-full gap-6'>
+					<Button onClick={simulateBundle} variant='secondary'>
+						Simulate
+					</Button>
+					<PromiseBlock
+						state={simulationResult}
+						pending={() => <div>Pending...</div>}
+						resolved={(value: SimulationResponse) => <div>Result: {JSON.stringify(value)}</div>}
+						rejected={(value: RelayResponseError) => <div>Error: {value.error.message}</div>}
+					/>
+					<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
+					<Bundles pendingBundles={bundleStatus} />
+				</div>
+			)}
 		</>
 	)
 }

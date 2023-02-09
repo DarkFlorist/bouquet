@@ -13,7 +13,7 @@ module.exports = {
 				error: '#DB5461',
 			},
 			fontFamily: {
-				serif: ['Poppins', 'sans-serif'],
+				serif: ['Inter', 'sans-serif'],
 			},
 			keyframes: {
 				scale: {
