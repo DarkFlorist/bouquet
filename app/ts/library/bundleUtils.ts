@@ -1,7 +1,13 @@
 import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { MEV_RELAY_GOERLI } from '../constants.js'
-import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
+import {
+	FlashbotsBundleProvider,
+	FlashbotsBundleTransaction,
+	FlashbotsTransactionResponse,
+	FlashbotsTransaction,
+	SimulationResponse,
+} from './flashbots-ethers-provider.js'
 import { EthereumAddress, EthereumData, serialize } from './interceptor-types.js'
 import { BlockInfo, BundleState, Signers } from './types.js'
 
@@ -103,8 +109,16 @@ export async function simulate(
 		blockInfo,
 		maxBaseFee,
 	)
-	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
-	return simulation
+	return await simulateCall(flashbotsProvider, signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
+}
+
+async function simulateCall(flashbotsProvider: FlashbotsBundleProvider, signedTransactions: string[], targetBlock: number): Promise<SimulationResponse> {
+	try {
+		return await flashbotsProvider.simulate(signedTransactions, targetBlock)
+	} catch {
+		// It is very common for the RPC request to the relay to fail so we recursivly repeat untill succeeding.
+		return await simulateCall(flashbotsProvider, signedTransactions, targetBlock)
+	}
 }
 
 export async function sendBundle(
@@ -125,7 +139,16 @@ export async function sendBundle(
 		blockInfo,
 		maxBaseFee,
 	)
-	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
+	const bundleSubmission = await bundleCall(flashbotsProvider, signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 	if ('error' in bundleSubmission) throw new Error(bundleSubmission.error.message)
 	return bundleSubmission
+}
+
+async function bundleCall(flashbotsProvider: FlashbotsBundleProvider, signedTransactions: string[], targetBlock: number): Promise<FlashbotsTransaction> {
+	try {
+		return await flashbotsProvider.sendRawBundle(signedTransactions, targetBlock)
+	} catch {
+		// It is very common for the RPC request to the relay to fail so we recursivly repeat untill succeeding.
+		return await bundleCall(flashbotsProvider, signedTransactions, targetBlock)
+	}
 }
