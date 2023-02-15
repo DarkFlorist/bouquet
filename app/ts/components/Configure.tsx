@@ -1,65 +1,74 @@
-import { computed } from '@preact/signals'
-import { Wallet, utils } from 'ethers'
+import { batch, computed, ReadonlySignal, Signal } from '@preact/signals'
+import { Wallet, utils, providers } from 'ethers'
 import { useState } from 'preact/hooks'
 import { JSX } from 'preact/jsx-runtime'
-import {
-	bundleContainsFundingTx,
-	uniqueSigners,
-	wallet,
-	fundingAccountBalance,
-	signingAccounts,
-	fundingAmountMin,
-} from '../store.js'
+import { AppStages, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { Button } from './Button.js'
 
-export const Configure = (props: { nextStage: () => void }) => {
+export const Configure = ({
+	provider,
+	interceptorPayload,
+	fundingAmountMin,
+	signers,
+	blockInfo,
+	stage,
+}: {
+	provider: Signal<providers.Web3Provider | undefined>
+	interceptorPayload: Signal<BundleState | undefined>
+	signers: Signal<Signers>
+	fundingAmountMin: ReadonlySignal<bigint>
+	blockInfo: Signal<BlockInfo>
+	stage: Signal<AppStages>
+}) => {
 	const [signerKeys, setSignerKeys] = useState<{
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>(
-		uniqueSigners.peek().reduce(
-			(
-				curr: {
-					[address: string]: { input: string; wallet: Wallet | null }
-				},
-				address,
-			) => {
-				curr[utils.getAddress(address)] = { input: '', wallet: null }
-				return curr
-			},
-			{},
-		),
+		interceptorPayload.value
+			? interceptorPayload.value.uniqueSigners.reduce(
+					(
+						curr: {
+							[address: string]: { input: string; wallet: Wallet | null }
+						},
+						address,
+					) => {
+						curr[utils.getAddress(address)] = { input: '', wallet: null }
+						return curr
+					},
+					{},
+			  )
+			: {},
 	)
 
 	const requirementsMet = computed(
-		() =>
-			Object.values(signerKeys).filter(({ wallet }) => !wallet).length === 0 &&
-			fundingAccountBalance.value >= fundingAmountMin.value,
+		() => Object.values(signerKeys).filter(({ wallet }) => !wallet).length === 0 && signers.value.burnerBalance >= fundingAmountMin.value,
 	)
 
+	blockInfo.subscribe(() => {
+		if (provider.value && signers.value.burner) {
+			provider.value.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance.toBigInt()))
+		}
+	})
+
 	const saveAndNext = () => {
-		signingAccounts.value = Object.values(signerKeys).reduce(
-			(acc: { [account: string]: Wallet }, wallet) => {
+		batch(() => {
+			signers.value.bundleSigners = Object.values(signerKeys).reduce((acc: { [account: string]: Wallet }, wallet) => {
 				if (wallet.wallet) {
 					acc[wallet.wallet.address] = wallet.wallet
 				}
 				return acc
-			},
-			{},
-		)
-		props.nextStage()
+			}, {})
+			stage.value = 'submit'
+		})
 	}
 
 	return (
-		<article className='p-6 max-w-screen-lg w-full flex flex-col gap-6'>
+		<>
 			<h2 className='font-extrabold text-3xl'>Configure Bundle</h2>
-			<div className='flex flex-col w-full gap-6'>
-				<h3 className='text-2xl font-semibold'>
-					Found {uniqueSigners.value.length} Signers{' '}
-					{bundleContainsFundingTx.value ? ' + A Funding Transaction' : ''}
-				</h3>
-				{uniqueSigners.value.map((address) => (
+			<div className='flex flex-col w-full gap-4'>
+				<h3 className='text-2xl font-semibold'>Enter Private Keys For Signing Accounts</h3>
+				{interceptorPayload.value?.uniqueSigners.map((address) => (
 					<>
-						<span className='font-semibold -mb-4'>{address}</span>
+						<span className='font-semibold -mb-2'>{address}</span>
 						<input
 							type='text'
 							value={signerKeys[address].input}
@@ -70,10 +79,7 @@ export const Configure = (props: { nextStage: () => void }) => {
 									setSignerKeys({
 										...setSignerKeys,
 										[address]: {
-											wallet:
-												wallet.address === utils.getAddress(address)
-													? wallet
-													: null,
+											wallet: wallet.address === utils.getAddress(address) ? wallet : null,
 											input: target.value,
 										},
 									})
@@ -84,33 +90,27 @@ export const Configure = (props: { nextStage: () => void }) => {
 									})
 								}
 							}}
-							className={`p-3 bg-secondary ring ring-offset-2 ${
-								signerKeys[address].wallet ? 'ring-success' : 'ring-error'
-							}`}
+							className={`p-4 rounded bg-secondary border-4 ${signerKeys[address].wallet ? 'border-success' : 'border-error'}`}
 							placeholder={`Private key for ${address}`}
 						/>
 					</>
 				))}
-
-				{bundleContainsFundingTx.value && wallet.value ? (
-					<>
-						<h3 className='text-2xl font-semibold'>
-							Deposit To Funding Account
-						</h3>
-						<span>{wallet.value.address}</span>
-						<span>
-							Wallet Balance: {utils.formatEther(fundingAccountBalance.value)}{' '}
-							ETH / Needed:
-							{utils.formatEther(fundingAmountMin.value)} ETH
-						</span>
-					</>
-				) : (
-					''
-				)}
-				<Button disabled={!requirementsMet.value} onClick={saveAndNext}>
-					Next
-				</Button>
 			</div>
-		</article>
+			{interceptorPayload.value?.containsFundingTx && signers.value.burner ? (
+				<div className='flex flex-col w-full gap-4'>
+					<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
+					<span>{signers.value.burner.address}</span>
+					<span>
+						Wallet Balance: {utils.formatEther(signers.value.burnerBalance)} ETH / Needed:
+						{utils.formatEther(fundingAmountMin.value)} ETH
+					</span>
+				</div>
+			) : (
+				''
+			)}
+			<Button disabled={!requirementsMet.value} onClick={saveAndNext}>
+				Next
+			</Button>
+		</>
 	)
 }

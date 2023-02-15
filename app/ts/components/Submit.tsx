@@ -1,97 +1,197 @@
-import {
-	createBundleTransactions,
-	createProvider,
-	sendBundle,
-	simulate,
-} from '../library/bundleUtils.js'
-import { latestBlock } from '../store.js'
-import { useMemo, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
+import { JSX } from 'preact/jsx-runtime'
+import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
 import {
 	FlashbotsBundleProvider,
+	FlashbotsBundleResolution,
+	RelayResponseError,
 	SimulationResponse,
+	SimulationResponseSuccess,
 } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
+import { providers } from 'ethers'
+import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
+import { AppSettings, AppStages, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 
 const PromiseBlock = ({
 	state,
+	pending,
+	resolved,
+	rejected,
 }: {
 	state:
 		| {
-				status: 'pending' | 'resolved' | 'rejected'
-				value?: SimulationResponse | Error
+				status: PromiseState
+				value?: SimulationResponse
 		  }
 		| undefined
+	pending: () => JSX.Element
+	resolved: (value: SimulationResponseSuccess) => JSX.Element
+	rejected: (value: RelayResponseError) => JSX.Element
 }) => {
 	if (!state) return <></>
-	switch (state.status) {
-		case 'pending':
-			return <main>pending</main>
-		case 'rejected':
-			return <main>Error: {JSON.stringify(state.value)}</main>
-		case 'resolved':
-			return <main>Result: {JSON.stringify(state.value)}</main>
-	}
+	if (!state.value || state.status === 'pending') return pending()
+	if (state.status === 'resolved') return resolved(state.value as SimulationResponseSuccess)
+	if (state.status === 'rejected') return rejected(state.value as RelayResponseError)
+	return <></>
 }
 
-export const Submit = () => {
-	const bundle = useMemo(() => createBundleTransactions(), [latestBlock.value])
-	const [result, setResult] = useState<
+export const Bundles = ({ pendingBundles }: { pendingBundles: Signal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }> }) => {
+	return (
+		<div class='flex flex-col gap-4'>
+			{pendingBundles.value.pendingBundles.map((bundle) => (
+				<div class='flex items-center font-semibold text-white'>
+					<div class='w-8 h-8'>
+						<span class='relative isolate inline-flex items-center justify-center'>
+							<span class='animate-scale absolute z-0 h-8 w-8 rounded-full bg-accent/60'></span>
+							<span class='animate-scale animation-delay-1000 absolute z-10 h-8 w-8 rounded-full bg-accent/60'></span>
+						</span>
+					</div>
+					{bundle.details}
+				</div>
+			))}
+		</div>
+	)
+}
+
+export const Submit = ({
+	provider,
+	interceptorPayload,
+	fundingAmountMin,
+	signers,
+	appSettings,
+	blockInfo,
+}: {
+	provider: Signal<providers.Web3Provider | undefined>
+	interceptorPayload: Signal<BundleState | undefined>
+	signers: Signal<Signers>
+	fundingAmountMin: ReadonlySignal<bigint>
+	appSettings: Signal<AppSettings>
+	blockInfo: Signal<BlockInfo>
+	stage: Signal<AppStages>
+}) => {
+	const [simulationResult, setSimulationResult] = useState<
 		| {
 				status: 'pending' | 'resolved' | 'rejected'
-				value?: SimulationResponse | Error
+				value?: SimulationResponse
 		  }
 		| undefined
 	>(undefined)
 
-	let flashbotsProvider: FlashbotsBundleProvider
+	const flashbotsProvider = useSignal<FlashbotsBundleProvider | undefined>(undefined)
+
+	const bundleStatus = useSignal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }>({
+		active: false,
+		lastBlock: blockInfo.peek().blockNumber,
+		pendingBundles: [],
+	})
+
+	useSignalEffect(() => {
+		blockInfo.value.blockNumber // trigger effect
+		if (bundleStatus.peek().active && blockInfo.value.blockNumber > bundleStatus.peek().lastBlock) {
+			bundleSubmission(blockInfo.value.blockNumber)
+		}
+	})
 
 	async function simulateBundle() {
-		if (!flashbotsProvider) {
-			flashbotsProvider = await createProvider()
-		}
-		setResult({ status: 'pending' })
-		simulate(flashbotsProvider)
-			.then((value) => setResult({ status: 'resolved', value }))
-			.catch((value) => setResult({ status: 'rejected', value }))
+		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
+		if (!provider.value) throw 'User not connected'
+		if (!interceptorPayload.value) throw 'No imported bundle found'
+		setSimulationResult({ status: 'pending' })
+		simulate(
+			relayProvider,
+			provider.value,
+			blockInfo.peek(),
+			appSettings.peek().blocksInFuture,
+			interceptorPayload.value,
+			signers.peek(),
+			fundingAmountMin.peek(),
+		)
+			.then((value) => {
+				if ((value as RelayResponseError).error) return setSimulationResult({ status: 'rejected', value })
+				return setSimulationResult({ status: 'resolved', value })
+			})
+			.catch((err) => console.log('Unhandled Error: ', err))
 	}
 
-	async function submitBundle() {
-		if (!flashbotsProvider) {
-			flashbotsProvider = await createProvider()
+	async function bundleSubmission(blockNumber: bigint) {
+		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
+		if (!provider.value) throw 'User not connected'
+		if (!interceptorPayload.value) throw 'No imported bundle found'
+
+		const bundleSubmission = await sendBundle(
+			relayProvider,
+			provider.value,
+			{ ...blockInfo.peek(), blockNumber },
+			appSettings.peek().blocksInFuture,
+			interceptorPayload.value,
+			signers.peek(),
+			fundingAmountMin.peek(),
+		).catch(() => {
+			bundleStatus.value = {
+				active: bundleStatus.value.active,
+				lastBlock: blockNumber,
+				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: '', state: 'rejected', details: `RPC Error: ${blockNumber.toString()}` }],
+			}
+		})
+
+		if (bundleSubmission) {
+			bundleStatus.value = {
+				active: bundleStatus.value.active,
+				lastBlock: blockNumber,
+				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: bundleSubmission.bundleHash, state: 'pending', details: blockNumber.toString() }],
+			}
+
+			const status = await bundleSubmission.wait()
+			console.log(`Status for ${bundleSubmission.bundleHash}: ${FlashbotsBundleResolution[status]}`)
+
+			if (status === FlashbotsBundleResolution.BundleIncluded) {
+				const pendingBundles = bundleStatus.value.pendingBundles
+				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
+				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Minded` }
+				bundleStatus.value = { ...bundleStatus.value, active: false, pendingBundles }
+			} else {
+				const pendingBundles = bundleStatus.value.pendingBundles
+				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
+				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `${FlashbotsBundleResolution[status]}` }
+				bundleStatus.value = { ...bundleStatus.value, pendingBundles }
+			}
 		}
-		sendBundle(flashbotsProvider)
+	}
+
+	async function toggleSubmission() {
+		if (!bundleStatus.peek().active) {
+			const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
+			if (!provider.value) throw 'User not connected'
+			if (!interceptorPayload.value) throw 'No imported bundle found'
+			bundleStatus.value = {
+				active: true,
+				lastBlock: bundleStatus.value.lastBlock,
+				pendingBundles: bundleStatus.value.pendingBundles.filter((x) => x.state === 'pending'),
+			}
+			bundleSubmission(blockInfo.value.blockNumber)
+		} else {
+			bundleStatus.value.active = false
+		}
 	}
 
 	return (
-		<article className='p-6 max-w-screen-lg w-full flex flex-col gap-6'>
-			<h2
-				className='font-extrabold
-		 text-3xl'
-			>
-				Review And Submit
-			</h2>
-
+		<>
+			<h2 className='font-extrabold text-3xl'>Submit</h2>
 			<div className='flex flex-col w-full gap-6'>
-				<h3 className='text-xl'> @TODO: this section</h3>
-				<div className='flex-col flex gap-4'>
-					{bundle.map((tx: any, index: number) => (
-						<ul className='rounded bg-secondary p-4'>
-							<li>#{index}</li>
-							<li>From: {tx.transaction.from}</li>
-							<li>To: {tx.transaction.to}</li>
-							<li>Value: {tx.transaction.value}</li>
-							<li className='w-full break-all'>Input: {tx.transaction.data}</li>
-						</ul>
-					))}
-				</div>
 				<Button onClick={simulateBundle}>Simulate</Button>
-				<PromiseBlock state={result} />
-				<Button onClick={submitBundle}>Submit</Button>
-				<p>
-					Once bundle has been submitted and mined then state + localStorage
-					should get cleaned up - for now manually clear Cookies + Site Data
-				</p>
+				<PromiseBlock
+					state={simulationResult}
+					pending={() => <div>Pending...</div>}
+					resolved={(value: SimulationResponse) => <div>Result: {JSON.stringify(value)}</div>}
+					rejected={(value: RelayResponseError) => <div>Error: {value.error.message}</div>}
+				/>
+				<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
+				<Bundles pendingBundles={bundleStatus} />
 			</div>
-		</article>
+		</>
 	)
 }
