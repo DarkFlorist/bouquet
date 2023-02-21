@@ -14,7 +14,7 @@ import { NetworkDetails } from './NetworkDetails.js'
 
 function fetchBurnerWalletFromStorage() {
 	const burnerPrivateKey = localStorage.getItem('wallet')
-	return burnerPrivateKey ? new Wallet(burnerPrivateKey) : undefined
+	return burnerPrivateKey ? new Wallet(burnerPrivateKey) : Wallet.createRandom()
 }
 
 function fetchPayloadFromStorage() {
