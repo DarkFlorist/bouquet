@@ -18,9 +18,11 @@ export const Configure = ({
 }) => {
 	const signerKeys = useSignal<{
 		[address: string]: { input: string; wallet: Wallet | null }
-	}>(
-		interceptorPayload.value
-			? interceptorPayload.value.uniqueSigners.reduce(
+	}>({})
+
+	interceptorPayload.subscribe((payload) => {
+		signerKeys.value = payload
+			? payload.uniqueSigners.reduce(
 					(
 						curr: {
 							[address: string]: { input: string; wallet: Wallet | null }
@@ -32,8 +34,8 @@ export const Configure = ({
 					},
 					{},
 			  )
-			: {},
-	)
+			: {}
+	})
 
 	blockInfo.subscribe(() => {
 		if (provider.value && signers.value.burner) {

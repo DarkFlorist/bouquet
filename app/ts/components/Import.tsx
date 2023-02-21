@@ -65,7 +65,7 @@ export async function importFromInterceptor(
 	)
 
 	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-	// // @TODO: Change this to track minimum amount of ETH needed to deposit
+	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
 	batch(() => {
