@@ -879,7 +879,6 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 			method: 'POST',
 			mode: 'cors',
 			headers: {
-				hello: 'world',
 				'Content-Type': 'application/json',
 				'X-Flashbots-Signature': `${await this.authSigner.getAddress()}:${await this.authSigner.signMessage(utils.id(request))}`,
 			},
