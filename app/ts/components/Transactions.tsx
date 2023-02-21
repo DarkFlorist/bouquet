@@ -6,23 +6,19 @@ import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types'
 
 export const TransactionList = ({ transactions, fundingTx }: { transactions: FlashbotsBundleTransaction[]; fundingTx: boolean }) => {
 	return (
-		<div class='flex w-full flex-col gap-4'>
+		<div class='flex w-full flex-col gap-2'>
 			{transactions.map((tx, index) => (
 				<div class='flex w-full min-h-[96px]'>
-					{index === 0 && fundingTx ? (
-						<div class='flex w-24 flex-col items-center justify-center rounded-l bg-success text-background'>
-							<span class='text-xs font-semibold'>Funding TX</span>
-							<span class='text-lg font-light'>#{index}</span>
-						</div>
-					) : (
-						<div class='flex w-24 flex-col items-center justify-center rounded-l bg-accent text-background'>
-							<span class='text-lg font-light'>#{index}</span>
-						</div>
-					)}
+					<div class='flex w-24 flex-col items-center justify-center rounded-l bg-accent text-background'>
+						<span class='text-lg font-light'>#{index}</span>
+					</div>
 					<div class='bg-card flex w-full justify-center flex-col gap-2 rounded-r p-4 text-sm font-semibold'>
 						<p>
-							From <span class='rounded bg-background p-1 font-mono'>{tx.transaction.from}</span> ➝ To{' '}
-							<span class='rounded bg-background p-1 font-mono'>{tx.transaction.to}</span>
+							From{' '}
+							<span class='rounded bg-background p-1 font-mono'>
+								{fundingTx && tx.transaction.from === transactions[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
+							</span>{' '}
+							➝ To <span class='rounded bg-background p-1 font-mono'>{tx.transaction.to}</span>
 						</p>
 						<p>
 							Value: <span class='font-mono'>{utils.formatEther(tx.transaction.value ?? 0n)}</span> Ether

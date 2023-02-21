@@ -22,6 +22,11 @@ export const NetworkDetails = ({
 			try {
 				await provider.peek()?.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
 				const { chainId } = await provider.value.getNetwork()
+				const block = await provider.peek()?.getBlockNumber()
+				provider
+					.peek()
+					?._events.find((x) => x.tag === 'block')
+					?.listener(block)
 				if ([1, 5].includes(chainId)) {
 					appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
 				}

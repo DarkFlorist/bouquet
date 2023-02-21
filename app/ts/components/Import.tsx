@@ -16,6 +16,7 @@ export async function importFromInterceptor(
 		priorityFee: bigint
 	}>,
 	appSettings: Signal<AppSettings>,
+	signers: Signal<Signers> | undefined,
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('Import Error: No Ethereum wallet detected')
 
@@ -37,7 +38,7 @@ export async function importFromInterceptor(
 	}
 
 	const blockCallback = (blockNumber: number) => {
-		updateLatestBlock(blockNumber, provider, blockInfo)
+		updateLatestBlock(blockNumber, provider, blockInfo, signers)
 	}
 
 	const { payload } = await window.ethereum
@@ -109,7 +110,9 @@ export const Import = ({
 			<h2 className='font-bold text-2xl'>1. Import</h2>
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex gap-4'>
-					<Button onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings).catch((err: Error) => setError(err.message))}>
+					<Button
+						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).catch((err: Error) => setError(err.message))}
+					>
 						Import Payload from The Interceptor
 					</Button>
 					{interceptorPayload.value ? (
