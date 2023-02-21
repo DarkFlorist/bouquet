@@ -685,6 +685,10 @@ video {
 	border-width: 2px;
 }
 
+.border {
+	border-width: 1px;
+}
+
 .border-b {
 	border-bottom-width: 1px;
 }
@@ -757,6 +761,11 @@ video {
 	padding-bottom: 0.5rem;
 }
 
+.px-4 {
+	padding-left: 1rem;
+	padding-right: 1rem;
+}
+
 .font-serif {
 	font-family: Inter, sans-serif;
 }
@@ -823,6 +832,11 @@ video {
 .text-accent {
 	--tw-text-opacity: 1;
 	color: rgb(108 207 246 / var(--tw-text-opacity));
+}
+
+.text-success {
+	--tw-text-opacity: 1;
+	color: rgb(152 206 0 / var(--tw-text-opacity));
 }
 
 .text-white {

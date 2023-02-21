@@ -92,7 +92,7 @@ export const Configure = ({
 									type='text'
 									value={signerKeys.value[address].input}
 									onKeyUp={(e: JSX.TargetedEvent<HTMLInputElement>) => tryUpdateSigners(address, e.currentTarget.value)}
-									className={`p-4 rounded-xl border-slate-200/70 border-2 ${
+									className={`p-4 text-lg rounded-xl border-slate-200/70 border-2 ${
 										signerKeys.value[address].wallet ? 'bg-success/10' : signerKeys.peek()[address].input ? 'bg-error/10' : 'bg-background'
 									}`}
 									placeholder={`Private key for ${address}`}
@@ -126,7 +126,7 @@ export const Configure = ({
 							<p className='font-semibold text-lg'>
 								Wallet Balance: <span className='font-medium font-mono'>{utils.formatEther(signers.value.burnerBalance)}</span> ETH
 								<br />
-								Needed: <span className='font-medium font-mono'>{utils.formatEther(fundingAmountMin.value)}</span> ETH
+								Minimum Required Balance: <span className='font-medium font-mono'>{utils.formatEther(fundingAmountMin.value)}</span> ETH
 							</p>
 						</div>
 					) : (

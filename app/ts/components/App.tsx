@@ -8,7 +8,7 @@ import { useComputed, useSignal } from '@preact/signals'
 import { EthereumAddress, GetSimulationStackReply, serialize } from '../library/interceptor-types.js'
 import { connectWallet } from '../library/provider.js'
 import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
-import { MEV_RELAY_GOERLI } from '../constants.js'
+import { MEV_RELAY_MAINNET } from '../constants.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { NetworkDetails } from './NetworkDetails.js'
 
@@ -35,7 +35,7 @@ function fetchPayloadFromStorage() {
 
 function fetchSettingsFromStorage() {
 	// @TODO: add ability to manage settings
-	return { blocksInFuture: 2n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_GOERLI }
+	return { blocksInFuture: 2n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET }
 }
 
 export function App() {
@@ -62,18 +62,18 @@ export function App() {
 	return (
 		<main class='bg-background text-primary w-full min-h-screen px-6 font-serif flex flex-col items-center'>
 			<article className='p-4 max-w-screen-lg w-full'>
-				<NetworkDetails {...{ blockInfo, provider }} />
+				<NetworkDetails {...{ blockInfo, provider, appSettings }} />
 				<div className='p-4 mt-4 flex flex-col gap-8'>
 					{!provider.value && interceptorPayload.value ? (
 						<article className='items-center flex flex-col gap-4 py-8'>
 							<h2 class='text-2xl font-bold'>Welcome Back</h2>
-							<Button onClick={() => connectWallet(provider, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined)}>
+							<Button onClick={() => connectWallet(provider, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined, appSettings)}>
 								Connect Wallet
 							</Button>
 						</article>
 					) : (
 						<>
-							<Import {...{ provider, interceptorPayload, blockInfo, signers }} />
+							<Import {...{ provider, interceptorPayload, blockInfo, signers, appSettings }} />
 							{interceptorPayload.value ? <Transactions {...{ interceptorPayload, signers, blockInfo, fundingAmountMin, appSettings }} /> : null}
 							<Configure {...{ provider, interceptorPayload, fundingAmountMin, appSettings, signers, blockInfo }} />
 							<Submit {...{ provider, interceptorPayload, fundingAmountMin, signers, appSettings, blockInfo }} />

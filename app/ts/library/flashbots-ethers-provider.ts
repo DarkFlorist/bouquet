@@ -1,6 +1,6 @@
 import { BigNumber, providers, Signer, utils } from 'ethers'
+import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 
-export const DEFAULT_FLASHBOTS_RELAY = 'https://relay.flashbots.net'
 export const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8
 
 export enum FlashbotsBundleResolution {
@@ -91,11 +91,11 @@ export interface RelayResponseError {
 }
 
 export interface SimulationResponseSuccess {
-	bundleGasPrice: BigNumber
+	bundleGasPrice: BigInt
 	bundleHash: string
-	coinbaseDiff: BigNumber
-	ethSentToCoinbase: BigNumber
-	gasFees: BigNumber
+	coinbaseDiff: BigInt
+	ethSentToCoinbase: BigInt
+	gasFees: BigInt
 	results: Array<TransactionSimulation>
 	totalGasUsed: number
 	stateBlockNumber: number
@@ -227,13 +227,13 @@ const TIMEOUT_MS = 5 * 60 * 1000
 export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 	private genericProvider: providers.BaseProvider
 	private authSigner: Signer
-	private connectionInfo: utils.ConnectionInfo
+	// private connectionInfo: utils.ConnectionInfo
 
 	constructor(genericProvider: providers.BaseProvider, authSigner: Signer, connectionInfoOrUrl: utils.ConnectionInfo, network: providers.Networkish) {
 		super(connectionInfoOrUrl, network)
 		this.genericProvider = genericProvider
 		this.authSigner = authSigner
-		this.connectionInfo = connectionInfoOrUrl
+		// this.connectionInfo = connectionInfoOrUrl
 	}
 
 	static async throttleCallback(): Promise<boolean> {
@@ -241,11 +241,16 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		return false
 	}
 
-	static async create(genericProvider: providers.BaseProvider, authSigner: Signer, connectionInfoOrUrl?: utils.ConnectionInfo | string, network?: providers.Networkish): Promise<FlashbotsBundleProvider> {
+	static async create(
+		genericProvider: providers.BaseProvider,
+		authSigner: Signer,
+		connectionInfoOrUrl?: utils.ConnectionInfo | string,
+		network?: providers.Networkish,
+	): Promise<FlashbotsBundleProvider> {
 		const connectionInfo: utils.ConnectionInfo =
 			typeof connectionInfoOrUrl === 'string' || typeof connectionInfoOrUrl === 'undefined'
 				? {
-						url: connectionInfoOrUrl || DEFAULT_FLASHBOTS_RELAY,
+						url: connectionInfoOrUrl || MEV_RELAY_MAINNET,
 				  }
 				: {
 						...connectionInfoOrUrl,
@@ -299,7 +304,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 	}
 
 	static generateBundleHash(txHashes: Array<string>): string {
-		const concatenatedHashes = txHashes.map(txHash => txHash.slice(2)).join('')
+		const concatenatedHashes = txHashes.map((txHash) => txHash.slice(2)).join('')
 		return utils.keccak256(`0x${concatenatedHashes}`)
 	}
 
@@ -324,7 +329,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 			}
 		}
 
-		const bundleTransactions = signedBundledTransactions.map(signedTransaction => {
+		const bundleTransactions = signedBundledTransactions.map((signedTransaction) => {
 			const transactionDetails = utils.parseTransaction(signedTransaction)
 			return {
 				signedTransaction,
@@ -339,17 +344,21 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 			wait: () => this.waitForBlock(bundleTransactions, targetBlockNumber, TIMEOUT_MS),
 			simulate: () =>
 				this.simulate(
-					bundleTransactions.map(tx => tx.signedTransaction),
+					bundleTransactions.map((tx) => tx.signedTransaction),
 					targetBlockNumber,
 					undefined,
-					opts?.minTimestamp
+					opts?.minTimestamp,
 				),
 			receipts: () => this.fetchReceipts(bundleTransactions),
 			bundleHash: response.result.bundleHash,
 		}
 	}
 
-	public async sendBundle(bundledTransactions: Array<FlashbotsBundleTransaction | FlashbotsBundleRawTransaction>, targetBlockNumber: number, opts?: FlashbotsOptions): Promise<FlashbotsTransaction> {
+	public async sendBundle(
+		bundledTransactions: Array<FlashbotsBundleTransaction | FlashbotsBundleRawTransaction>,
+		targetBlockNumber: number,
+		opts?: FlashbotsOptions,
+	): Promise<FlashbotsTransaction> {
 		const signedTransactions = await this.signBundle(bundledTransactions)
 		return this.sendRawBundle(signedTransactions, targetBlockNumber, opts)
 	}
@@ -380,7 +389,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		opts?: {
 			maxBlockNumber?: number
 			simulationTimestamp?: number
-		}
+		},
 	): Promise<FlashbotsPrivateTransaction> {
 		let signedTransaction: string
 		if ('signedTransaction' in transaction) {
@@ -454,7 +463,10 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 			const transaction = { ...tx.transaction }
 			const address = await tx.signer.getAddress()
 			if (typeof transaction.nonce === 'string') throw new Error('Bad nonce')
-			const nonce = transaction.nonce !== undefined ? BigNumber.from(transaction.nonce) : nonces[address] || BigNumber.from(await this.genericProvider.getTransactionCount(address, 'latest'))
+			const nonce =
+				transaction.nonce !== undefined
+					? BigNumber.from(transaction.nonce)
+					: nonces[address] || BigNumber.from(await this.genericProvider.getTransactionCount(address, 'latest'))
 			nonces[address] = nonce.add(1)
 			if (transaction.nonce === undefined) transaction.nonce = nonce
 			if ((transaction.type == null || transaction.type == 0) && transaction.gasPrice === undefined) transaction.gasPrice = BigNumber.from(0)
@@ -484,7 +496,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 						Object.entries(minimumNonceByAccount).map(async ([account, nonce]) => {
 							const transactionCount = await this.genericProvider.getTransactionCount(account)
 							return nonce >= transactionCount
-						})
+						}),
 					)
 					const allNoncesValid = noncesValid.every(Boolean)
 					if (allNoncesValid) return
@@ -497,7 +509,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 					for (const bt of block.transactions) {
 						blockTransactionsHash[bt] = true
 					}
-					const bundleIncluded = transactionAccountNonces.every(transaction => blockTransactionsHash[transaction.hash])
+					const bundleIncluded = transactionAccountNonces.every((transaction) => blockTransactionsHash[transaction.hash])
 					resolve(bundleIncluded ? FlashbotsBundleResolution.BundleIncluded : FlashbotsBundleResolution.BlockPassedWithoutInclusion)
 				}
 
@@ -648,7 +660,12 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		return response.result
 	}
 
-	public async simulate(signedBundledTransactions: Array<string>, blockTag: providers.BlockTag, stateBlockTag?: providers.BlockTag, blockTimestamp?: number): Promise<SimulationResponse> {
+	public async simulate(
+		signedBundledTransactions: Array<string>,
+		blockTag: providers.BlockTag,
+		stateBlockTag?: providers.BlockTag,
+		blockTimestamp?: number,
+	): Promise<SimulationResponse> {
 		let evmBlockNumber: string
 		if (typeof blockTag === 'number') {
 			evmBlockNumber = `0x${blockTag.toString(16)}`
@@ -688,11 +705,11 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 
 		const callResult = response.result
 		return {
-			bundleGasPrice: BigNumber.from(callResult.bundleGasPrice),
+			bundleGasPrice: BigInt(callResult.bundleGasPrice),
 			bundleHash: callResult.bundleHash,
-			coinbaseDiff: BigNumber.from(callResult.coinbaseDiff),
-			ethSentToCoinbase: BigNumber.from(callResult.ethSentToCoinbase),
-			gasFees: BigNumber.from(callResult.gasFees),
+			coinbaseDiff: BigInt(callResult.coinbaseDiff),
+			ethSentToCoinbase: BigInt(callResult.ethSentToCoinbase),
+			gasFees: BigInt(callResult.gasFees),
 			results: callResult.results,
 			stateBlockNumber: callResult.stateBlockNumber,
 			totalGasUsed: callResult.results.reduce((a: number, b: TransactionSimulation) => a + b.gasUsed, 0),
@@ -706,7 +723,12 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 				const gasUsed = 'gas_used' in transactionDetail ? transactionDetail.gas_used : transactionDetail.gasUsed
 				const gasPricePaidBySearcher = BigNumber.from('gas_price' in transactionDetail ? transactionDetail.gas_price : transactionDetail.gasPrice)
 				const priorityFeeReceivedByMiner = gasPricePaidBySearcher.sub(baseFee)
-				const ethSentToCoinbase = 'coinbase_transfer' in transactionDetail ? transactionDetail.coinbase_transfer : 'ethSentToCoinbase' in transactionDetail ? transactionDetail.ethSentToCoinbase : BigNumber.from(0)
+				const ethSentToCoinbase =
+					'coinbase_transfer' in transactionDetail
+						? transactionDetail.coinbase_transfer
+						: 'ethSentToCoinbase' in transactionDetail
+						? transactionDetail.ethSentToCoinbase
+						: BigNumber.from(0)
 				return {
 					gasUsed: acc.gasUsed + gasUsed,
 					gasFeesPaidBySearcher: acc.gasFeesPaidBySearcher.add(gasPricePaidBySearcher.mul(gasUsed)),
@@ -719,10 +741,16 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 				gasFeesPaidBySearcher: BigNumber.from(0),
 				priorityFeesReceivedByMiner: BigNumber.from(0),
 				ethSentToCoinbase: BigNumber.from(0),
-			}
+			},
 		)
-		const effectiveGasPriceToSearcher = bundleGasPricing.gasUsed > 0 ? bundleGasPricing.ethSentToCoinbase.add(bundleGasPricing.gasFeesPaidBySearcher).div(bundleGasPricing.gasUsed) : BigNumber.from(0)
-		const effectivePriorityFeeToMiner = bundleGasPricing.gasUsed > 0 ? bundleGasPricing.ethSentToCoinbase.add(bundleGasPricing.priorityFeesReceivedByMiner).div(bundleGasPricing.gasUsed) : BigNumber.from(0)
+		const effectiveGasPriceToSearcher =
+			bundleGasPricing.gasUsed > 0
+				? bundleGasPricing.ethSentToCoinbase.add(bundleGasPricing.gasFeesPaidBySearcher).div(bundleGasPricing.gasUsed)
+				: BigNumber.from(0)
+		const effectivePriorityFeeToMiner =
+			bundleGasPricing.gasUsed > 0
+				? bundleGasPricing.ethSentToCoinbase.add(bundleGasPricing.priorityFeesReceivedByMiner).div(bundleGasPricing.gasUsed)
+				: BigNumber.from(0)
 		return {
 			...bundleGasPricing,
 			txCount: bundleTransactions.length,
@@ -737,12 +765,19 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		return {
 			...conflictDetails,
 			targetBundleGasPricing: this.calculateBundlePricing(conflictDetails.initialSimulation.results, baseFee),
-			conflictingBundleGasPricing: conflictDetails.conflictingBundle.length > 0 ? this.calculateBundlePricing(conflictDetails.conflictingBundle, baseFee) : undefined,
+			conflictingBundleGasPricing:
+				conflictDetails.conflictingBundle.length > 0 ? this.calculateBundlePricing(conflictDetails.conflictingBundle, baseFee) : undefined,
 		}
 	}
 
-	public async getConflictingBundleWithoutGasPricing(targetSignedBundledTransactions: Array<string>, targetBlockNumber: number): Promise<FlashbotsBundleConflict> {
-		const [initialSimulation, competingBundles] = await Promise.all([this.simulate(targetSignedBundledTransactions, targetBlockNumber, targetBlockNumber - 1), this.fetchBlocksApi(targetBlockNumber)])
+	public async getConflictingBundleWithoutGasPricing(
+		targetSignedBundledTransactions: Array<string>,
+		targetBlockNumber: number,
+	): Promise<FlashbotsBundleConflict> {
+		const [initialSimulation, competingBundles] = await Promise.all([
+			this.simulate(targetSignedBundledTransactions, targetBlockNumber, targetBlockNumber - 1),
+			this.fetchBlocksApi(targetBlockNumber),
+		])
 		if (competingBundles.latest_block_number <= targetBlockNumber) {
 			throw new Error('Blocks-api has not processed target block')
 		}
@@ -761,9 +796,9 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		const bundleCount = bundleTransactions[bundleTransactions.length - 1].bundle_index + 1
 		const signedPriorBundleTransactions = []
 		for (let currentBundleId = 0; currentBundleId < bundleCount; currentBundleId++) {
-			const currentBundleTransactions = bundleTransactions.filter(bundleTransaction => bundleTransaction.bundle_index === currentBundleId)
+			const currentBundleTransactions = bundleTransactions.filter((bundleTransaction) => bundleTransaction.bundle_index === currentBundleId)
 			const currentBundleSignedTxs = await Promise.all(
-				currentBundleTransactions.map(async competitorBundleBlocksApiTx => {
+				currentBundleTransactions.map(async (competitorBundleBlocksApiTx) => {
 					const tx = await this.genericProvider.getTransaction(competitorBundleBlocksApiTx.transaction_hash)
 					if (tx.raw !== undefined) {
 						return tx.raw
@@ -779,10 +814,14 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 						})
 					}
 					throw new Error('Could not get raw tx')
-				})
+				}),
 			)
 			signedPriorBundleTransactions.push(...currentBundleSignedTxs)
-			const competitorAndTargetBundleSimulation = await this.simulate([...signedPriorBundleTransactions, ...targetSignedBundledTransactions], targetBlockNumber, targetBlockNumber - 1)
+			const competitorAndTargetBundleSimulation = await this.simulate(
+				[...signedPriorBundleTransactions, ...targetSignedBundledTransactions],
+				targetBlockNumber,
+				targetBlockNumber - 1,
+			)
 
 			if ('error' in competitorAndTargetBundleSimulation) {
 				if (competitorAndTargetBundleSimulation.error.message.startsWith('err: nonce too low:')) {
@@ -836,19 +875,37 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 	}
 
 	private async request(request: string) {
-		const connectionInfo = { ...this.connectionInfo }
-		connectionInfo.headers = {
-			'X-Flashbots-Signature': `${await this.authSigner.getAddress()}:${await this.authSigner.signMessage(utils.id(request))}`,
-			...this.connectionInfo.headers,
-		}
-		return utils.fetchJson(connectionInfo, request)
+		const fetchRequest = await fetch(MEV_RELAY_GOERLI, {
+			method: 'POST',
+			mode: 'cors',
+			headers: {
+				hello: 'world',
+				'Content-Type': 'application/json',
+				'X-Flashbots-Signature': `${await this.authSigner.getAddress()}:${await this.authSigner.signMessage(utils.id(request))}`,
+			},
+			body: request,
+		})
+		const response = await fetchRequest.json()
+		return response
 	}
 
 	private async fetchReceipts(bundledTransactions: Array<TransactionAccountNonce>): Promise<Array<providers.TransactionReceipt>> {
-		return Promise.all(bundledTransactions.map(bundledTransaction => this.genericProvider.getTransactionReceipt(bundledTransaction.hash)))
+		return Promise.all(bundledTransactions.map((bundledTransaction) => this.genericProvider.getTransactionReceipt(bundledTransaction.hash)))
 	}
 
-	private prepareRelayRequest(method: 'eth_callBundle' | 'eth_cancelBundle' | 'eth_sendBundle' | 'eth_sendPrivateTransaction' | 'eth_cancelPrivateTransaction' | 'flashbots_getUserStats' | 'flashbots_getBundleStats' | 'flashbots_getUserStatsV2' | 'flashbots_getBundleStatsV2', params: RpcParams) {
+	private prepareRelayRequest(
+		method:
+			| 'eth_callBundle'
+			| 'eth_cancelBundle'
+			| 'eth_sendBundle'
+			| 'eth_sendPrivateTransaction'
+			| 'eth_cancelPrivateTransaction'
+			| 'flashbots_getUserStats'
+			| 'flashbots_getBundleStats'
+			| 'flashbots_getUserStatsV2'
+			| 'flashbots_getBundleStatsV2',
+		params: RpcParams,
+	) {
 		return {
 			method: method,
 			params: params,

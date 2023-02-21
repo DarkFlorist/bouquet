@@ -4,7 +4,8 @@ import { useState } from 'preact/hooks'
 import { updateLatestBlock } from '../library/provider.js'
 import { GetSimulationStackReply, serialize, EthereumAddress } from '../library/interceptor-types.js'
 import { Button } from './Button.js'
-import { BundleState, Signers } from '../library/types.js'
+import { AppSettings, BundleState, Signers } from '../library/types.js'
+import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 
 export async function importFromInterceptor(
 	interceptorPayload: Signal<BundleState | undefined>,
@@ -14,6 +15,7 @@ export async function importFromInterceptor(
 		baseFee: bigint
 		priorityFee: bigint
 	}>,
+	appSettings: Signal<AppSettings>,
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('Import Error: No Ethereum wallet detected')
 
@@ -28,8 +30,10 @@ export async function importFromInterceptor(
 	// We only support goerli right now
 	const ethereumProvider = new providers.Web3Provider(window.ethereum, 'any')
 	const { chainId } = await ethereumProvider.getNetwork()
-	if (chainId !== 5) {
-		await ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: '0x5' }])
+	if (![1, 5].includes(chainId)) {
+		await ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
+	} else {
+		appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
 	}
 
 	const blockCallback = (blockNumber: number) => {
@@ -76,6 +80,7 @@ export const Import = ({
 	provider,
 	blockInfo,
 	signers,
+	appSettings,
 }: {
 	interceptorPayload: Signal<BundleState | undefined>
 	provider: Signal<providers.Web3Provider | undefined>
@@ -85,6 +90,7 @@ export const Import = ({
 		priorityFee: bigint
 	}>
 	signers: Signal<Signers>
+	appSettings: Signal<AppSettings>
 }) => {
 	const [error, setError] = useState<string | undefined>(undefined)
 
@@ -103,7 +109,7 @@ export const Import = ({
 			<h2 className='font-bold text-2xl'>1. Import</h2>
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex gap-4'>
-					<Button onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo).catch((err: Error) => setError(err.message))}>
+					<Button onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings).catch((err: Error) => setError(err.message))}>
 						Import Payload from The Interceptor
 					</Button>
 					{interceptorPayload.value ? (

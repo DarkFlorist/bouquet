@@ -1,38 +1,41 @@
 import { useState } from 'preact/hooks'
-import { JSX } from 'preact/jsx-runtime'
 import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
-import {
-	FlashbotsBundleProvider,
-	FlashbotsBundleResolution,
-	RelayResponseError,
-	SimulationResponse,
-	SimulationResponseSuccess,
-} from '../library/flashbots-ethers-provider.js'
+import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { providers } from 'ethers'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 
-const PromiseBlock = ({
+const SimulationPromiseBlock = ({
 	state,
-	pending,
-	resolved,
-	rejected,
 }: {
 	state:
 		| {
 				status: PromiseState
-				value?: SimulationResponse
+				value?: SimulationResponseSuccess
+				error?: RelayResponseError
 		  }
 		| undefined
-	pending: () => JSX.Element
-	resolved: (value: SimulationResponseSuccess) => JSX.Element
-	rejected: (value: RelayResponseError) => JSX.Element
 }) => {
 	if (!state) return <></>
-	if (!state.value || state.status === 'pending') return pending()
-	if (state.status === 'resolved') return resolved(state.value as SimulationResponseSuccess)
-	if (state.status === 'rejected') return rejected(state.value as RelayResponseError)
+	if (!state.value || state.status === 'pending') return <div>Simulating...</div>
+	if (state.status === 'resolved')
+		return (
+			<div>
+				{state.value.firstRevert ? (
+					<h3 class='font-semibold text-error'>Simulation Reverted</h3>
+				) : (
+					<h3 class='font-semibold text-success'>Simulation Succeeded</h3>
+				)}
+				{/* <p>Result: {JSON.stringify(state.value)}</p> */}
+			</div>
+		)
+	if (state.status === 'rejected')
+		return (
+			<div>
+				<p>Error Simulating: {state.error?.error.message}</p>
+			</div>
+		)
 	return <></>
 }
 
@@ -72,7 +75,8 @@ export const Submit = ({
 	const [simulationResult, setSimulationResult] = useState<
 		| {
 				status: 'pending' | 'resolved' | 'rejected'
-				value?: SimulationResponse
+				value?: SimulationResponseSuccess
+				error?: RelayResponseError
 		  }
 		| undefined
 	>(undefined)
@@ -118,10 +122,10 @@ export const Submit = ({
 			fundingAmountMin.peek(),
 		)
 			.then((value) => {
-				if ((value as RelayResponseError).error) return setSimulationResult({ status: 'rejected', value })
-				return setSimulationResult({ status: 'resolved', value })
+				if ((value as RelayResponseError).error) setSimulationResult({ status: 'rejected', error: value as RelayResponseError })
+				else setSimulationResult({ status: 'resolved', value: value as SimulationResponseSuccess })
 			})
-			.catch((err) => console.log('Unhandled Error: ', err))
+			.catch((err) => setSimulationResult({ status: 'rejected', error: { error: { code: 0, message: `Unhandled Error: ${err}` } } }))
 	}
 
 	async function bundleSubmission(blockNumber: bigint) {
@@ -197,12 +201,7 @@ export const Submit = ({
 					<Button onClick={simulateBundle} variant='secondary'>
 						Simulate
 					</Button>
-					<PromiseBlock
-						state={simulationResult}
-						pending={() => <div>Pending...</div>}
-						resolved={(value: SimulationResponse) => <div>Result: {JSON.stringify(value)}</div>}
-						rejected={(value: RelayResponseError) => <div>Error: {value.error.message}</div>}
-					/>
+					<SimulationPromiseBlock state={simulationResult} />
 					<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
 					<Bundles pendingBundles={bundleStatus} />
 				</div>
