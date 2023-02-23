@@ -1,10 +1,19 @@
 const classNames = {
-	primary: 'text-xl font-semibold border-2 rounded-md px-6 py-2 border-accent text-accent hover:bg-accent/20 active:text-primary active:bg-accent/40 disabled:border-secondary disabled:bg-secondary/30 active:disabled:text-accent',
-	success: 'text-xl font-semibold border-2 rounded-md px-6 py-2 border-success text-success hover:bg-success/20 active:text-primary active:bg-success/40 disabled:border-secondary disabled:bg-secondary/30 active:disabled:text-success',
-	error: 'text-xl font-semibold border-2 rounded-md px-6 py-2 border-error text-error hover:bg-error/20 active:text-primary active:bg-error/40 disabled:border-secondary disabled:bg-secondary/30 active:disabled:text-error',
+	primary: 'font-semibold rounded-xl px-6 py-2 w-max bg-accent text-background hover:bg-accent/80 disabled:bg-slate-600 disabled:cursor-not-allowed',
+	secondary: 'font-semibold rounded-xl px-6 py-2 w-max bg-white text-background hover:bg-white/80 disabled:bg-slate-600 disabled:cursor-not-allowed',
 }
 
-export const Button = ({ children, disabled, variant, onClick }: { children: string; disabled?: boolean; variant?: 'primary' | 'success' | 'error'; onClick: () => any }) => {
+export const Button = ({
+	children,
+	disabled,
+	variant,
+	onClick,
+}: {
+	children: string
+	disabled?: boolean
+	variant?: 'primary' | 'secondary'
+	onClick: () => unknown
+}) => {
 	return (
 		<button onClick={onClick} disabled={disabled ?? false} className={classNames[variant ?? 'primary']}>
 			{children}

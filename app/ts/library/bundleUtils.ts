@@ -94,7 +94,7 @@ export async function simulate(
 	signers: Signers,
 	fundingAmountMin: bigint,
 ) {
-	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
+	if (blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
@@ -103,8 +103,7 @@ export async function simulate(
 		blockInfo,
 		maxBaseFee,
 	)
-	const simulation = await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
-	return simulation
+	return await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 }
 
 export async function sendBundle(
@@ -116,7 +115,7 @@ export async function sendBundle(
 	signers: Signers,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsTransactionResponse> {
-	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
+	if (blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(

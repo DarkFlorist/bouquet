@@ -4,7 +4,8 @@ import { useState } from 'preact/hooks'
 import { updateLatestBlock } from '../library/provider.js'
 import { GetSimulationStackReply, serialize, EthereumAddress } from '../library/interceptor-types.js'
 import { Button } from './Button.js'
-import { AppStages, BundleState } from '../library/types.js'
+import { AppSettings, BundleState, Signers } from '../library/types.js'
+import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 
 export async function importFromInterceptor(
 	interceptorPayload: Signal<BundleState | undefined>,
@@ -14,7 +15,8 @@ export async function importFromInterceptor(
 		baseFee: bigint
 		priorityFee: bigint
 	}>,
-	stage: Signal<AppStages>,
+	appSettings: Signal<AppSettings>,
+	signers: Signal<Signers> | undefined,
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('Import Error: No Ethereum wallet detected')
 
@@ -29,12 +31,14 @@ export async function importFromInterceptor(
 	// We only support goerli right now
 	const ethereumProvider = new providers.Web3Provider(window.ethereum, 'any')
 	const { chainId } = await ethereumProvider.getNetwork()
-	if (chainId !== 5) {
-		await ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: '0x5' }])
+	if (![1, 5].includes(chainId)) {
+		await ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
+	} else {
+		appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
 	}
 
 	const blockCallback = (blockNumber: number) => {
-		updateLatestBlock(blockNumber, provider, blockInfo)
+		updateLatestBlock(blockNumber, provider, blockInfo, signers)
 	}
 
 	const { payload } = await window.ethereum
@@ -61,7 +65,7 @@ export async function importFromInterceptor(
 	)
 
 	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-	// // @TODO: Change this to track minimum amount of ETH needed to deposit
+	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
 	batch(() => {
@@ -69,7 +73,6 @@ export async function importFromInterceptor(
 		provider.value.on('block', blockCallback)
 
 		interceptorPayload.value = { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
-		stage.value = 'configure'
 	})
 }
 
@@ -77,7 +80,8 @@ export const Import = ({
 	interceptorPayload,
 	provider,
 	blockInfo,
-	stage,
+	signers,
+	appSettings,
 }: {
 	interceptorPayload: Signal<BundleState | undefined>
 	provider: Signal<providers.Web3Provider | undefined>
@@ -86,22 +90,42 @@ export const Import = ({
 		baseFee: bigint
 		priorityFee: bigint
 	}>
-	stage: Signal<AppStages>
+	signers: Signal<Signers>
+	appSettings: Signal<AppSettings>
 }) => {
 	const [error, setError] = useState<string | undefined>(undefined)
 
+	const clearPayload = () => {
+		batch(() => {
+			interceptorPayload.value = undefined
+			localStorage.removeItem('payload')
+			signers.value.bundleSigners = {}
+			// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
+			// if (fundingAccountBalance.value === 0n) signers.value.burner = undefined
+		})
+	}
+
 	return (
 		<>
-			<h2 className='font-extrabold text-3xl'>Import Transaction Payload</h2>
+			<h2 className='font-bold text-2xl'>1. Import</h2>
 			<div className='flex flex-col w-full gap-6'>
-				<Button onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, stage).catch((err: Error) => setError(err.message))}>
-					Import Payload from The Interceptor
-				</Button>
-				{error ? <span>{error}</span> : ''}
+				<div className='flex gap-4'>
+					<Button
+						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).catch((err: Error) => setError(err.message))}
+					>
+						Import Payload from The Interceptor
+					</Button>
+					{interceptorPayload.value ? (
+						<Button variant='secondary' onClick={clearPayload}>
+							Reset
+						</Button>
+					) : null}
+				</div>
+				{error ? <span className='text-lg text-error'>{error}</span> : ''}
 				{error && error === 'Import Error: Wallet does not support returning simulations' ? (
-					<h3 className='text-xl'>
+					<h3 className='text-lg'>
 						Don't have The Interceptor Installed? Install it here{' '}
-						<a className='font-bold hover:underline' href='https://dark.florist'>
+						<a className='font-bold text-accent underline' href='https://dark.florist'>
 							here
 						</a>
 						.

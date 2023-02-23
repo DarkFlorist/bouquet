@@ -1,5 +1,5 @@
 import { providers, Wallet } from 'ethers'
-import { GetSimulationStackReply } from './interceptor-types'
+import { GetSimulationStackReply } from './interceptor-types.js'
 
 declare global {
 	interface Window {
@@ -7,7 +7,6 @@ declare global {
 	}
 }
 
-export type AppStages = 'import' | 'configure' | 'submit'
 export type BlockInfo = { blockNumber: bigint; baseFee: bigint; priorityFee: bigint }
 export type BundleState = { payload: GetSimulationStackReply; containsFundingTx: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
 export type AppSettings = { blocksInFuture: bigint; priorityFee: bigint; relayEndpoint: string }
