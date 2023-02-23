@@ -1,5 +1,5 @@
 import { providers, Wallet } from 'ethers'
-import { GetSimulationStackReply } from './interceptor-types'
+import { GetSimulationStackReply } from './interceptor-types.js'
 
 declare global {
 	interface Window {
