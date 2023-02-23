@@ -728,11 +728,6 @@ video {
 	background-color: rgb(108 207 246 / 0.6);
 }
 
-.bg-success {
-	--tw-bg-opacity: 1;
-	background-color: rgb(152 206 0 / var(--tw-bg-opacity));
-}
-
 .bg-card {
 	--tw-bg-opacity: 1;
 	background-color: rgb(46 47 48 / var(--tw-bg-opacity));
@@ -782,11 +777,6 @@ video {
 .text-lg {
 	font-size: 1.125rem;
 	line-height: 1.75rem;
-}
-
-.text-xs {
-	font-size: 0.75rem;
-	line-height: 1rem;
 }
 
 .text-sm {

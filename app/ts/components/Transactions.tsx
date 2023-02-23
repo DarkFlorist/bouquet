@@ -1,8 +1,8 @@
 import { ReadonlySignal, Signal } from '@preact/signals'
 import { utils } from 'ethers'
 import { createBundleTransactions } from '../library/bundleUtils.js'
-import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider'
-import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types'
+import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
+import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
 
 export const TransactionList = ({ transactions, fundingTx }: { transactions: FlashbotsBundleTransaction[]; fundingTx: boolean }) => {
 	return (

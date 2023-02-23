@@ -94,7 +94,7 @@ export async function simulate(
 	signers: Signers,
 	fundingAmountMin: bigint,
 ) {
-	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
+	if (blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
@@ -103,20 +103,8 @@ export async function simulate(
 		blockInfo,
 		maxBaseFee,
 	)
-	// return await simulateCall(flashbotsProvider, signedTransactions, )
 	return await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 }
-
-// async function simulateCall(flashbotsProvider: FlashbotsBundleProvider, signedTransactions: string[], targetBlock: number): Promise<SimulationResponse> {
-// 	try {
-// 		return await flashbotsProvider.simulate(signedTransactions, targetBlock)
-// 	} catch (error: any) {
-// 		console.log('error', error)
-// 		throw new Error(error)
-// 		// It is very common for the RPC request to the relay to fail so we recursivly repeat untill succeeding.
-// 		// return await simulateCall(flashbotsProvider, signedTransactions, targetBlock)
-// 	}
-// }
 
 export async function sendBundle(
 	flashbotsProvider: FlashbotsBundleProvider,
@@ -127,7 +115,7 @@ export async function sendBundle(
 	signers: Signers,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsTransactionResponse> {
-	if (blocksInFuture <= 0) throw new Error('Blocks in future is negative')
+	if (blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
@@ -136,17 +124,7 @@ export async function sendBundle(
 		blockInfo,
 		maxBaseFee,
 	)
-	// const bundleSubmission = await bundleCall(flashbotsProvider, signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 	const bundleSubmission = await flashbotsProvider.sendRawBundle(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
 	if ('error' in bundleSubmission) throw new Error(bundleSubmission.error.message)
 	return bundleSubmission
 }
-
-// async function bundleCall(flashbotsProvider: FlashbotsBundleProvider, signedTransactions: string[], targetBlock: number): Promise<FlashbotsTransaction> {
-// 	try {
-// 		return await flashbotsProvider.sendRawBundle(signedTransactions, targetBlock)
-// 	} catch {
-// 		// It is very common for the RPC request to the relay to fail so we recursivly repeat untill succeeding.
-// 		return await bundleCall(flashbotsProvider, signedTransactions, targetBlock)
-// 	}
-// }

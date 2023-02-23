@@ -12,7 +12,7 @@ export const Button = ({
 	children: string
 	disabled?: boolean
 	variant?: 'primary' | 'secondary'
-	onClick: () => any
+	onClick: () => unknown
 }) => {
 	return (
 		<button onClick={onClick} disabled={disabled ?? false} className={classNames[variant ?? 'primary']}>

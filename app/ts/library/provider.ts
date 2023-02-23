@@ -42,7 +42,6 @@ export async function connectWallet(
 		}
 	})
 
-	// We only support goerli right now
 	const ethereumProvider = new providers.Web3Provider(window.ethereum, 'any')
 	const { chainId } = await ethereumProvider.getNetwork()
 	if (![1, 5].includes(chainId)) {
