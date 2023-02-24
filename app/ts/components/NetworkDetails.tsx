@@ -41,7 +41,7 @@ export const NetworkDetails = ({
 
 	return (
 		<div className='flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-400/30'>
-			<h1 className='font-extrabold text-2xl'>AbsurdUse</h1>
+			<h1 className='font-extrabold text-4xl'>💐</h1>
 			<div className='flex gap-4 items-center'>
 				{provider.value ? (
 					<>
