@@ -1,9 +1,8 @@
-# Absurd-Use
+# Bouquet
 
 Turn your [Interceptor](https://github.com/DarkFlorist/TheInterceptor) simulations into MEV bundles.
 
-URL: [https://absurd-use.dark.florist/](https://absurd-use.dark.florist/)
-IPFS: Soon
+[https://bouquet.dark.florist/](https://bouquet.dark.florist/)
 
 ## Install
 
