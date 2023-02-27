@@ -3,7 +3,7 @@ import { GetSimulationStackReply } from './interceptor-types.js'
 
 declare global {
 	interface Window {
-		ethereum?: providers.ExternalProvider
+		ethereum: (providers.ExternalProvider & NodeJS.EventEmitter) | undefined
 	}
 }
 

@@ -1,4 +1,3 @@
-import { ethers } from 'ethers'
 import * as t from 'funtypes'
 
 const BigIntParser: t.ParsedValue<t.String, bigint>['config'] = {
@@ -290,17 +289,5 @@ export type ToWireType<T> = T extends t.Intersect<infer U>
 	: T extends t.Codec<infer U>
 	? U
 	: never
-
-export type Web3Provider = ethers.providers.Web3Provider
-export type ExternalProvider = ethers.providers.ExternalProvider
-export type TransactionResponse = ethers.providers.TransactionResponse
-export type Network = ethers.providers.Network
-export type TransactionReceipt = ethers.providers.TransactionReceipt
-
-declare global {
-	interface Window {
-		ethereum?: ExternalProvider
-	}
-}
 
 export type HexString = `0x${string}`

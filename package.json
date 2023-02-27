@@ -14,6 +14,7 @@
 	},
 	"dependencies": {
 		"@preact/signals": "1.1.1",
+		"@types/node": "^18.14.2",
 		"ethers": "5.7.2",
 		"funtypes": "5.0.3",
 		"preact": "10.8.1"
