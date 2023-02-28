@@ -1,15 +1,14 @@
 import { batch, Signal } from '@preact/signals'
-import { providers, utils } from 'ethers'
+import { utils } from 'ethers'
 import { useState } from 'preact/hooks'
-import { updateLatestBlock } from '../library/provider.js'
+import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply, serialize, EthereumAddress } from '../library/interceptor-types.js'
 import { Button } from './Button.js'
 import { AppSettings, BundleState, Signers } from '../library/types.js'
-import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 
 export async function importFromInterceptor(
 	interceptorPayload: Signal<BundleState | undefined>,
-	provider: Signal<providers.Web3Provider | undefined>,
+	provider: Signal<ProviderStore | undefined>,
 	blockInfo: Signal<{
 		blockNumber: bigint
 		baseFee: bigint
@@ -19,27 +18,7 @@ export async function importFromInterceptor(
 	signers: Signal<Signers> | undefined,
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('Import Error: No Ethereum wallet detected')
-
-	await window.ethereum.request({ method: 'eth_requestAccounts' }).catch((err: { code: number }) => {
-		if (err.code === 4001) {
-			throw new Error('Import Error: Wallet connection rejected')
-		} else {
-			throw new Error(`Unknown Error: ${JSON.stringify(err)}`)
-		}
-	})
-
-	// We only support goerli right now
-	const ethereumProvider = new providers.Web3Provider(window.ethereum, 'any')
-	const { chainId } = await ethereumProvider.getNetwork()
-	if (![1, 5].includes(chainId)) {
-		await ethereumProvider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
-	} else {
-		appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
-	}
-
-	const blockCallback = (blockNumber: number) => {
-		updateLatestBlock(blockNumber, provider, blockInfo, signers)
-	}
+	connectBrowserProvider(provider, appSettings, blockInfo, signers)
 
 	const { payload } = await window.ethereum
 		.request({
@@ -68,12 +47,7 @@ export async function importFromInterceptor(
 	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
-	batch(() => {
-		provider.value = ethereumProvider
-		provider.value.on('block', blockCallback)
-
-		interceptorPayload.value = { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
-	})
+	interceptorPayload.value = { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
 export const Import = ({
@@ -84,7 +58,7 @@ export const Import = ({
 	appSettings,
 }: {
 	interceptorPayload: Signal<BundleState | undefined>
-	provider: Signal<providers.Web3Provider | undefined>
+	provider: Signal<ProviderStore | undefined>
 	blockInfo: Signal<{
 		blockNumber: bigint
 		baseFee: bigint
