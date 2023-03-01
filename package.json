@@ -10,8 +10,7 @@
 		"styles": "cd twcss && npm run styles"
 	},
 	"devDependencies": {
-		"typescript": "4.9.3",
-		"@types/node": "^18.14.2"
+		"typescript": "4.9.3"
 	},
 	"dependencies": {
 		"@preact/signals": "1.1.1",

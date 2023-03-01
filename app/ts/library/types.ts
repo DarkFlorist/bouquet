@@ -1,9 +1,16 @@
-import { providers, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import { GetSimulationStackReply } from './interceptor-types.js'
+
+interface Eip1193Provider {
+	request(request: { method: string; params?: Array<any> | Record<string, any> }): Promise<any>
+	request(request: { method: string; params?: Array<any> | Record<string, any> }): Promise<any>
+	on(eventName: string | symbol, listener: (...args: any[]) => void): this
+	removeListener(eventName: string | symbol, listener: (...args: any[]) => void): this
+}
 
 declare global {
 	interface Window {
-		ethereum: (providers.ExternalProvider & NodeJS.EventEmitter) | undefined
+		ethereum?: Eip1193Provider
 	}
 }
 
