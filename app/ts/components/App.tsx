@@ -2,11 +2,11 @@ import { Import } from './Import.js'
 import { Configure } from './Configure.js'
 import { Submit } from './Submit.js'
 import { Button } from './Button.js'
-import { providers, utils, Wallet } from 'ethers'
+import { utils, Wallet } from 'ethers'
 import { Transactions } from './Transactions.js'
 import { useComputed, useSignal } from '@preact/signals'
 import { EthereumAddress, GetSimulationStackReply, serialize } from '../library/interceptor-types.js'
-import { connectWallet } from '../library/provider.js'
+import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { MEV_RELAY_MAINNET } from '../constants.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
@@ -44,7 +44,7 @@ function fetchSettingsFromStorage() {
 
 export function App() {
 	// Global State
-	const provider = useSignal<providers.Web3Provider | undefined>(undefined)
+	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
 	const interceptorPayload = useSignal<BundleState | undefined>(fetchPayloadFromStorage())
 	const appSettings = useSignal<AppSettings>(fetchSettingsFromStorage())
@@ -71,7 +71,9 @@ export function App() {
 					{!provider.value && interceptorPayload.value ? (
 						<article className='items-center flex flex-col gap-4 py-8'>
 							<h2 class='text-2xl font-bold'>Welcome Back</h2>
-							<Button onClick={() => connectWallet(provider, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined, appSettings)}>
+							<Button
+								onClick={() => connectBrowserProvider(provider, appSettings, blockInfo, interceptorPayload.peek()?.containsFundingTx ? signers : undefined)}
+							>
 								Connect Wallet
 							</Button>
 						</article>

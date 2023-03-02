@@ -2,9 +2,9 @@ import { useState } from 'preact/hooks'
 import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
 import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
-import { providers } from 'ethers'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
+import { ProviderStore } from '../library/provider.js'
 
 const SimulationPromiseBlock = ({
 	state,
@@ -65,7 +65,7 @@ export const Submit = ({
 	appSettings,
 	blockInfo,
 }: {
-	provider: Signal<providers.Web3Provider | undefined>
+	provider: Signal<ProviderStore | undefined>
 	interceptorPayload: Signal<BundleState | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
@@ -114,7 +114,7 @@ export const Submit = ({
 		setSimulationResult({ status: 'pending' })
 		simulate(
 			relayProvider,
-			provider.value,
+			provider.value.provider,
 			blockInfo.peek(),
 			appSettings.peek().blocksInFuture,
 			interceptorPayload.value,
@@ -136,7 +136,7 @@ export const Submit = ({
 
 		const bundleSubmission = await sendBundle(
 			relayProvider,
-			provider.value,
+			provider.value.provider,
 			{ ...blockInfo.peek(), blockNumber },
 			appSettings.peek().blocksInFuture,
 			interceptorPayload.value,
