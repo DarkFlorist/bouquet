@@ -39,7 +39,7 @@ function fetchPayloadFromStorage() {
 
 function fetchSettingsFromStorage() {
 	// @TODO: add ability to manage settings
-	return { blocksInFuture: 2n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET }
+	return { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET }
 }
 
 export function App() {
