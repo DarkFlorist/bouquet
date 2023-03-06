@@ -2,9 +2,11 @@ import { computed, ReadonlySignal, Signal, useSignal } from '@preact/signals'
 import { utils } from 'ethers'
 import { Interface, TransactionDescription } from 'ethers/lib/utils.js'
 import { useCallback } from 'preact/hooks'
+import { JSXInternal } from 'preact/src/jsx.js'
 import { createBundleTransactions } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
 import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
+import { MEV_RELAY_GOERLI } from '../constants.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.functionFragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -22,7 +24,7 @@ export const TransactionList = ({
 	parsedTransactions,
 	fundingTx,
 }: {
-	parsedTransactions: Signal<(FlashbotsBundleTransaction & { decoded?: string })[]>
+	parsedTransactions: Signal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>
 	fundingTx: boolean
 }) => {
 	return (
@@ -52,6 +54,11 @@ export const TransactionList = ({
 								<span class='w-10 text-right'>Data</span>
 								<span class='rounded bg-background px-2 py-1 font-mono font-medium w-full break-all'>{tx.decoded}</span>
 							</div>
+						) : tx.transaction.data && tx.transaction.data !== '0x' ? (
+							<div class='flex gap-2 items-center'>
+								<span class='w-10 text-right'>Data</span>
+								<span class='rounded bg-background px-2 py-1 font-mono font-medium w-full break-all'>{tx.transaction.data.toString()}</span>
+							</div>
 						) : null}
 					</div>
 				</div>
@@ -77,12 +84,17 @@ export const Transactions = ({
 		createBundleTransactions(interceptorPayload.peek(), signers.peek(), blockInfo.peek(), appSettings.peek().blocksInFuture, fundingAmountMin.peek()),
 	)
 
-	const parsedTransactions = useSignal<(FlashbotsBundleTransaction & { decoded?: string })[]>(transactions.peek())
+	const parsedTransactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>(transactions.peek())
 	const parseTransactionsCb = async () => {
 		const uniqueAddresses = [...new Set(transactions.value.map((x) => x.transaction.to))]
+		// @TODO: Map correctly to APIs when adding custom rpc support
 		const requests = await Promise.all(
 			uniqueAddresses.map((address) =>
-				fetch(`https://api.etherscan.io/api?module=contract&action=getabi&address=${address}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`),
+				fetch(
+					`https://api${
+						appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
+					}.etherscan.io/api?module=contract&action=getabi&address=${address}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+				),
 			),
 		)
 		const abis = await Promise.all(requests.map((request) => request.json()))
