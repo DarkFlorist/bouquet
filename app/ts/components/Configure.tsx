@@ -21,22 +21,23 @@ export const Configure = ({
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>({})
 
-	interceptorPayload.subscribe((payload) => {
-		signerKeys.value = payload
-			? payload.uniqueSigners.reduce(
-					(
-						curr: {
-							[address: string]: { input: string; wallet: Wallet | null }
+	if (interceptorPayload.peek() && Object.keys(signerKeys.peek()).length === 0) {
+		signerKeys.value =
+			interceptorPayload.value && Object.keys(signerKeys.peek()).length === 0
+				? interceptorPayload.value.uniqueSigners.reduce(
+						(
+							curr: {
+								[address: string]: { input: string; wallet: Wallet | null }
+							},
+							address,
+						) => {
+							curr[utils.getAddress(address)] = { input: '', wallet: null }
+							return curr
 						},
-						address,
-					) => {
-						curr[utils.getAddress(address)] = { input: '', wallet: null }
-						return curr
-					},
-					{},
-			  )
-			: {}
-	})
+						{},
+				  )
+				: {}
+	}
 
 	blockInfo.subscribe(() => {
 		if (provider.value && signers.value.burner) {
