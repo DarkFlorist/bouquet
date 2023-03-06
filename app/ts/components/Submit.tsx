@@ -51,7 +51,6 @@ const SimulationPromiseBlock = ({
 				) : (
 					<h3 class='font-semibold text-success'>Simulation Succeeded</h3>
 				)}
-				{/* <p>Result: {JSON.stringify(state.value)}</p> */}
 			</div>
 		)
 	if (state.status === 'rejected')

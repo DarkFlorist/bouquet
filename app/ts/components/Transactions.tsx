@@ -86,32 +86,37 @@ export const Transactions = ({
 
 	const parsedTransactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>(transactions.peek())
 	const parseTransactionsCb = async () => {
-		const uniqueAddresses = [...new Set(transactions.value.map((x) => x.transaction.to))]
-		// @TODO: Map correctly to APIs when adding custom rpc support
-		const requests = await Promise.all(
-			uniqueAddresses.map((address) =>
-				fetch(
-					`https://api${
-						appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
-					}.etherscan.io/api?module=contract&action=getabi&address=${address}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+		try {
+			const uniqueAddresses = [...new Set(transactions.value.map((x) => x.transaction.to))]
+			// @TODO: Map correctly to APIs when adding custom rpc support
+			const requests = await Promise.all(
+				uniqueAddresses.map((address) =>
+					fetch(
+						`https://api${
+							appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
+						}.etherscan.io/api?module=contract&action=getabi&address=${address}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+					),
 				),
-			),
-		)
-		const abis = await Promise.all(requests.map((request) => request.json()))
-		const interfaces: { [address: string]: Interface } = abis.reduce((acc, curr: { status: string; result: string }, index) => {
-			if (curr.status === '1') return { ...acc, [`${uniqueAddresses[index]}`]: new utils.Interface(curr.result) }
-			else return acc
-		}, {})
-		const parsed = transactions.value.map((tx) => {
-			if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
-				const decoded = formatTransactionDescription(
-					interfaces[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
-				)
-				return { ...tx, decoded }
-			}
-			return tx
-		})
-		parsedTransactions.value = parsed
+			)
+			const abis = await Promise.all(requests.map((request) => request.json()))
+			const interfaces: { [address: string]: Interface } = abis.reduce((acc, curr: { status: string; result: string }, index) => {
+				if (curr.status === '1') return { ...acc, [`${uniqueAddresses[index]}`]: new utils.Interface(curr.result) }
+				else return acc
+			}, {})
+			const parsed = transactions.value.map((tx) => {
+				if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
+					const decoded = formatTransactionDescription(
+						interfaces[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
+					)
+					return { ...tx, decoded }
+				}
+				return tx
+			})
+			parsedTransactions.value = parsed
+		} catch (error) {
+			console.log('parseTransactionsCb Error:', error)
+			parsedTransactions.value = transactions.peek()
+		}
 	}
 	useCallback(parseTransactionsCb, [interceptorPayload.value])
 	parseTransactionsCb()
