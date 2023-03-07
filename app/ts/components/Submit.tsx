@@ -17,7 +17,6 @@ const SimulationPromiseBlock = ({
 		  }
 		| undefined
 }) => {
-	console.log(state)
 	if (!state) return <></>
 	if (!state.value || state.status === 'pending') return <div>Simulating...</div>
 	if (state.status === 'resolved')
