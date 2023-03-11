@@ -118,7 +118,8 @@ export const Submit = ({
 	})
 
 	async function simulateBundle() {
-		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+    const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
+		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider, relay))
 		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 		if (!provider.value) throw 'User not connected'
 		if (!interceptorPayload.value) throw 'No imported bundle found'
@@ -140,7 +141,8 @@ export const Submit = ({
 	}
 
 	async function bundleSubmission(blockNumber: bigint) {
-		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+    const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
+		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider, relay))
 		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 		if (!provider.value) throw 'User not connected'
 		if (!interceptorPayload.value) throw 'No imported bundle found'
@@ -187,7 +189,8 @@ export const Submit = ({
 
 	async function toggleSubmission() {
 		if (!bundleStatus.peek().active) {
-			const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+      const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
+			const relayProvider = flashbotsProvider.value ?? (await createProvider(provider, relay))
 			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 			if (!provider.value) throw 'User not connected'
 			if (!interceptorPayload.value) throw 'No imported bundle found'

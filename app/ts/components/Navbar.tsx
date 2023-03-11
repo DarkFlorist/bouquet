@@ -1,10 +1,11 @@
-import { Signal } from '@preact/signals'
+import { Signal, useSignal } from '@preact/signals'
 import { utils } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { AppSettings, BlockInfo } from '../library/types.js'
+import { SettingsIcon, SettingsModal } from './Settings.js'
 
-export const NetworkDetails = ({
+export const Navbar = ({
 	blockInfo,
 	provider,
 	appSettings,
@@ -22,6 +23,8 @@ export const NetworkDetails = ({
 			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
 		}
 	}
+
+	const showSettings = useSignal(false)
 
 	return (
 		<div className='flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-400/30'>
@@ -81,8 +84,15 @@ export const NetworkDetails = ({
 				>
 					<option value={MEV_RELAY_MAINNET}>Ethereum</option>
 					<option value={MEV_RELAY_GOERLI}>Goerli</option>
+          {appSettings.value.relayEndpoint !== MEV_RELAY_MAINNET && appSettings.value.relayEndpoint !== MEV_RELAY_GOERLI ?
+					<option value={appSettings.value.relayEndpoint}>Custom</option>
+          : null}
 				</select>
+				<button class='hover:rotate-45 duration-200' onClick={() => (showSettings.value = true)}>
+					<SettingsIcon />
+				</button>
 			</div>
+			<SettingsModal display={showSettings} appSettings={appSettings} />
 		</div>
 	)
 }
