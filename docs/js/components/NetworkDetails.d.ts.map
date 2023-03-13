@@ -1,0 +1,1 @@
+{"version":3,"file":"NetworkDetails.d.ts","sourceRoot":"","sources":["../../ts/components/NetworkDetails.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,MAAM,EAAE,MAAM,iBAAiB,CAAA;AAGxC,OAAO,EAAE,aAAa,EAAE,MAAM,wBAAwB,CAAA;AACtD,OAAO,EAAE,WAAW,EAAE,SAAS,EAAE,MAAM,qBAAqB,CAAA;AAE5D,eAAO,MAAM,cAAc;eAKf,OAAO,SAAS,CAAC;cAClB,OAAO,aAAa,GAAG,SAAS,CAAC;iBAC9B,OAAO,WAAW,CAAC;kCA8EhC,CAAA"}

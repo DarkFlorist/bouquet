@@ -1,0 +1,1 @@
+{"version":3,"file":"constants.js","sourceRoot":"","sources":["../ts/constants.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,MAAM,iBAAiB,GAAG,6BAA6B,CAAA;AAC9D,MAAM,CAAC,MAAM,gBAAgB,GAAG,oCAAoC,CAAA","sourcesContent":["export const MEV_RELAY_MAINNET = 'https://relay.dark.florist/'\nexport const MEV_RELAY_GOERLI = 'https://relay-goerli.dark.florist/'\n"]}
