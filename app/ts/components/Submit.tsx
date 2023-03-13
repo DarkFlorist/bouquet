@@ -24,11 +24,33 @@ const SimulationPromiseBlock = ({
     return (
       <div>
         {state.value.firstRevert ? (
-          <h3 class='font-semibold text-error'>Simulation Reverted</h3>
+          <>
+            <h3 class='font-semibold text-error mb-2'>Simulation Reverted</h3>
+            <div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>
+              <div class='flex w-24 flex-col items-center justify-center text-white border-r-2'>
+                <span class='text-lg font-bold'>#{state.value.results.findIndex((x) => 'error' in x)}</span>
+              </div>
+              <div class='bg-card flex w-full justify-center flex-col gap-2 rounded-r-xl p-4 text-sm font-semibold'>
+                <div class='flex gap-2 items-center'>
+                  <span class='w-10 text-right'>From</span>
+                  <span class='rounded bg-background px-2 py-1 font-mono font-medium'>{state.value.firstRevert.fromAddress}</span>
+                </div>
+                <div class='flex gap-2 items-center'>
+                  <span class='w-10 text-right'>To</span>
+                  <span class='rounded bg-background px-2 py-1 font-mono font-medium'>{state.value.firstRevert.toAddress}</span>
+                </div>
+                <div class='flex gap-2 items-center'>
+                  <span class='w-10 text-right'>Error</span>
+                  <span class='rounded bg-background px-2 py-1 font-mono font-medium'>
+                    {'revert' in state.value.firstRevert ? String(state.value.firstRevert.revert) : 'Unknown'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
         ) : (
           <h3 class='font-semibold text-success'>Simulation Succeeded</h3>
         )}
-        {/* <p>Result: {JSON.stringify(state.value)}</p> */}
       </div>
     )
   if (state.status === 'rejected')

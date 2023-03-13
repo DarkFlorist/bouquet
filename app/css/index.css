@@ -536,6 +536,10 @@ video {
 	margin-bottom: -0.5rem;
 }
 
+.mb-2 {
+	margin-bottom: 0.5rem;
+}
+
 .mt-4 {
 	margin-top: 1rem;
 }
@@ -573,6 +577,10 @@ video {
 	min-height: 100vh;
 }
 
+.w-10 {
+	width: 2.5rem;
+}
+
 .w-24 {
 	width: 6rem;
 }
@@ -600,10 +608,6 @@ video {
 
 .flex-col-reverse {
 	flex-direction: column-reverse;
-}
-
-.flex-wrap {
-	flex-wrap: wrap;
 }
 
 .items-center {
@@ -650,14 +654,9 @@ video {
 	border-radius: 0.75rem;
 }
 
-.rounded-l {
-	border-top-left-radius: 0.25rem;
-	border-bottom-left-radius: 0.25rem;
-}
-
-.rounded-r {
-	border-top-right-radius: 0.25rem;
-	border-bottom-right-radius: 0.25rem;
+.rounded-r-xl {
+	border-top-right-radius: 0.75rem;
+	border-bottom-right-radius: 0.75rem;
 }
 
 .border {
@@ -672,12 +671,21 @@ video {
 	border-bottom-width: 1px;
 }
 
+.border-r-2 {
+	border-right-width: 2px;
+}
+
 .border-slate-200\/70 {
 	border-color: rgb(226 232 240 / 0.7);
 }
 
 .border-slate-400\/30 {
 	border-color: rgb(148 163 184 / 0.3);
+}
+
+.border-white {
+	--tw-border-opacity: 1;
+	border-color: rgb(255 255 255 / var(--tw-border-opacity));
 }
 
 .bg-accent {
@@ -712,16 +720,17 @@ video {
 	background-color: rgb(255 255 255 / var(--tw-bg-opacity));
 }
 
-.p-1 {
-	padding: 0.25rem;
-}
-
 .p-2 {
 	padding: 0.5rem;
 }
 
 .p-4 {
 	padding: 1rem;
+}
+
+.px-2 {
+	padding-left: 0.5rem;
+	padding-right: 0.5rem;
 }
 
 .px-4 {
@@ -734,6 +743,11 @@ video {
 	padding-right: 1.5rem;
 }
 
+.py-1 {
+	padding-top: 0.25rem;
+	padding-bottom: 0.25rem;
+}
+
 .py-2 {
 	padding-top: 0.5rem;
 	padding-bottom: 0.5rem;
@@ -742,6 +756,14 @@ video {
 .py-8 {
 	padding-top: 2rem;
 	padding-bottom: 2rem;
+}
+
+.pl-4 {
+	padding-left: 1rem;
+}
+
+.text-right {
+	text-align: right;
 }
 
 .font-mono {
@@ -783,10 +805,6 @@ video {
 
 .font-extrabold {
 	font-weight: 800;
-}
-
-.font-light {
-	font-weight: 300;
 }
 
 .font-medium {
@@ -882,4 +900,15 @@ video {
 .disabled\:bg-slate-600:disabled {
 	--tw-bg-opacity: 1;
 	background-color: rgb(71 85 105 / var(--tw-bg-opacity));
+}
+
+@media (min-width: 640px) {
+	.sm\:flex-row {
+		flex-direction: row;
+	}
+
+	.sm\:px-6 {
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
+	}
 }

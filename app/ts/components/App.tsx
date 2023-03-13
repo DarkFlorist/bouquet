@@ -77,7 +77,7 @@ export function App() {
 	})
 
 	return (
-		<main class='bg-background text-primary w-full min-h-screen px-6 font-serif flex flex-col items-center'>
+		<main class='bg-background text-primary w-full min-h-screen sm:px-6 font-serif flex flex-col items-center'>
 			<article className='p-4 max-w-screen-lg w-full'>
 				<Navbar {...{ blockInfo, provider, appSettings }} />
 				<div className='p-4 mt-4 flex flex-col gap-8'>
