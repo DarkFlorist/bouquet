@@ -2,9 +2,9 @@ import { useState } from 'preact/hooks'
 import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
 import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
-import { providers } from 'ethers'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
+import { ProviderStore } from '../library/provider.js'
 
 const SimulationPromiseBlock = ({
 	state,
@@ -61,18 +61,29 @@ const SimulationPromiseBlock = ({
 	return <></>
 }
 
-export const Bundles = ({ pendingBundles }: { pendingBundles: Signal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }> }) => {
+export const Bundles = ({
+	pendingBundles,
+	appSettings,
+}: {
+	pendingBundles: Signal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }>
+	appSettings: Signal<AppSettings>
+}) => {
 	return (
-		<div class='flex flex-col gap-4'>
-			{pendingBundles.value.pendingBundles.map((bundle) => (
-				<div class='flex items-center font-semibold text-white'>
-					<div class='w-8 h-8'>
-						<span class='relative isolate inline-flex items-center justify-center'>
-							<span class='animate-scale absolute z-0 h-8 w-8 rounded-full bg-accent/60'></span>
-							<span class='animate-scale animation-delay-1000 absolute z-10 h-8 w-8 rounded-full bg-accent/60'></span>
+		<div class='flex flex-col-reverse gap-4'>
+			{pendingBundles.value.pendingBundles.map((bundle, index) => (
+				<div class='flex items-center font-semibold gap-2 text-white'>
+					<p>Attempt {index + 1}:</p>
+					{bundle.state === 'pending' ? (
+						<span class='font-normal text-orange-400'>
+							Trying to be included in block {(BigInt(bundle.details) + appSettings.peek().blocksInFuture).toString()}
 						</span>
-					</div>
-					{bundle.details}
+					) : null}
+					{bundle.state === 'rejected' ? <span class='font-normal text-error'>Error submitting bundle to node</span> : null}
+					{bundle.details === 'BlockPassedWithoutInclusion' ? <span class='font-normal text-error'>Bundle was not included in target block</span> : null}
+					{bundle.details === 'AccountNonceTooHigh' ? <span class='font-normal text-error'>Nonces in bundle already used</span> : null}
+					{bundle.state === 'resolved' && bundle.details !== 'AccountNonceTooHigh' && bundle.details !== 'BlockPassedWithoutInclusion' ? (
+						<span class='font-bold text-lg text-success'>Bundle Included!</span>
+					) : null}
 				</div>
 			))}
 		</div>
@@ -87,7 +98,7 @@ export const Submit = ({
 	appSettings,
 	blockInfo,
 }: {
-	provider: Signal<providers.Web3Provider | undefined>
+	provider: Signal<ProviderStore | undefined>
 	interceptorPayload: Signal<BundleState | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
@@ -136,7 +147,7 @@ export const Submit = ({
 		setSimulationResult({ status: 'pending' })
 		simulate(
 			relayProvider,
-			provider.value,
+			provider.value.provider,
 			blockInfo.peek(),
 			appSettings.peek().blocksInFuture,
 			interceptorPayload.value,
@@ -158,7 +169,7 @@ export const Submit = ({
 
 		const bundleSubmission = await sendBundle(
 			relayProvider,
-			provider.value,
+			provider.value.provider,
 			{ ...blockInfo.peek(), blockNumber },
 			appSettings.peek().blocksInFuture,
 			interceptorPayload.value,
@@ -209,7 +220,7 @@ export const Submit = ({
 			}
 			bundleSubmission(blockInfo.value.blockNumber)
 		} else {
-			bundleStatus.value.active = false
+			bundleStatus.value = { ...bundleStatus.value, active: false }
 		}
 	}
 
@@ -225,7 +236,7 @@ export const Submit = ({
 					</Button>
 					<SimulationPromiseBlock state={simulationResult} />
 					<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
-					<Bundles pendingBundles={bundleStatus} />
+					<Bundles pendingBundles={bundleStatus} appSettings={appSettings} />
 				</div>
 			)}
 		</>

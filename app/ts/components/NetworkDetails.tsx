@@ -1,6 +1,7 @@
 import { Signal } from '@preact/signals'
-import { providers, utils } from 'ethers'
+import { utils } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
+import { ProviderStore } from '../library/provider.js'
 import { AppSettings, BlockInfo } from '../library/types.js'
 
 export const NetworkDetails = ({
@@ -9,33 +10,16 @@ export const NetworkDetails = ({
 	appSettings,
 }: {
 	blockInfo: Signal<BlockInfo>
-	provider: Signal<providers.Web3Provider | undefined>
+	provider: Signal<ProviderStore | undefined>
 	appSettings: Signal<AppSettings>
 }) => {
-	// @TODO: Manage disconnected wallets and listners
 	const switchNetwork = async (e: Event) => {
 		const elm = e.target as HTMLSelectElement
 		const relayEndpoint = elm.value
 		if (!provider.value) {
 			appSettings.value = { ...appSettings.peek(), relayEndpoint }
 		} else {
-			try {
-				await provider.peek()?.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
-				const { chainId } = await provider.value.getNetwork()
-				const block = await provider.peek()?.getBlockNumber()
-				provider
-					.peek()
-					?._events.find((x) => x.tag === 'block')
-					?.listener(block)
-				if ([1, 5].includes(chainId)) {
-					appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
-				}
-			} catch {
-				const { chainId } = await provider.value.getNetwork()
-				if ([1, 5].includes(chainId)) {
-					appSettings.value = { ...appSettings.peek(), relayEndpoint: chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
-				}
-			}
+			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
 		}
 	}
 

@@ -1,6 +1,7 @@
 import { batch, ReadonlySignal, Signal, useSignal } from '@preact/signals'
-import { Wallet, utils, providers } from 'ethers'
+import { Wallet, utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
+import { ProviderStore } from '../library/provider.js'
 import { BlockInfo, BundleState, Signers } from '../library/types.js'
 
 export const Configure = ({
@@ -10,7 +11,7 @@ export const Configure = ({
 	signers,
 	blockInfo,
 }: {
-	provider: Signal<providers.Web3Provider | undefined>
+	provider: Signal<ProviderStore | undefined>
 	interceptorPayload: Signal<BundleState | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
@@ -40,7 +41,7 @@ export const Configure = ({
 
 	blockInfo.subscribe(() => {
 		if (provider.value && signers.value.burner) {
-			provider.value.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance.toBigInt()))
+			provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance.toBigInt()))
 		}
 	})
 
