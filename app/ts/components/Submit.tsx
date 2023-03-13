@@ -5,6 +5,7 @@ import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 import { ProviderStore } from '../library/provider.js'
+import { CORS_PROXY_PREFIX } from '../constants.js'
 
 const SimulationPromiseBlock = ({
   state,
@@ -118,7 +119,7 @@ export const Submit = ({
   })
 
   async function ensureRelayProvider() {
-    const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
+    const relay = `${CORS_PROXY_PREFIX}${appSettings.peek().relayEndpoint}`
     return flashbotsProvider.value && flashbotsProvider.value.connection.url === relay ? flashbotsProvider.value : await createProvider(provider, relay)
   }
 
@@ -145,8 +146,7 @@ export const Submit = ({
   }
 
   async function bundleSubmission(blockNumber: bigint) {
-    const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
-    const relayProvider = flashbotsProvider.value ?? (await createProvider(provider, relay))
+    const relayProvider = await ensureRelayProvider()
     if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
     if (!provider.value) throw 'User not connected'
     if (!interceptorPayload.value) throw 'No imported bundle found'
@@ -193,8 +193,7 @@ export const Submit = ({
 
   async function toggleSubmission() {
     if (!bundleStatus.peek().active) {
-      const relay = `https://corsproxy.io/?${appSettings.peek().relayEndpoint}`
-      const relayProvider = flashbotsProvider.value ?? (await createProvider(provider, relay))
+      const relayProvider = await ensureRelayProvider()
       if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
       if (!provider.value) throw 'User not connected'
       if (!interceptorPayload.value) throw 'No imported bundle found'
