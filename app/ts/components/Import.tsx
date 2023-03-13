@@ -83,7 +83,7 @@ export const Import = ({
 		<>
 			<h2 className='font-bold text-2xl'>1. Import</h2>
 			<div className='flex flex-col w-full gap-6'>
-				<div className='flex gap-4'>
+				<div className='flex flex-col sm:flex-row gap-4'>
 					<Button
 						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).catch((err: Error) => setError(err.message))}
 					>
