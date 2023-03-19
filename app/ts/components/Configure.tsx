@@ -25,17 +25,17 @@ export const Configure = ({
 		signerKeys.value =
 			interceptorPayload.value && Object.keys(signerKeys.peek()).length === 0
 				? interceptorPayload.value.uniqueSigners.reduce(
-						(
-							curr: {
-								[address: string]: { input: string; wallet: Wallet | null }
-							},
-							address,
-						) => {
-							curr[utils.getAddress(address)] = { input: '', wallet: null }
-							return curr
+					(
+						curr: {
+							[address: string]: { input: string; wallet: Wallet | null }
 						},
-						{},
-				  )
+						address,
+					) => {
+						curr[utils.getAddress(address)] = { input: '', wallet: null }
+						return curr
+					},
+					{},
+				)
 				: {}
 	}
 
@@ -96,9 +96,8 @@ export const Configure = ({
 									type='text'
 									value={signerKeys.value[address].input}
 									onKeyUp={(e: JSX.TargetedEvent<HTMLInputElement>) => tryUpdateSigners(address, e.currentTarget.value)}
-									className={`p-4 text-lg rounded-xl border-slate-200/70 border-2 ${
-										signerKeys.value[address].wallet ? 'bg-success/10' : signerKeys.peek()[address].input ? 'bg-error/10' : 'bg-background'
-									}`}
+									className={`p-4 text-lg rounded-xl border-slate-200/70 border-2 ${signerKeys.value[address].wallet ? 'bg-success/10' : signerKeys.peek()[address].input ? 'bg-error/10' : 'bg-background'
+										}`}
 									placeholder={`Private key for ${address}`}
 								/>
 							</>

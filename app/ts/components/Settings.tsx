@@ -27,72 +27,72 @@ export const SettingsIcon = () => {
 }
 
 export const SettingsModal = ({ display, appSettings }: { display: Signal<boolean>, appSettings: Signal<AppSettings> }) => {
-  const editedSettings = useSignal(appSettings.value)
-  function inputRPC(value: string) {
-    // https://urlregex.com/
-    const matchURL = value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
-    if (!value || !matchURL || matchURL.length !== 1) return
-    editedSettings.value = { ...editedSettings.peek(), relayEndpoint: value }
-  }
-  function inputPriorityFee(value: string) {
-    if (!value) return
-    let parsedValue: number
-    try {
-      parsedValue = Number(value);
-      editedSettings.value = { ...editedSettings.peek(), priorityFee: utils.parseUnits(String(parsedValue), 'gwei').toBigInt() }
-    } catch {
-      return
-    }
-  }
-  function inputTargetBlocks(value: string) {
-    if (!value) return
-    let parsedValue: number
-    try {
-      parsedValue = Number(value)
-      editedSettings.value = { ...editedSettings.peek(), blocksInFuture: BigInt(parsedValue) }
-    } catch {
-      return
-    }
-  }
-  function saveSettings() {
-    appSettings.value = editedSettings.value
-    localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: editedSettings.value.priorityFee.toString(), blocksInFuture: editedSettings.value.blocksInFuture.toString(), relayEndpoint: editedSettings.value.relayEndpoint }))
-    close()
-  }
-  function resetSettings() {
-    appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
-    close()
-  }
-  function close() {
-    editedSettings.value = appSettings.value
-    display.value = false
-  }
+	const editedSettings = useSignal(appSettings.value)
+	function inputRPC(value: string) {
+		// https://urlregex.com/
+		const matchURL = value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
+		if (!value || !matchURL || matchURL.length !== 1) return
+		editedSettings.value = { ...editedSettings.peek(), relayEndpoint: value }
+	}
+	function inputPriorityFee(value: string) {
+		if (!value) return
+		let parsedValue: number
+		try {
+			parsedValue = Number(value);
+			editedSettings.value = { ...editedSettings.peek(), priorityFee: utils.parseUnits(String(parsedValue), 'gwei').toBigInt() }
+		} catch {
+			return
+		}
+	}
+	function inputTargetBlocks(value: string) {
+		if (!value) return
+		let parsedValue: number
+		try {
+			parsedValue = Number(value)
+			editedSettings.value = { ...editedSettings.peek(), blocksInFuture: BigInt(parsedValue) }
+		} catch {
+			return
+		}
+	}
+	function saveSettings() {
+		appSettings.value = editedSettings.value
+		localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: editedSettings.value.priorityFee.toString(), blocksInFuture: editedSettings.value.blocksInFuture.toString(), relayEndpoint: editedSettings.value.relayEndpoint }))
+		close()
+	}
+	function resetSettings() {
+		appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+		close()
+	}
+	function close() {
+		editedSettings.value = appSettings.value
+		display.value = false
+	}
 	return display.value ? (
-		<div onClick={close} class='flex items-center justify-center bg-black/20 backdrop-blur-sm absolute inset-0'>
+		<div onClick={close} class='flex items-center justify-center bg-black/20 absolute inset-0'>
 			<div class='h-max w-82 p-4 flex flex-col gap-4 rounded-2xl bg-background' onClick={(e) => e.stopPropagation()}>
-        <h2 className='text-xl font-semibold'>App Settings</h2>
-        <div>
-          <h3 className='font-semibold'>MEV Relay URL</h3>
-          <input
+				<h2 className='text-xl font-semibold'>App Settings</h2>
+				<div>
+					<h3 className='font-semibold'>MEV Relay URL</h3>
+					<input
 						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputRPC(e.currentTarget.value)}
-            value={editedSettings.value.relayEndpoint} type="url" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
-        </div>
-        <div>
-          <h3 className='font-semibold'>Priority Fee (GWEI)</h3>
-          <input
+						value={editedSettings.value.relayEndpoint} type="url" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				</div>
+				<div>
+					<h3 className='font-semibold'>Priority Fee (GWEI)</h3>
+					<input
 						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)}
-            value={utils.formatUnits(editedSettings.value.priorityFee, 'gwei')} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
-        </div>
-        <div>
-          <h3 className='font-semibold'>Target Blocks In Future For Bundle Confirmation</h3>
-          <input
+						value={utils.formatUnits(editedSettings.value.priorityFee, 'gwei')} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				</div>
+				<div>
+					<h3 className='font-semibold'>Target Blocks In Future For Bundle Confirmation</h3>
+					<input
 						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputTargetBlocks(e.currentTarget.value)}
-            value={editedSettings.value.blocksInFuture.toString()} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
-        </div>
-        <div className='flex gap-2'>
-				  <Button onClick={saveSettings} variant='primary'>Save</Button>
-				  <Button onClick={resetSettings} variant='secondary'>Reset</Button>
-        </div>
+						value={editedSettings.value.blocksInFuture.toString()} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				</div>
+				<div className='flex gap-2'>
+					<Button onClick={saveSettings} variant='primary'>Save</Button>
+					<Button onClick={resetSettings} variant='secondary'>Reset</Button>
+				</div>
 			</div>
 		</div>
 	) : null

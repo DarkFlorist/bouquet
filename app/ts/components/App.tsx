@@ -38,21 +38,21 @@ function fetchPayloadFromStorage() {
 }
 
 function fetchSettingsFromStorage() {
-  const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
-  const custom = localStorage.getItem('bouquetSettings')
-  if (!custom) {
-    return defaultValues
-  } else {
-    try {
-      const parsed = JSON.parse(custom)
-      if ('relayEndpoint' in parsed) defaultValues.relayEndpoint = parsed.relayEndpoint
-      if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
-      if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
-      return defaultValues;
-    } catch {
-      return defaultValues;
-    }
-  }
+	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+	const custom = localStorage.getItem('bouquetSettings')
+	if (!custom) {
+		return defaultValues
+	} else {
+		try {
+			const parsed = JSON.parse(custom)
+			if ('relayEndpoint' in parsed) defaultValues.relayEndpoint = parsed.relayEndpoint
+			if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
+			if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
+			return defaultValues;
+		} catch {
+			return defaultValues;
+		}
+	}
 }
 
 export function App() {
