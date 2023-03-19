@@ -5,7 +5,6 @@ import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 import { ProviderStore } from '../library/provider.js'
-import { CORS_PROXY_PREFIX } from '../constants.js'
 
 const SimulationPromiseBlock = ({
 	state,
@@ -141,7 +140,7 @@ export const Submit = ({
 	})
 
 	async function ensureRelayProvider() {
-		const relay = `${CORS_PROXY_PREFIX}${appSettings.peek().relayEndpoint}`
+		const relay = appSettings.peek().relayEndpoint
 		return flashbotsProvider.value && flashbotsProvider.value.connection.url === relay ? flashbotsProvider.value : await createProvider(provider, relay)
 	}
 
