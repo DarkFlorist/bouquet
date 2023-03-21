@@ -48,9 +48,9 @@ function fetchSettingsFromStorage() {
 			if ('relayEndpoint' in parsed) defaultValues.relayEndpoint = parsed.relayEndpoint
 			if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
 			if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
-			return defaultValues;
+			return defaultValues
 		} catch {
-			return defaultValues;
+			return defaultValues
 		}
 	}
 }
