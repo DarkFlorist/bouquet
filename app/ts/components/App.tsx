@@ -10,7 +10,7 @@ import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { MEV_RELAY_MAINNET } from '../constants.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
-import { NetworkDetails } from './NetworkDetails.js'
+import { Navbar } from './Navbar.js'
 
 function fetchBurnerWalletFromStorage() {
 	const burnerPrivateKey = localStorage.getItem('wallet')
@@ -38,8 +38,21 @@ function fetchPayloadFromStorage() {
 }
 
 function fetchSettingsFromStorage() {
-	// @TODO: add ability to manage settings
-	return { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET }
+	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+	const custom = localStorage.getItem('bouquetSettings')
+	if (!custom) {
+		return defaultValues
+	} else {
+		try {
+			const parsed = JSON.parse(custom)
+			if ('relayEndpoint' in parsed) defaultValues.relayEndpoint = parsed.relayEndpoint
+			if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
+			if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
+			return defaultValues
+		} catch {
+			return defaultValues
+		}
+	}
 }
 
 export function App() {
@@ -66,7 +79,7 @@ export function App() {
 	return (
 		<main class='bg-background text-primary w-full min-h-screen sm:px-6 font-serif flex flex-col items-center'>
 			<article className='p-4 max-w-screen-lg w-full'>
-				<NetworkDetails {...{ blockInfo, provider, appSettings }} />
+				<Navbar {...{ blockInfo, provider, appSettings }} />
 				<div className='p-4 mt-4 flex flex-col gap-8'>
 					{!provider.value && interceptorPayload.value ? (
 						<article className='items-center flex flex-col gap-4 py-8'>

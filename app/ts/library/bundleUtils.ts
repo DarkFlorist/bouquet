@@ -1,6 +1,5 @@
 import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
-import { MEV_RELAY_GOERLI } from '../constants.js'
 import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
 import { EthereumAddress, EthereumData, serialize } from './interceptor-types.js'
 import { ProviderStore } from './provider.js'
@@ -11,10 +10,10 @@ export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigi
 	return [...Array(blocksInFuture)].reduce((accumulator, _currentValue) => (accumulator * 1125n) / 1000n, baseFee) + 1n
 }
 
-export const createProvider = async (provider: Signal<ProviderStore | undefined>) => {
+export const createProvider = async (provider: Signal<ProviderStore | undefined>, relay: string) => {
 	if (!provider.value) throw new Error('User not connected')
 	const authSigner = Wallet.createRandom().connect(provider.value.provider)
-	const flashbotsProvider = await FlashbotsBundleProvider.create(provider.value.provider as providers.BaseProvider, authSigner, MEV_RELAY_GOERLI, 'goerli')
+	const flashbotsProvider = await FlashbotsBundleProvider.create(provider.value.provider as providers.BaseProvider, authSigner, relay)
 	return flashbotsProvider
 }
 

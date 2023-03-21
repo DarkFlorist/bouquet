@@ -10,12 +10,12 @@ const SimulationPromiseBlock = ({
 	state,
 }: {
 	state:
-		| {
-				status: PromiseState
-				value?: SimulationResponseSuccess
-				error?: RelayResponseError
-		  }
-		| undefined
+	| {
+		status: PromiseState
+		value?: SimulationResponseSuccess
+		error?: RelayResponseError
+	}
+	| undefined
 }) => {
 	if (!state) return <></>
 	if (!state.value || state.status === 'pending') return <div>Simulating...</div>
@@ -107,10 +107,10 @@ export const Submit = ({
 }) => {
 	const [simulationResult, setSimulationResult] = useState<
 		| {
-				status: 'pending' | 'resolved' | 'rejected'
-				value?: SimulationResponseSuccess
-				error?: RelayResponseError
-		  }
+			status: 'pending' | 'resolved' | 'rejected'
+			value?: SimulationResponseSuccess
+			error?: RelayResponseError
+		}
 		| undefined
 	>(undefined)
 
@@ -139,8 +139,13 @@ export const Submit = ({
 		return false
 	})
 
+	async function ensureRelayProvider() {
+		const relay = appSettings.peek().relayEndpoint
+		return flashbotsProvider.value && flashbotsProvider.value.connection.url === relay ? flashbotsProvider.value : await createProvider(provider, relay)
+	}
+
 	async function simulateBundle() {
-		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+		const relayProvider = await ensureRelayProvider()
 		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 		if (!provider.value) throw 'User not connected'
 		if (!interceptorPayload.value) throw 'No imported bundle found'
@@ -162,7 +167,7 @@ export const Submit = ({
 	}
 
 	async function bundleSubmission(blockNumber: bigint) {
-		const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+		const relayProvider = await ensureRelayProvider()
 		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 		if (!provider.value) throw 'User not connected'
 		if (!interceptorPayload.value) throw 'No imported bundle found'
@@ -209,7 +214,7 @@ export const Submit = ({
 
 	async function toggleSubmission() {
 		if (!bundleStatus.peek().active) {
-			const relayProvider = flashbotsProvider.value ?? (await createProvider(provider))
+			const relayProvider = await ensureRelayProvider()
 			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 			if (!provider.value) throw 'User not connected'
 			if (!interceptorPayload.value) throw 'No imported bundle found'

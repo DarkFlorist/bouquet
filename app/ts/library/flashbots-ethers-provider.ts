@@ -1,5 +1,5 @@
 import { BigNumber, providers, Signer, utils } from 'ethers'
-import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
+import { MEV_RELAY_MAINNET } from '../constants.js'
 
 export const BASE_FEE_MAX_CHANGE_DENOMINATOR = 8
 
@@ -227,13 +227,13 @@ const TIMEOUT_MS = 5 * 60 * 1000
 export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 	private genericProvider: providers.BaseProvider
 	private authSigner: Signer
-	// private connectionInfo: utils.ConnectionInfo
+	private connectionInfo: utils.ConnectionInfo
 
 	constructor(genericProvider: providers.BaseProvider, authSigner: Signer, connectionInfoOrUrl: utils.ConnectionInfo, network: providers.Networkish) {
 		super(connectionInfoOrUrl, network)
 		this.genericProvider = genericProvider
 		this.authSigner = authSigner
-		// this.connectionInfo = connectionInfoOrUrl
+		this.connectionInfo = connectionInfoOrUrl
 	}
 
 	static async throttleCallback(): Promise<boolean> {
@@ -875,7 +875,7 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 	}
 
 	private async request(request: string) {
-		const fetchRequest = await fetch(MEV_RELAY_GOERLI, {
+		const fetchRequest = await fetch(this.connectionInfo.url, {
 			method: 'POST',
 			mode: 'cors',
 			headers: {
