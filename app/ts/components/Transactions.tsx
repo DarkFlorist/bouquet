@@ -1,12 +1,12 @@
-import { computed, ReadonlySignal, Signal, useSignal } from '@preact/signals'
+import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
 import { utils } from 'ethers'
 import { Interface, TransactionDescription } from 'ethers/lib/utils.js'
-import { useCallback } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { createBundleTransactions } from '../library/bundleUtils.js'
+import { createBundleTransactions, } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
 import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
+import { ProviderStore } from '../library/provider.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.functionFragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -21,15 +21,15 @@ function formatTransactionDescription(tx: TransactionDescription) {
 }
 
 export const TransactionList = ({
-	parsedTransactions,
+	transactions,
 	fundingTx,
 }: {
-	parsedTransactions: Signal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>
+	transactions: Signal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>
 	fundingTx: boolean
 }) => {
 	return (
 		<div class='flex w-full flex-col gap-2'>
-			{parsedTransactions.value.map((tx, index) => (
+			{transactions.value.map((tx, index) => (
 				<div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>
 					<div class='flex w-24 flex-col items-center justify-center text-white border-r-2'>
 						<span class='text-lg font-bold'>#{index}</span>
@@ -38,7 +38,7 @@ export const TransactionList = ({
 						<div class='flex gap-2 items-center'>
 							<span class='w-10 text-right'>From</span>
 							<span class='rounded bg-background px-2 py-1 font-mono font-medium'>
-								{fundingTx && tx.transaction.from === parsedTransactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
+								{fundingTx && tx.transaction.from === transactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
 							</span>
 						</div>
 						<div class='flex gap-2 items-center'>
@@ -68,27 +68,38 @@ export const TransactionList = ({
 }
 
 export const Transactions = ({
+	provider,
 	interceptorPayload,
 	signers,
 	blockInfo,
 	appSettings,
 	fundingAmountMin,
 }: {
+	provider: Signal<ProviderStore | undefined>
 	interceptorPayload: Signal<BundleState | undefined>
 	blockInfo: Signal<BlockInfo>
 	signers: Signal<Signers>
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
-	const transactions = computed(() =>
-		createBundleTransactions(interceptorPayload.peek(), signers.peek(), blockInfo.peek(), appSettings.peek().blocksInFuture, fundingAmountMin.peek()),
-	)
+	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
+	const updateTx = async () => {
+		if (provider.value) {
+			const result = await createBundleTransactions(interceptorPayload.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
+			batch(() => {
+				transactions.value = result
+			})
+		}
+	}
+	useSignalEffect(() => {
+		if (provider.value && interceptorPayload.value) {
+			updateTx()
+		}
+	})
 
-	const parsedTransactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>(transactions.peek())
-	const parseTransactionsCb = async () => {
+	async function parseTransactions() {
 		try {
 			const uniqueAddresses = [...new Set(transactions.value.map((x) => x.transaction.to))]
-			// @TODO: Map correctly to APIs when adding custom rpc support
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
@@ -111,19 +122,16 @@ export const Transactions = ({
 				}
 				return tx
 			})
-			parsedTransactions.value = parsed
+			transactions.value = parsed
 		} catch (error) {
 			console.log('parseTransactionsCb Error:', error)
-			parsedTransactions.value = transactions.peek()
 		}
 	}
-	useCallback(parseTransactionsCb, [interceptorPayload.value])
-	parseTransactionsCb()
 
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
-			<TransactionList {...{ parsedTransactions, fundingTx: interceptorPayload.peek()?.containsFundingTx ?? false }} />
+			<TransactionList {...{ transactions, fundingTx: interceptorPayload.peek()?.containsFundingTx ?? false }} />
 		</>
 	)
 }

@@ -8,10 +8,10 @@ import { SettingsIcon, SettingsModal } from './Settings.js'
 export const Navbar = ({
 	blockInfo,
 	provider,
-	appSettings,
+	appSettings
 }: {
-	blockInfo: Signal<BlockInfo>
-	provider: Signal<ProviderStore | undefined>
+	blockInfo: Signal<BlockInfo>,
+	provider: Signal<ProviderStore | undefined>,
 	appSettings: Signal<AppSettings>
 }) => {
 	const switchNetwork = async (e: Event) => {
