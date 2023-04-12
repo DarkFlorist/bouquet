@@ -1,4 +1,4 @@
-import { batch, ReadonlySignal, Signal, useSignal } from '@preact/signals'
+import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
 import { Wallet, utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { ProviderStore } from '../library/provider.js'
@@ -20,6 +20,10 @@ export const Configure = ({
 	const signerKeys = useSignal<{
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>({})
+
+	useSignalEffect(() => {
+		if (!interceptorPayload.value) signerKeys.value = {}
+	})
 
 	if (interceptorPayload.peek() && Object.keys(signerKeys.peek()).length === 0) {
 		signerKeys.value =
