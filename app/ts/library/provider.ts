@@ -87,6 +87,10 @@ export const connectBrowserProvider = async (
 		updateLatestBlock(blockNumber, store, blockInfo, signers)
 	}
 
+	provider.getBlock('latest').then((block) => {
+		updateLatestBlock(block.number, store, blockInfo, signers)
+	})
+
 	window.ethereum.on('disconnect', disconnectEventCallback)
 	window.ethereum.on('accountsChanged', accountsChangedCallback)
 	window.ethereum.on('chainChanged', chainChangedCallback)
