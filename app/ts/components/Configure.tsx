@@ -110,6 +110,7 @@ export const Configure = ({
 					{interceptorPayload.value?.containsFundingTx && signers.value.burner ? (
 						<div className='flex flex-col w-full gap-4'>
 							<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
+							<p>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
 							<span className='p-4 flex items-center gap-4 w-max rounded-xl text-lg bg-white text-background font-bold font-mono'>
 								{signers.value.burner.address}
 								<button onClick={copyBurnerToClipboard} className='active:text-background/70'>

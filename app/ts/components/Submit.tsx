@@ -1,13 +1,15 @@
 import { useState } from 'preact/hooks'
+import { utils } from 'ethers'
 import { createProvider, sendBundle, simulate } from '../library/bundleUtils.js'
 import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { AppSettings, BlockInfo, BundleInfo, BundleState, PromiseState, Signers } from '../library/types.js'
 import { ProviderStore } from '../library/provider.js'
+import { SettingsModal } from './Settings.js'
 
 const SimulationPromiseBlock = ({
-	state,
+	state
 }: {
 	state:
 	| {
@@ -115,6 +117,7 @@ export const Submit = ({
 	>(undefined)
 
 	const flashbotsProvider = useSignal<FlashbotsBundleProvider | undefined>(undefined)
+	const showSettings = useSignal<boolean>(false)
 
 	const bundleStatus = useSignal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }>({
 		active: false,
@@ -229,18 +232,29 @@ export const Submit = ({
 		}
 	}
 
+	function showSettingsModal() {
+		showSettings.value = true
+	}
+
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>3. Submit</h2>
+			<SettingsModal display={showSettings} appSettings={appSettings} />
 			{missingRequirements.value ? (
 				<p>{missingRequirements.peek()}</p>
 			) : (
-				<div className='flex flex-col w-full gap-6'>
-					<Button onClick={simulateBundle} variant='secondary'>
-						Simulate
-					</Button>
+				<div className='flex flex-col w-full gap-4'>
+					<div>
+						<p><span className='font-bold'>Gas:</span> {utils.formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei + {utils.formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+						<p><span className='font-bold'>Network:</span> {appSettings.value.relayEndpoint}</p>
+						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
+						<p>You can edit these settings <button className='font-bold underline' onClick={showSettingsModal}>here</button>.</p>
+					</div>
+					<div className='flex flex-row gap-6'>
+						<Button onClick={simulateBundle} variant='secondary'>Simulate</Button>
+						<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
+					</div>
 					<SimulationPromiseBlock state={simulationResult} />
-					<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
 					<Bundles pendingBundles={bundleStatus} appSettings={appSettings} />
 				</div>
 			)}

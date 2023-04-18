@@ -106,7 +106,10 @@ export async function simulate(
 		blockInfo,
 		maxBaseFee,
 	)
-	return await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
+	const result = await flashbotsProvider.simulate(signedTransactions, Number(blockInfo.blockNumber + blocksInFuture))
+	console.log({ result })
+	return result
+
 }
 
 export async function sendBundle(
