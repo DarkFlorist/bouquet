@@ -37,38 +37,41 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider:
 	return transactions
 }
 
-export const createBundleTransactions = (
+export const createBundleTransactions = async (
 	interceptorPayload: BundleState | undefined,
 	signers: Signers,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
-): FlashbotsBundleTransaction[] => {
+	provider: providers.Web3Provider,
+): Promise<FlashbotsBundleTransaction[]> => {
 	if (!interceptorPayload) return []
-	return interceptorPayload.payload.map(({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
+	return await Promise.all(interceptorPayload.payload.map(async ({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
-		if (index === 0 && interceptorPayload.containsFundingTx && signers.burner)
+		if (index === 0 && interceptorPayload.containsFundingTx && signers.burner) {
+			const burnerNonce = BigInt(await provider.getTransactionCount(signers.burner.address))
 			return {
 				signer: signers.burner,
 				transaction: {
 					from: signers.burner.address,
 					...(interceptorPayload && interceptorPayload.payload[0].to
 						? {
-								to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.payload[0].to)),
-						  }
+							to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.payload[0].to)),
+						}
 						: {}),
 					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
 					data: '0x',
+					nonce: burnerNonce,
 					gasLimit: 21000n,
 					chainId: Number(chainId),
 					...gasOpts,
 				},
 			}
-		else
+		} else
 			return {
 				signer: signers.bundleSigners[utils.getAddress(serialize(EthereumAddress, from))],
 				transaction: {
@@ -82,7 +85,7 @@ export const createBundleTransactions = (
 					...gasOpts,
 				},
 			}
-	})
+	}))
 }
 
 export async function simulate(
@@ -98,7 +101,7 @@ export async function simulate(
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
-		createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin),
+		await createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin, walletProvider),
 		walletProvider,
 		blockInfo,
 		maxBaseFee,
@@ -119,7 +122,7 @@ export async function sendBundle(
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const signedTransactions = await signBundle(
-		createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin),
+		await createBundleTransactions(bundleData, signers, blockInfo, blocksInFuture, fundingAmountMin, walletProvider),
 		walletProvider,
 		blockInfo,
 		maxBaseFee,

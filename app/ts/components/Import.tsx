@@ -85,7 +85,7 @@ export const Import = ({
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex flex-col sm:flex-row gap-4'>
 					<Button
-						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).catch((err: Error) => setError(err.message))}
+						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
 					>
 						Import Payload from The Interceptor
 					</Button>
