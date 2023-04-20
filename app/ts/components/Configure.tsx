@@ -131,7 +131,7 @@ export const Configure = ({
 									</svg>
 								</button>
 							</span>
-							<p className='font-semibold text-lg'>
+							<p className='font-semibold'>
 								Wallet Balance: <span className='font-medium font-mono'>{utils.formatEther(signers.value.burnerBalance)}</span> ETH
 								<br />
 								Minimum Required Balance: <span className='font-medium font-mono'>{utils.formatEther(fundingAmountMin.value)}</span> ETH

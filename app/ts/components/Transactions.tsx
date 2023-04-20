@@ -1,4 +1,4 @@
-import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { createBundleTransactions, } from '../library/bundleUtils.js'
@@ -7,6 +7,7 @@ import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.j
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
+import { useAsyncState } from '../library/asyncState.js'
 
 function formatTransactionDescription(tx: utils.TransactionDescription) {
 	if (tx.functionFragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -36,13 +37,25 @@ export const Transactions = ({
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
 	const fundingTx = useComputed(() => interceptorPayload.peek()?.containsFundingTx ?? false)
+	const interfaces = useSignal<{ [address: string]: utils.Interface }>({})
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
 		if (provider.value) {
 			const result = await createBundleTransactions(interceptorPayload.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
-			batch(() => {
+			if (Object.keys(interfaces.value).length === 0) {
 				transactions.value = result
-			})
+			} else {
+				const parsed = transactions.value.map((tx) => {
+					if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
+						const decoded = formatTransactionDescription(
+							interfaces.value[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
+						)
+						return { ...tx, decoded }
+					}
+					return tx
+				})
+				transactions.value = parsed
+			}
 		}
 	}
 	useSignalEffect(() => {
@@ -50,6 +63,8 @@ export const Transactions = ({
 			updateTx()
 		}
 	})
+
+	const fetchingAbis = useAsyncState()
 
 	async function parseTransactions() {
 		try {
@@ -63,29 +78,21 @@ export const Transactions = ({
 				),
 			)
 			const abis = await Promise.all(requests.map((request) => request.json()))
-			const interfaces: { [address: string]: utils.Interface } = abis.reduce((acc, curr: { status: string; result: string }, index) => {
+			interfaces.value = abis.reduce((acc, curr: { status: string; result: string }, index) => {
 				if (curr.status === '1') return { ...acc, [`${uniqueAddresses[index]}`]: new utils.Interface(curr.result) }
 				else return acc
 			}, {})
-			const parsed = transactions.value.map((tx) => {
-				if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
-					const decoded = formatTransactionDescription(
-						interfaces[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
-					)
-					return { ...tx, decoded }
-				}
-				return tx
-			})
-			transactions.value = parsed
+			updateTx()
 		} catch (error) {
 			console.log('parseTransactionsCb Error:', error)
+			interfaces.value = {}
 		}
 	}
 
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
-			<Button variant='secondary' onClick={parseTransactions}>Decode Transactions From Etherscan</Button>
+			<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(parseTransactions)}>Decode Transactions From Etherscan</Button>
 			<div class='flex w-full flex-col gap-2'>
 				{transactions.value.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>

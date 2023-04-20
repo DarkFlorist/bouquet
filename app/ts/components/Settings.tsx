@@ -66,7 +66,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		display.value = false
 	}
 	return display.value ? (
-		<div onClick={close} class='flex items-center justify-center bg-black/50 absolute inset-0'>
+		<div onClick={close} class='flex items-center justify-center bg-black/50 h-full fixed inset-0'>
 			<div class='h-max w-82 p-4 flex flex-col gap-4 rounded-2xl bg-background' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
 				<div>
