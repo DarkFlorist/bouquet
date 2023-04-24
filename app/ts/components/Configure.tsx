@@ -1,4 +1,4 @@
-import { batch, ReadonlySignal, Signal, useSignal } from '@preact/signals'
+import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
 import { Wallet, utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { ProviderStore } from '../library/provider.js'
@@ -20,6 +20,10 @@ export const Configure = ({
 	const signerKeys = useSignal<{
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>({})
+
+	useSignalEffect(() => {
+		if (!interceptorPayload.value) signerKeys.value = {}
+	})
 
 	if (interceptorPayload.peek() && Object.keys(signerKeys.peek()).length === 0) {
 		signerKeys.value =
@@ -106,6 +110,7 @@ export const Configure = ({
 					{interceptorPayload.value?.containsFundingTx && signers.value.burner ? (
 						<div className='flex flex-col w-full gap-4'>
 							<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
+							<p>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
 							<span className='p-4 flex items-center gap-4 w-max rounded-xl text-lg bg-white text-background font-bold font-mono'>
 								{signers.value.burner.address}
 								<button onClick={copyBurnerToClipboard} className='active:text-background/70'>
@@ -126,7 +131,7 @@ export const Configure = ({
 									</svg>
 								</button>
 							</span>
-							<p className='font-semibold text-lg'>
+							<p className='font-semibold'>
 								Wallet Balance: <span className='font-medium font-mono'>{utils.formatEther(signers.value.burnerBalance)}</span> ETH
 								<br />
 								Minimum Required Balance: <span className='font-medium font-mono'>{utils.formatEther(fundingAmountMin.value)}</span> ETH

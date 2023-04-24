@@ -520,8 +520,8 @@ video {
 	position: static;
 }
 
-.absolute {
-	position: absolute;
+.fixed {
+	position: fixed;
 }
 
 .inset-0 {
@@ -563,6 +563,10 @@ video {
 	height: 2rem;
 }
 
+.h-full {
+	height: 100%;
+}
+
 .h-max {
 	height: -moz-max-content;
 	height: max-content;
@@ -599,6 +603,10 @@ video {
 
 .max-w-screen-lg {
 	max-width: 1024px;
+}
+
+.flex-row {
+	flex-direction: row;
 }
 
 .flex-col {
