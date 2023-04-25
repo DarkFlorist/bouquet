@@ -36,7 +36,7 @@ export const Transactions = ({
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
-	const fundingTx = useComputed(() => interceptorPayload.peek()?.containsFundingTx ?? false)
+	const fundingTx = useComputed(() => interceptorPayload.value ? interceptorPayload.value.containsFundingTx : false)
 	const interfaces = useSignal<{ [address: string]: utils.Interface }>({})
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
@@ -103,7 +103,7 @@ export const Transactions = ({
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>From</span>
 								<span class='rounded bg-background px-2 py-1 font-mono font-medium'>
-									{fundingTx && tx.transaction.from === transactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
+									{fundingTx.value && tx.transaction.from === transactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
 								</span>
 							</div>
 							<div class='flex gap-2 items-center'>

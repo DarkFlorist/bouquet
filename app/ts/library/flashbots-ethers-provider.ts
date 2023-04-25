@@ -250,11 +250,11 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 		const connectionInfo: utils.ConnectionInfo =
 			typeof connectionInfoOrUrl === 'string' || typeof connectionInfoOrUrl === 'undefined'
 				? {
-						url: connectionInfoOrUrl || MEV_RELAY_MAINNET,
-				  }
+					url: connectionInfoOrUrl || MEV_RELAY_MAINNET,
+				}
 				: {
-						...connectionInfoOrUrl,
-				  }
+					...connectionInfoOrUrl,
+				}
 		if (connectionInfo.headers === undefined) connectionInfo.headers = {}
 		connectionInfo.throttleCallback = FlashbotsBundleProvider.throttleCallback
 		const networkish: providers.Networkish = {
@@ -727,8 +727,8 @@ export class FlashbotsBundleProvider extends providers.JsonRpcProvider {
 					'coinbase_transfer' in transactionDetail
 						? transactionDetail.coinbase_transfer
 						: 'ethSentToCoinbase' in transactionDetail
-						? transactionDetail.ethSentToCoinbase
-						: BigNumber.from(0)
+							? transactionDetail.ethSentToCoinbase
+							: BigNumber.from(0)
 				return {
 					gasUsed: acc.gasUsed + gasUsed,
 					gasFeesPaidBySearcher: acc.gasFeesPaidBySearcher.add(gasPricePaidBySearcher.mul(gasUsed)),
