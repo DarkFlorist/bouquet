@@ -52,7 +52,6 @@ const SimulationResult = ({
 			</div>
 		)
 	if (state.value.state === 'rejected') {
-		console.log(state.value)
 		return (
 			<div>
 				<h3 class='font-semibold text-error mb-2'>Simulation Failed</h3>

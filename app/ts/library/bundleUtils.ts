@@ -31,7 +31,8 @@ async function getSimulatedCountsOnNetwork(provider: providers.Web3Provider): Pr
 			return acc
 		}, {})
 		return result
-	} catch {
+	} catch (error) {
+		console.error("getSimulatedCountsOnNetwork error: ", error)
 		return {}
 	}
 }
