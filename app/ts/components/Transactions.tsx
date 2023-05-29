@@ -1,5 +1,5 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { utils } from 'ethers'
+import { BigNumberish, utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { createBundleTransactions, } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
@@ -8,6 +8,7 @@ import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
+import { BouquetTransactionList, EthereumAddress, EthereumData } from '../library/interceptor-types.js'
 
 function formatTransactionDescription(tx: utils.TransactionDescription) {
 	if (tx.functionFragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -73,7 +74,7 @@ export const Transactions = ({
 				uniqueAddresses.map((address) =>
 					fetch(
 						`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
-						}.etherscan.io/api?module=contract&action=getabi&address=${utils.getAddress(address)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+						}.etherscan.io/api?module=contract&action=getabi&address=${utils.getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
 					),
 				),
 			)
@@ -89,10 +90,38 @@ export const Transactions = ({
 		}
 	}
 
+	function copyTransactions() {
+		if (!transactions.value) return
+		const parsedList = BouquetTransactionList.safeSerialize(
+			// @ts-ignore
+			transactions.value.map(tx => tx.transaction).map(({ from, to, value, data, chainId }: { from: string, to?: string, value: bigint, data: string, chainId: bigint }) => ({ from: EthereumAddress.parse(from), to: to ? EthereumAddress.parse(to) : null, value, data: EthereumData.parse(data), chainId: BigInt(chainId) }))
+		)
+		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
+	}
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
-			<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(parseTransactions)}>Decode Transactions From Etherscan</Button>
+			<div className='flex flex-row gap-4'>
+				<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(parseTransactions)}>Decode Transactions From Etherscan</Button>
+				<Button variant='secondary' onClick={copyTransactions}><>Copy Transaction List
+					<svg
+						className='h-8 inline-block'
+						aria-hidden='true'
+						fill='none'
+						stroke='currentColor'
+						stroke-width='1.5'
+						viewBox='0 0 24 24'
+						xmlns='http://www.w3.org/2000/svg'
+					>
+						<path
+							d='M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6'
+							stroke-linecap='round'
+							stroke-linejoin='round'
+						></path>
+					</svg>
+				</>
+				</Button>
+			</div>
 			<div class='flex w-full flex-col gap-2'>
 				{transactions.value.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>

@@ -260,6 +260,17 @@ export function serialize<T, U extends t.Codec<T>>(funtype: U, value: T) {
 	return funtype.serialize(value) as ToWireType<U>
 }
 
+export type BouquetTransactionList = t.Static<typeof BouquetTransactionList>
+export const BouquetTransactionList = t.Array(
+	t.Object({
+		from: EthereumAddress,
+		to: t.Union(EthereumAddress, t.Null),
+		value: EthereumQuantity,
+		data: EthereumInput,
+		chainId: EthereumQuantity,
+	})
+)
+
 export type UnionToIntersection<T> = (T extends unknown ? (k: T) => void : never) extends (k: infer I) => void ? I : never
 
 export type ToWireType<T> = T extends t.Intersect<infer U>
@@ -270,12 +281,12 @@ export type ToWireType<T> = T extends t.Intersect<infer U>
 	? Record<t.Static<U>, ToWireType<V>>
 	: T extends t.Partial<infer U, infer V>
 	? V extends true
-		? { readonly [K in keyof U]?: ToWireType<U[K]> }
-		: { [K in keyof U]?: ToWireType<U[K]> }
+	? { readonly [K in keyof U]?: ToWireType<U[K]> }
+	: { [K in keyof U]?: ToWireType<U[K]> }
 	: T extends t.Object<infer U, infer V>
 	? V extends true
-		? { readonly [K in keyof U]: ToWireType<U[K]> }
-		: { [K in keyof U]: ToWireType<U[K]> }
+	? { readonly [K in keyof U]: ToWireType<U[K]> }
+	: { [K in keyof U]: ToWireType<U[K]> }
 	: T extends t.Readonly<t.Tuple<infer U>>
 	? { readonly [P in keyof U]: ToWireType<U[P]> }
 	: T extends t.Tuple<infer U>
