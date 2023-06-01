@@ -2,10 +2,10 @@ import { useComputed, useSignal } from '@preact/signals'
 import { utils, Wallet } from 'ethers'
 import { MEV_RELAY_MAINNET } from './constants.js'
 import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
-import { GetSimulationStackReply } from './types/interceptorTypes.js'
 import { EthereumAddress } from './types/ethereumTypes.js'
 import { ProviderStore } from './library/provider.js'
-import { AppSettings, BlockInfo, BundleState, serialize, Signers } from './types/types.js'
+import { AppSettings, BlockInfo, Bundle, serialize, Signers } from './types/types.js'
+import { TransactionList } from './types/bouquetTypes.js'
 
 function fetchBurnerWalletFromStorage() {
 	const burnerPrivateKey = localStorage.getItem('wallet')
@@ -19,13 +19,18 @@ function fetchBurnerWalletFromStorage() {
 function fetchPayloadFromStorage() {
 	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 	if (!payload) return undefined
-	const parsed = GetSimulationStackReply.parse(payload)
+	const tryParse = TransactionList.safeParse(payload)
+	if (!tryParse.success) {
+		localStorage.removeItem('payload')
+		return undefined
+	}
+	const parsed = tryParse.value
 
 	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
 	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
 		(_, index) => !(index === 0 && containsFundingTx),
 	)
-	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
+	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gas.toString()) + sum), 0n)
 	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
@@ -51,11 +56,11 @@ function fetchSettingsFromStorage() {
 }
 
 export function createGlobalState() {
+	const appSettings = useSignal<AppSettings>(fetchSettingsFromStorage())
 	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
-	const interceptorPayload = useSignal<BundleState | undefined>(fetchPayloadFromStorage())
-	const appSettings = useSignal<AppSettings>(fetchSettingsFromStorage())
 	const signers = useSignal<Signers>({ burner: fetchBurnerWalletFromStorage(), burnerBalance: 0n, bundleSigners: {} })
+	const bundle = useSignal<Bundle | undefined>(fetchPayloadFromStorage())
 
 	// Sync burnerWallet to localStorage
 	signers.subscribe(({ burner }) => {
@@ -64,11 +69,11 @@ export function createGlobalState() {
 	})
 
 	const fundingAmountMin = useComputed(() => {
-		if (!interceptorPayload.value) return 0n
-		if (!interceptorPayload.value.containsFundingTx) return 0n
+		if (!bundle.value) return 0n
+		if (!bundle.value.containsFundingTx) return 0n
 		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture)
-		return interceptorPayload.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + interceptorPayload.value.inputValue
+		return bundle.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + bundle.value.inputValue
 	})
 
-	return { provider, blockInfo, interceptorPayload, appSettings, signers, fundingAmountMin }
+	return { provider, blockInfo, bundle, appSettings, signers, fundingAmountMin }
 }

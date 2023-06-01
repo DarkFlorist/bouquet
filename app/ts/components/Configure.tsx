@@ -2,17 +2,17 @@ import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@prea
 import { Wallet, utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { ProviderStore } from '../library/provider.js'
-import { BlockInfo, BundleState, Signers } from '../types/types.js'
+import { BlockInfo, Bundle, Signers } from '../types/types.js'
 
 export const Configure = ({
 	provider,
-	interceptorPayload,
+	bundle,
 	fundingAmountMin,
 	signers,
 	blockInfo,
 }: {
 	provider: Signal<ProviderStore | undefined>
-	interceptorPayload: Signal<BundleState | undefined>
+	bundle: Signal<Bundle | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
 	blockInfo: Signal<BlockInfo>
@@ -22,13 +22,13 @@ export const Configure = ({
 	}>({})
 
 	useSignalEffect(() => {
-		if (!interceptorPayload.value) signerKeys.value = {}
+		if (!bundle.value) signerKeys.value = {}
 	})
 
-	if (interceptorPayload.peek() && Object.keys(signerKeys.peek()).length === 0) {
+	if (bundle.peek() && Object.keys(signerKeys.peek()).length === 0) {
 		signerKeys.value =
-			interceptorPayload.value && Object.keys(signerKeys.peek()).length === 0
-				? interceptorPayload.value.uniqueSigners.reduce(
+			bundle.value && Object.keys(signerKeys.peek()).length === 0
+				? bundle.value.uniqueSigners.reduce(
 					(
 						curr: {
 							[address: string]: { input: string; wallet: Wallet | null }
@@ -89,11 +89,11 @@ export const Configure = ({
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>2. Configure</h2>
-			{interceptorPayload.value ? (
+			{bundle.value ? (
 				<>
 					<div className='flex flex-col w-full gap-4'>
 						<h3 className='text-2xl font-semibold'>Enter Private Keys For Signing Accounts</h3>
-						{interceptorPayload.value.uniqueSigners.map((address) => (
+						{bundle.value.uniqueSigners.map((address) => (
 							<>
 								<span className='font-semibold -mb-2'>{address}</span>
 								<input
@@ -107,7 +107,7 @@ export const Configure = ({
 							</>
 						))}
 					</div>
-					{interceptorPayload.value?.containsFundingTx && signers.value.burner ? (
+					{bundle.value?.containsFundingTx && signers.value.burner ? (
 						<div className='flex flex-col w-full gap-4'>
 							<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
 							<p>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>

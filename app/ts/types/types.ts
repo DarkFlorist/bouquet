@@ -1,6 +1,6 @@
 import { Wallet } from 'ethers'
 import * as t from 'funtypes'
-import { GetSimulationStackReply } from './interceptorTypes.js'
+import { TransactionList } from './bouquetTypes.js'
 
 export function serialize<T, U extends t.Codec<T>>(funtype: U, value: T) {
 	return funtype.serialize(value) as ToWireType<U>
@@ -51,7 +51,7 @@ declare global {
 }
 
 export type BlockInfo = { blockNumber: bigint; baseFee: bigint; priorityFee: bigint }
-export type BundleState = { payload: GetSimulationStackReply; containsFundingTx: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
+export type Bundle = { payload: TransactionList; containsFundingTx: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
 export type AppSettings = { blocksInFuture: bigint; priorityFee: bigint; relayEndpoint: string }
 export type Signers = { burner: Wallet | undefined; burnerBalance: bigint; bundleSigners: { [account: string]: Wallet } }
 

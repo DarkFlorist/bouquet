@@ -1,5 +1,5 @@
 import * as t from 'funtypes'
-import { EthereumAddress, EthereumQuantity, EthereumData, EthereumBytes32, LiteralConverterParserFactory, EthereumInput, BytesParser } from './ethereumTypes'
+import { EthereumAddress, EthereumQuantity, EthereumData, EthereumBytes32, LiteralConverterParserFactory, EthereumInput, BytesParser } from './ethereumTypes.js'
 
 const EthereumAccessList = t.ReadonlyArray(
 	t

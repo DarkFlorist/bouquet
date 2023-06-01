@@ -3,7 +3,7 @@ import { utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { createBundleTransactions, } from '../library/bundleUtils.js'
 import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
-import { AppSettings, BlockInfo, BundleState, Signers } from '../types/types.js'
+import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
@@ -23,25 +23,25 @@ function formatTransactionDescription(tx: utils.TransactionDescription) {
 
 export const Transactions = ({
 	provider,
-	interceptorPayload,
+	bundle,
 	signers,
 	blockInfo,
 	appSettings,
 	fundingAmountMin,
 }: {
 	provider: Signal<ProviderStore | undefined>
-	interceptorPayload: Signal<BundleState | undefined>
+	bundle: Signal<Bundle | undefined>
 	blockInfo: Signal<BlockInfo>
 	signers: Signal<Signers>
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
-	const fundingTx = useComputed(() => interceptorPayload.value ? interceptorPayload.value.containsFundingTx : false)
+	const fundingTx = useComputed(() => bundle.value ? bundle.value.containsFundingTx : false)
 	const interfaces = useSignal<{ [address: string]: utils.Interface }>({})
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
 		if (provider.value) {
-			const result = await createBundleTransactions(interceptorPayload.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
+			const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
 			if (Object.keys(interfaces.value).length === 0) {
 				transactions.value = result
 			} else {
@@ -59,7 +59,7 @@ export const Transactions = ({
 		}
 	}
 	useSignalEffect(() => {
-		if (provider.value && interceptorPayload.value) {
+		if (provider.value && bundle.value) {
 			updateTx()
 		}
 	})

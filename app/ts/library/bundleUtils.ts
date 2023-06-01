@@ -2,7 +2,7 @@ import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
 import { ProviderStore } from './provider.js'
-import { BlockInfo, BundleState, serialize, Signers } from '../types/types.js'
+import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumAddress, EthereumData } from '../types/ethereumTypes.js'
 
 export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigint) => {
@@ -62,29 +62,29 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider:
 }
 
 export const createBundleTransactions = async (
-	interceptorPayload: BundleState | undefined,
+	bundle: Bundle | undefined,
 	signers: Signers,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
 	provider: providers.Web3Provider,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	if (!interceptorPayload) return []
-	return await Promise.all(interceptorPayload.payload.map(async ({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
+	if (!bundle) return []
+	return await Promise.all(bundle.payload.map(async ({ from, to, nonce, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
-		if (index === 0 && interceptorPayload.containsFundingTx && signers.burner) {
+		if (index === 0 && bundle.containsFundingTx && signers.burner) {
 			const burnerNonce = BigInt(await provider.getTransactionCount(signers.burner.address))
 			return {
 				signer: signers.burner,
 				transaction: {
 					from: signers.burner.address,
-					...(interceptorPayload && interceptorPayload.payload[0].to
+					...(bundle && bundle.payload[0].to
 						? {
-							to: utils.getAddress(serialize(EthereumAddress, interceptorPayload.payload[0].to)),
+							to: utils.getAddress(serialize(EthereumAddress, bundle.payload[0].to)),
 						}
 						: {}),
 					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
@@ -139,7 +139,7 @@ export async function sendBundle(
 	walletProvider: providers.Web3Provider,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
-	bundleData: BundleState,
+	bundleData: Bundle,
 	signers: Signers,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsTransactionResponse> {

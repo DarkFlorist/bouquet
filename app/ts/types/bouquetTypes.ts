@@ -1,5 +1,5 @@
 import * as t from 'funtypes'
-import { EthereumAddress, EthereumInput, EthereumQuantity } from './ethereumTypes'
+import { EthereumAddress, EthereumInput, EthereumQuantity } from './ethereumTypes.js'
 
 export type TransactionList = t.Static<typeof TransactionList>
 export const TransactionList = t.ReadonlyArray(
@@ -9,7 +9,8 @@ export const TransactionList = t.ReadonlyArray(
 			to: t.Union(EthereumAddress, t.Null, t.Literal('FUNDING')),
 			value: EthereumQuantity,
 			input: EthereumInput,
-			chainId: EthereumQuantity
+			chainId: EthereumQuantity,
+			gas: EthereumQuantity
 		})
 		.asReadonly(),
 )
@@ -23,10 +24,10 @@ export const PopulatedTransactionList = t.ReadonlyArray(
 			value: EthereumQuantity,
 			input: EthereumInput,
 			chainId: EthereumQuantity,
+			gas: EthereumQuantity,
 			nonce: EthereumQuantity,
 			maxFeePerGas: EthereumQuantity,
-			maxPriorityFeePerGas: EthereumQuantity,
-			gas: EthereumQuantity
+			maxPriorityFeePerGas: EthereumQuantity
 		})
 		.asReadonly(),
 )

@@ -3,7 +3,7 @@ import { createProvider, getMaxBaseFeeInFutureBlock, sendBundle, simulate } from
 import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { AppSettings, BlockInfo, BundleInfo, BundleState, Signers } from '../types/types.js'
+import { AppSettings, BlockInfo, BundleInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
@@ -93,14 +93,14 @@ export const Bundles = ({
 
 export const Submit = ({
 	provider,
-	interceptorPayload,
+	bundle,
 	fundingAmountMin,
 	signers,
 	appSettings,
 	blockInfo,
 }: {
 	provider: Signal<ProviderStore | undefined>
-	interceptorPayload: Signal<BundleState | undefined>
+	bundle: Signal<Bundle | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
 	appSettings: Signal<AppSettings>
@@ -125,8 +125,8 @@ export const Submit = ({
 	})
 
 	const missingRequirements = useComputed(() => {
-		if (!interceptorPayload.value) return 'No transactions imported yet.'
-		const missingSigners = interceptorPayload.value.uniqueSigners.length !== Object.keys(signers.value.bundleSigners).length
+		if (!bundle.value) return 'No transactions imported yet.'
+		const missingSigners = bundle.value.uniqueSigners.length !== Object.keys(signers.value.bundleSigners).length
 		const insufficientBalance = signers.value.burnerBalance < fundingAmountMin.value
 		if (missingSigners && insufficientBalance) return 'Missing private keys for signing accounts and funding wallet has insufficent balance.'
 		if (missingSigners) return 'Missing private keys for signing accounts.'
@@ -144,13 +144,13 @@ export const Submit = ({
 			const relayProvider = await ensureRelayProvider()
 			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 			if (!provider.value) throw 'User not connected'
-			if (!interceptorPayload.value) throw 'No imported bundle found'
+			if (!bundle.value) throw 'No imported bundle found'
 			const simulationResult = await simulate(
 				relayProvider,
 				provider.value.provider,
 				blockInfo.peek(),
 				appSettings.peek().blocksInFuture,
-				interceptorPayload.value,
+				bundle.value,
 				signers.peek(),
 				fundingAmountMin.peek(),
 			)
@@ -167,14 +167,14 @@ export const Submit = ({
 		const relayProvider = await ensureRelayProvider()
 		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 		if (!provider.value) throw 'User not connected'
-		if (!interceptorPayload.value) throw 'No imported bundle found'
+		if (!bundle.value) throw 'No imported bundle found'
 
 		const bundleSubmission = await sendBundle(
 			relayProvider,
 			provider.value.provider,
 			{ ...blockInfo.peek(), blockNumber },
 			appSettings.peek().blocksInFuture,
-			interceptorPayload.value,
+			bundle.value,
 			signers.peek(),
 			fundingAmountMin.peek(),
 		).catch(() => {
@@ -214,7 +214,7 @@ export const Submit = ({
 			const relayProvider = await ensureRelayProvider()
 			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
 			if (!provider.value) throw 'User not connected'
-			if (!interceptorPayload.value) throw 'No imported bundle found'
+			if (!bundle.value) throw 'No imported bundle found'
 			bundleStatus.value = {
 				active: true,
 				lastBlock: bundleStatus.value.lastBlock,
