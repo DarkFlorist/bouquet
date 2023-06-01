@@ -1,7 +1,7 @@
 import { batch, Signal } from '@preact/signals'
 import { providers, utils } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
-import { AppSettings, Signers } from './types.js'
+import { AppSettings, Signers } from '../types/types.js'
 
 export type ProviderStore = {
 	provider: providers.Web3Provider

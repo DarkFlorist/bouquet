@@ -1,10 +1,11 @@
-import { useComputed, useSignal } from "@preact/signals"
-import { utils, Wallet } from "ethers"
-import { MEV_RELAY_MAINNET } from "./constants.js"
-import { getMaxBaseFeeInFutureBlock } from "./library/bundleUtils.js"
-import { EthereumAddress, GetSimulationStackReply, serialize } from "./library/interceptor-types.js"
-import { ProviderStore } from "./library/provider.js"
-import { AppSettings, BlockInfo, BundleState, Signers } from "./library/types.js"
+import { useComputed, useSignal } from '@preact/signals'
+import { utils, Wallet } from 'ethers'
+import { MEV_RELAY_MAINNET } from './constants.js'
+import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
+import { GetSimulationStackReply } from './types/interceptorTypes.js'
+import { EthereumAddress } from './types/ethereumTypes.js'
+import { ProviderStore } from './library/provider.js'
+import { AppSettings, BlockInfo, BundleState, serialize, Signers } from './types/types.js'
 
 function fetchBurnerWalletFromStorage() {
 	const burnerPrivateKey = localStorage.getItem('wallet')

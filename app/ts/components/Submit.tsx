@@ -3,7 +3,7 @@ import { createProvider, getMaxBaseFeeInFutureBlock, sendBundle, simulate } from
 import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
 import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { AppSettings, BlockInfo, BundleInfo, BundleState, Signers } from '../library/types.js'
+import { AppSettings, BlockInfo, BundleInfo, BundleState, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'

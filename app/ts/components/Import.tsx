@@ -2,9 +2,10 @@ import { batch, Signal } from '@preact/signals'
 import { utils } from 'ethers'
 import { useState } from 'preact/hooks'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
-import { GetSimulationStackReply, serialize, EthereumAddress } from '../library/interceptor-types.js'
+import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
-import { AppSettings, BundleState, Signers } from '../library/types.js'
+import { AppSettings, BundleState, serialize, Signers } from '../types/types.js'
+import { EthereumAddress } from '../types/ethereumTypes.js'
 
 export async function importFromInterceptor(
 	interceptorPayload: Signal<BundleState | undefined>,

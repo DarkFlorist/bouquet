@@ -2,7 +2,7 @@ import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@prea
 import { Wallet, utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { ProviderStore } from '../library/provider.js'
-import { BlockInfo, BundleState, Signers } from '../library/types.js'
+import { BlockInfo, BundleState, Signers } from '../types/types.js'
 
 export const Configure = ({
 	provider,

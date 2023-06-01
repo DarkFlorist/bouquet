@@ -1,9 +1,9 @@
 import { Signal } from '@preact/signals'
 import { providers, utils, Wallet } from 'ethers'
 import { FlashbotsBundleProvider, FlashbotsBundleTransaction, FlashbotsTransactionResponse } from './flashbots-ethers-provider.js'
-import { EthereumAddress, EthereumData, serialize } from './interceptor-types.js'
 import { ProviderStore } from './provider.js'
-import { BlockInfo, BundleState, Signers } from './types.js'
+import { BlockInfo, BundleState, serialize, Signers } from '../types/types.js'
+import { EthereumAddress, EthereumData } from '../types/ethereumTypes.js'
 
 export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigint) => {
 	if (blocksInFuture <= 0n) throw new Error('blocksInFuture needs to be positive')
