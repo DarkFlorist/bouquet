@@ -48,7 +48,6 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider:
 			if (tx.transaction.from in inSimulation) accNonces[tx.transaction.from] -= inSimulation[tx.transaction.from]
 		}
 		tx.transaction.nonce = accNonces[tx.transaction.from]
-		console.log(tx.transaction.nonce)
 		const signedTx = await tx.signer.signTransaction(tx.transaction)
 		transactions.push(signedTx as string)
 	}

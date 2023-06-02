@@ -25,8 +25,6 @@ export interface TransactionSimulationRevert extends TransactionSimulationBase {
 
 export type TransactionSimulation = TransactionSimulationSuccess | TransactionSimulationRevert
 
-
-
 export interface RelayResponseError {
 	error: {
 		message: string
