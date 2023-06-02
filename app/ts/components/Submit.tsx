@@ -1,17 +1,23 @@
 import { utils } from 'ethers'
-import { createProvider, getMaxBaseFeeInFutureBlock, sendBundle, simulate } from '../library/bundleUtils.js'
-import { FlashbotsBundleProvider, FlashbotsBundleResolution, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots-ethers-provider.js'
-import { Button } from './Button.js'
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { Button } from './Button.js'
 import { AppSettings, BlockInfo, BundleInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
+import { simulateBundle, sendBundle, checkBundleInclusion, SimulationResponse, RelayResponseError } from '../library/flashbots.js'
+
+type PendingBundle = {
+	targetBlock: bigint,
+	gas: { priorityFee: bigint, baseFee: bigint }
+	transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
+}
 
 const SimulationResult = ({
 	state
 }: {
-	state: Signal<AsyncProperty<SimulationResponseSuccess>>
+	state: Signal<AsyncProperty<SimulationResponse>>
 }) => {
 	if (state.value.state === 'pending') return <div>Simulating...</div>
 	if (state.value.state === 'resolved')
@@ -106,20 +112,13 @@ export const Submit = ({
 	appSettings: Signal<AppSettings>
 	blockInfo: Signal<BlockInfo>
 }) => {
-	const { value: simulationPromise, waitFor: waitForSimulation } = useAsyncState<SimulationResponseSuccess>()
-
-	const flashbotsProvider = useSignal<FlashbotsBundleProvider | undefined>(undefined)
 	const showSettings = useSignal<boolean>(false)
 
-	const bundleStatus = useSignal<{ lastBlock: bigint; active: boolean; pendingBundles: BundleInfo[] }>({
-		active: false,
-		lastBlock: blockInfo.peek().blockNumber,
-		pendingBundles: [],
-	})
+	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint }>({ active: false, lastBlock: 0n })
+	const { value: simulationPromise, waitFor: waitForSimulation } = useAsyncState<SimulationResponse>()
 
 	useSignalEffect(() => {
-		blockInfo.value.blockNumber // trigger effect
-		if (bundleStatus.peek().active && blockInfo.value.blockNumber > bundleStatus.peek().lastBlock) {
+		if (submissionStatus.value.active && blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
 			bundleSubmission(blockInfo.value.blockNumber)
 		}
 	})
@@ -134,100 +133,74 @@ export const Submit = ({
 		return false
 	})
 
-	async function ensureRelayProvider() {
-		const relay = appSettings.peek().relayEndpoint
-		return flashbotsProvider.value && flashbotsProvider.value.connection.url === relay ? flashbotsProvider.value : await createProvider(provider, relay)
-	}
-
-	async function simulateBundle() {
-		try {
-			const relayProvider = await ensureRelayProvider()
-			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
-			if (!provider.value) throw 'User not connected'
-			if (!bundle.value) throw 'No imported bundle found'
-			const simulationResult = await simulate(
-				relayProvider,
-				provider.value.provider,
-				blockInfo.peek(),
-				appSettings.peek().blocksInFuture,
-				bundle.value,
-				signers.peek(),
-				fundingAmountMin.peek(),
-			)
-			if ('error' in simulationResult) throw new Error((simulationResult as RelayResponseError).error.message)
-			else return simulationResult
-		} catch (error) {
-			console.error({ error })
-			throw error
-		}
-
-	}
-
-	async function bundleSubmission(blockNumber: bigint) {
-		const relayProvider = await ensureRelayProvider()
-		if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
+	async function simulateCallback() {
 		if (!provider.value) throw 'User not connected'
 		if (!bundle.value) throw 'No imported bundle found'
-
-		const bundleSubmission = await sendBundle(
-			relayProvider,
-			provider.value.provider,
-			{ ...blockInfo.peek(), blockNumber },
-			appSettings.peek().blocksInFuture,
+		const simulationResult = await simulateBundle(
 			bundle.value,
-			signers.peek(),
 			fundingAmountMin.peek(),
-		).catch(() => {
-			bundleStatus.value = {
-				active: bundleStatus.value.active,
-				lastBlock: blockNumber,
-				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: '', state: 'rejected', details: `RPC Error: ${blockNumber.toString()}` }],
-			}
-		})
+			provider.value,
+			signers.peek(),
+			blockInfo.peek(),
+			appSettings.peek()
+		)
+		if ('error' in simulationResult) throw new Error((simulationResult as RelayResponseError).error.message)
+		else return simulationResult
+	}
 
-		if (bundleSubmission) {
-			bundleStatus.value = {
-				active: bundleStatus.value.active,
-				lastBlock: blockNumber,
-				pendingBundles: [...bundleStatus.value.pendingBundles, { hash: bundleSubmission.bundleHash, state: 'pending', details: blockNumber.toString() }],
-			}
+	const outstandingBundles = useSignal<{ [bundleHash: string]: PendingBundle }>({})
 
-			const status = await bundleSubmission.wait()
-			console.log(`Status for ${bundleSubmission.bundleHash}: ${FlashbotsBundleResolution[status]}`)
+	async function bundleSubmission(blockNumber: bigint) {
+		submissionStatus.value = { ...submissionStatus.peek(), lastBlock: blockNumber }
 
-			if (status === FlashbotsBundleResolution.BundleIncluded) {
-				const pendingBundles = bundleStatus.value.pendingBundles
-				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
-				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `Bundle Included` }
-				bundleStatus.value = { ...bundleStatus.value, active: false, pendingBundles }
-			} else {
-				const pendingBundles = bundleStatus.value.pendingBundles
-				const index = pendingBundles.findIndex(({ hash }) => hash === bundleSubmission.bundleHash)
-				pendingBundles[index] = { hash: bundleSubmission.bundleHash, state: 'resolved', details: `${FlashbotsBundleResolution[status]}` }
-				bundleStatus.value = { ...bundleStatus.value, pendingBundles }
+		if (!provider.value) throw new Error('User not connected')
+		if (!bundle.value) throw new Error('No imported bundle found')
+
+		// Check status of current bundles
+		// @DEV: Checked provider.value above, but LSP thinks it can still be undefined, so we cast it
+		const checkedPending = await Promise.all(Object.keys(outstandingBundles.peek()).map(bundleHash => checkBundleInclusion(outstandingBundles.peek()[bundleHash].transactions, provider.value as ProviderStore)))
+		const included = checkedPending.filter(checkedPending => checkedPending.included)
+		if (included.length > 0) {
+			// We done!
+			console.log('Included!!!', included)
+			submissionStatus.value = { active: false, lastBlock: blockNumber }
+		} else {
+			// Remove old submissions
+			outstandingBundles.value = Object.keys(outstandingBundles.peek())
+				.filter(tx => outstandingBundles.peek()[tx].targetBlock >= blockNumber)
+				.reduce((obj: { [bundleHash: string]: PendingBundle }, bundleHash) => {
+					obj[bundleHash] = outstandingBundles.peek()[bundleHash]
+					return obj
+				}, {})
+
+			// Try Submit
+			try {
+				const targetBlock = blockNumber + appSettings.peek().blocksInFuture
+				const gas = blockInfo.peek()
+
+				const bundleRequest = await sendBundle(
+					bundle.value,
+					targetBlock,
+					fundingAmountMin.peek(),
+					provider.value,
+					signers.peek(),
+					blockInfo.peek(),
+					appSettings.peek()
+				)
+
+				if (!(bundleRequest.bundleHash in outstandingBundles.peek())) {
+					outstandingBundles.value = { ...outstandingBundles.peek(), [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions } }
+				}
+			} catch (error) {
+				console.error("sendBundle error", error)
+				submissionStatus.value = { active: false, lastBlock: blockNumber }
+				throw { message: "Error submitting bundle", error }
 			}
 		}
 	}
 
 	async function toggleSubmission() {
-		if (!bundleStatus.peek().active) {
-			const relayProvider = await ensureRelayProvider()
-			if (!flashbotsProvider.value) flashbotsProvider.value = relayProvider
-			if (!provider.value) throw 'User not connected'
-			if (!bundle.value) throw 'No imported bundle found'
-			bundleStatus.value = {
-				active: true,
-				lastBlock: bundleStatus.value.lastBlock,
-				pendingBundles: bundleStatus.value.pendingBundles.filter((x) => x.state === 'pending'),
-			}
-			bundleSubmission(blockInfo.value.blockNumber)
-		} else {
-			bundleStatus.value = { ...bundleStatus.value, active: false }
-		}
-	}
-
-	function showSettingsModal() {
-		showSettings.value = true
+		submissionStatus.value = { ...submissionStatus.peek(), active: !submissionStatus.peek().active }
 	}
 
 	return (
@@ -242,14 +215,14 @@ export const Submit = ({
 						<p><span className='font-bold'>Gas:</span> {utils.formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {utils.formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 						<p><span className='font-bold'>Network:</span> {appSettings.value.relayEndpoint}</p>
 						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
-						<p>You can edit these settings <button className='font-bold underline' onClick={showSettingsModal}>here</button>.</p>
+						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>
 					</div>
 					<div className='flex flex-row gap-6'>
-						<Button onClick={() => waitForSimulation(simulateBundle)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
-						<Button onClick={toggleSubmission}>{bundleStatus.value.active ? 'Stop' : 'Submit'}</Button>
+						<Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
+						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop' : 'Submit'}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
-					<Bundles pendingBundles={bundleStatus} appSettings={appSettings} />
+					{/* <Bundles pendingBundles={bundleStatus} appSettings={appSettings} /> */}
 				</div>
 			)}
 		</>

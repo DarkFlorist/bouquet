@@ -16,7 +16,7 @@ function fetchBurnerWalletFromStorage() {
 	}
 }
 
-function fetchPayloadFromStorage() {
+function fetchBundleFromStorage(): Bundle | undefined {
 	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 	if (!payload) return undefined
 	const tryParse = TransactionList.safeParse(payload)
@@ -30,11 +30,11 @@ function fetchPayloadFromStorage() {
 	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
 		(_, index) => !(index === 0 && containsFundingTx),
 	)
-	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gas.toString()) + sum), 0n)
+	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
 	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
-	return { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
+	return { transactions: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
 function fetchSettingsFromStorage() {
@@ -60,7 +60,7 @@ export function createGlobalState() {
 	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
 	const signers = useSignal<Signers>({ burner: fetchBurnerWalletFromStorage(), burnerBalance: 0n, bundleSigners: {} })
-	const bundle = useSignal<Bundle | undefined>(fetchPayloadFromStorage())
+	const bundle = useSignal<Bundle | undefined>(fetchBundleFromStorage())
 
 	// Sync burnerWallet to localStorage
 	signers.subscribe(({ burner }) => {

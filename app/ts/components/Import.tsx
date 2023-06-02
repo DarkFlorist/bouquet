@@ -6,6 +6,7 @@ import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
 import { AppSettings, Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
+import { TransactionList } from '../types/bouquetTypes.js'
 
 export async function importFromInterceptor(
 	bundle: Signal<Bundle | undefined>,
@@ -34,10 +35,15 @@ export async function importFromInterceptor(
 			}
 		})
 
-	const parsed = GetSimulationStackReply.parse(payload)
+	const tryParse = GetSimulationStackReply.safeParse(payload)
+	if (!tryParse.success) throw new Error('Import Error: Wallet does not support returning simulations')
+	const parsed = tryParse.value
 	if (parsed.length === 0) throw new Error('Import Error: You have no transactions on your simulation')
 
-	localStorage.setItem('payload', JSON.stringify(GetSimulationStackReply.serialize(parsed)))
+	const converted = TransactionList.safeParse(serialize(GetSimulationStackReply, parsed).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+	if (!converted.success) throw new Error('Import Error: Malformed simulation stack')
+
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(converted.value)))
 
 	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
 	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
@@ -48,7 +54,7 @@ export async function importFromInterceptor(
 	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
-	bundle.value = { transactions: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
+	bundle.value = { transactions: converted.value, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
 export const Import = ({

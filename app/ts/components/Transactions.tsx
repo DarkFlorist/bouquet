@@ -1,8 +1,7 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { createBundleTransactions, } from '../library/bundleUtils.js'
-import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
+import { createBundleTransactions, FlashbotsBundleTransaction, } from '../library/bundleUtils.js'
 import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
@@ -41,7 +40,7 @@ export const Transactions = ({
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
 		if (provider.value) {
-			const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
+			const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value)
 			if (Object.keys(interfaces.value).length === 0) {
 				transactions.value = result
 			} else {

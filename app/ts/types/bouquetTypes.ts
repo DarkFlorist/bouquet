@@ -6,11 +6,11 @@ export const TransactionList = t.ReadonlyArray(
 	t
 		.Object({
 			from: EthereumAddress,
-			to: t.Union(EthereumAddress, t.Null, t.Literal('FUNDING')),
+			to: t.Union(EthereumAddress, t.Null),
 			value: EthereumQuantity,
 			input: EthereumInput,
 			chainId: EthereumQuantity,
-			gas: EthereumQuantity
+			gasLimit: EthereumQuantity
 		})
 		.asReadonly(),
 )
@@ -20,11 +20,11 @@ export const PopulatedTransactionList = t.ReadonlyArray(
 	t
 		.Object({
 			from: EthereumAddress,
-			to: t.Union(EthereumAddress, t.Null, t.Literal('FUNDING')),
+			to: t.Union(EthereumAddress, t.Null),
 			value: EthereumQuantity,
 			input: EthereumInput,
 			chainId: EthereumQuantity,
-			gas: EthereumQuantity,
+			gasLimit: EthereumQuantity,
 			nonce: EthereumQuantity,
 			maxFeePerGas: EthereumQuantity,
 			maxPriorityFeePerGas: EthereumQuantity
