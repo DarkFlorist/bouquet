@@ -39,22 +39,21 @@ export const Transactions = ({
 	const interfaces = useSignal<{ [address: string]: utils.Interface }>({})
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
-		if (provider.value) {
-			const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value)
-			if (Object.keys(interfaces.value).length === 0) {
-				transactions.value = result
-			} else {
-				const parsed = transactions.value.map((tx) => {
-					if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
-						const decoded = formatTransactionDescription(
-							interfaces.value[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
-						)
-						return { ...tx, decoded }
-					}
-					return tx
-				})
-				transactions.value = parsed
-			}
+		if (!provider.value || !bundle.value) return transactions.value = []
+		const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value)
+		if (Object.keys(interfaces.value).length === 0) {
+			return transactions.value = result
+		} else {
+			const parsed = transactions.value.map((tx) => {
+				if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
+					const decoded = formatTransactionDescription(
+						interfaces.value[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
+					)
+					return { ...tx, decoded }
+				}
+				return tx
+			})
+			return transactions.value = parsed
 		}
 	}
 	useSignalEffect(() => {

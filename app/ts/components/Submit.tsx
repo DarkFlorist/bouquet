@@ -158,10 +158,10 @@ export const Submit = ({
 
 		if (!provider.value) throw new Error('User not connected')
 		if (!bundle.value) throw new Error('No imported bundle found')
+		const providerStore = provider.value
 
 		// Check status of current bundles
-		// @DEV: Checked provider.value above, but LSP thinks it can still be undefined, so we cast it
-		const checkedPending = await Promise.all(Object.keys(outstandingBundles.peek().bundles).map(bundleHash => checkBundleInclusion(outstandingBundles.peek().bundles[bundleHash].transactions, provider.value as ProviderStore)))
+		const checkedPending = await Promise.all(Object.keys(outstandingBundles.peek().bundles).map(bundleHash => checkBundleInclusion(outstandingBundles.peek().bundles[bundleHash].transactions, providerStore)))
 		const included = checkedPending.filter(checkedPending => checkedPending.included)
 		if (included.length > 0) {
 			// We done!
@@ -224,11 +224,12 @@ export const Submit = ({
 					if (!(bundleRequest.bundleHash in outstandingBundles.peek())) {
 						outstandingBundles.value = { ...outstandingBundles.peek(), [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } }
 					}
-				} catch (error: unknown) {
-					console.error("SendBundle error", error)
+				} catch (err) {
+					console.error("SendBundle error", err)
+					const error = err && typeof err === 'object' && 'name' in err && 'message' in err && typeof err.name === 'string' && typeof err.message === 'string' ? new Error(err.message) : new Error("Unknown Error")
 					batch(() => {
 						submissionStatus.value = { active: false, lastBlock: blockNumber }
-						outstandingBundles.value = { ...outstandingBundles.peek(), error: error as Error }
+						outstandingBundles.value = { ...outstandingBundles.peek(), error }
 					})
 				}
 			}

@@ -55,13 +55,12 @@ export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider:
 }
 
 export const createBundleTransactions = async (
-	bundle: Bundle | undefined,
+	bundle: Bundle,
 	signers: Signers,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	if (!bundle) return []
 	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }, index) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
