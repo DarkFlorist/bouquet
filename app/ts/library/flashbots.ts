@@ -54,7 +54,7 @@ export async function simulateBundle(
 	blockInfo: BlockInfo,
 	appSettings: AppSettings
 ) {
-	if (appSettings.blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
+	if (appSettings.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, appSettings.blocksInFuture)
 	const txs = await signBundle(
@@ -95,7 +95,7 @@ export async function simulateBundle(
 }
 
 export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, appSettings: AppSettings) {
-	if (appSettings.blocksInFuture <= 0n) throw new Error('Blocks in future is negative')
+	if (appSettings.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, appSettings.blocksInFuture)
 	const txs = await signBundle(
