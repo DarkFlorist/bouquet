@@ -1,9 +1,8 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { createBundleTransactions, } from '../library/bundleUtils.js'
-import { FlashbotsBundleTransaction } from '../library/flashbots-ethers-provider.js'
-import { AppSettings, BlockInfo, BundleState, Signers } from '../library/types.js'
+import { createBundleTransactions, FlashbotsBundleTransaction, } from '../library/bundleUtils.js'
+import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
@@ -23,43 +22,42 @@ function formatTransactionDescription(tx: utils.TransactionDescription) {
 
 export const Transactions = ({
 	provider,
-	interceptorPayload,
+	bundle,
 	signers,
 	blockInfo,
 	appSettings,
 	fundingAmountMin,
 }: {
 	provider: Signal<ProviderStore | undefined>
-	interceptorPayload: Signal<BundleState | undefined>
+	bundle: Signal<Bundle | undefined>
 	blockInfo: Signal<BlockInfo>
 	signers: Signal<Signers>
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
-	const fundingTx = useComputed(() => interceptorPayload.value ? interceptorPayload.value.containsFundingTx : false)
+	const fundingTx = useComputed(() => bundle.value ? bundle.value.containsFundingTx : false)
 	const interfaces = useSignal<{ [address: string]: utils.Interface }>({})
 	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
 	const updateTx = async () => {
-		if (provider.value) {
-			const result = await createBundleTransactions(interceptorPayload.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value, provider.value.provider)
-			if (Object.keys(interfaces.value).length === 0) {
-				transactions.value = result
-			} else {
-				const parsed = transactions.value.map((tx) => {
-					if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
-						const decoded = formatTransactionDescription(
-							interfaces.value[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
-						)
-						return { ...tx, decoded }
-					}
-					return tx
-				})
-				transactions.value = parsed
-			}
+		if (!provider.value || !bundle.value) return transactions.value = []
+		const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value)
+		if (Object.keys(interfaces.value).length === 0) {
+			return transactions.value = result
+		} else {
+			const parsed = transactions.value.map((tx) => {
+				if (tx.transaction.to && tx.transaction.data && tx.transaction.data !== '0x' && tx.transaction.data.length > 0) {
+					const decoded = formatTransactionDescription(
+						interfaces.value[tx.transaction.to].parseTransaction({ ...tx.transaction, data: tx.transaction.data.toString() }),
+					)
+					return { ...tx, decoded }
+				}
+				return tx
+			})
+			return transactions.value = parsed
 		}
 	}
 	useSignalEffect(() => {
-		if (provider.value && interceptorPayload.value) {
+		if (provider.value && bundle.value) {
 			updateTx()
 		}
 	})

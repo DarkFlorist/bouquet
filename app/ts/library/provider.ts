@@ -1,10 +1,11 @@
 import { batch, Signal } from '@preact/signals'
-import { providers, utils } from 'ethers'
+import { providers, Signer, utils, Wallet } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
-import { AppSettings, Signers } from './types.js'
+import { AppSettings, Signers } from '../types/types.js'
 
 export type ProviderStore = {
 	provider: providers.Web3Provider
+	authSigner: Signer,
 	_clearEvents: () => unknown
 	walletAddress: string
 	chainId: number
@@ -26,8 +27,11 @@ const addProvider = async (
 		appSettings.value = { ...appSettings.peek(), relayEndpoint: network.chainId === 1 ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
 	}
 
+
+
 	store.value = {
 		provider,
+		authSigner: Wallet.createRandom().connect(provider),
 		walletAddress: utils.getAddress(address),
 		chainId: network.chainId,
 		_clearEvents: clearEvents,
