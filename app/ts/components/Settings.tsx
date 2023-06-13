@@ -2,7 +2,7 @@ import { Signal, useSignal } from '@preact/signals'
 import { utils } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { MEV_RELAY_MAINNET } from '../constants.js'
-import { AppSettings } from '../library/types.js'
+import { AppSettings } from '../types/types.js'
 import { Button } from './Button.js'
 
 export const SettingsIcon = () => {

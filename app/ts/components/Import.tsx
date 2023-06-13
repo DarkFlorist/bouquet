@@ -2,12 +2,14 @@ import { batch, Signal } from '@preact/signals'
 import { utils } from 'ethers'
 import { useState } from 'preact/hooks'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
-import { GetSimulationStackReply, serialize, EthereumAddress } from '../library/interceptor-types.js'
+import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
-import { AppSettings, BundleState, Signers } from '../library/types.js'
+import { AppSettings, Bundle, serialize, Signers } from '../types/types.js'
+import { EthereumAddress } from '../types/ethereumTypes.js'
+import { TransactionList } from '../types/bouquetTypes.js'
 
 export async function importFromInterceptor(
-	interceptorPayload: Signal<BundleState | undefined>,
+	bundle: Signal<Bundle | undefined>,
 	provider: Signal<ProviderStore | undefined>,
 	blockInfo: Signal<{
 		blockNumber: bigint
@@ -33,10 +35,15 @@ export async function importFromInterceptor(
 			}
 		})
 
-	const parsed = GetSimulationStackReply.parse(payload)
+	const tryParse = GetSimulationStackReply.safeParse(payload)
+	if (!tryParse.success) throw new Error('Import Error: Wallet does not support returning simulations')
+	const parsed = tryParse.value
 	if (parsed.length === 0) throw new Error('Import Error: You have no transactions on your simulation')
 
-	localStorage.setItem('payload', JSON.stringify(GetSimulationStackReply.serialize(parsed)))
+	const converted = TransactionList.safeParse(serialize(GetSimulationStackReply, parsed).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+	if (!converted.success) throw new Error('Import Error: Malformed simulation stack')
+
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(converted.value)))
 
 	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
 	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
@@ -47,17 +54,17 @@ export async function importFromInterceptor(
 	// @TODO: Change this to track minimum amount of ETH needed to deposit
 	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
-	interceptorPayload.value = { payload: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
+	bundle.value = { transactions: converted.value, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
 export const Import = ({
-	interceptorPayload,
+	bundle,
 	provider,
 	blockInfo,
 	signers,
 	appSettings,
 }: {
-	interceptorPayload: Signal<BundleState | undefined>
+	bundle: Signal<Bundle | undefined>
 	provider: Signal<ProviderStore | undefined>
 	blockInfo: Signal<{
 		blockNumber: bigint
@@ -71,7 +78,7 @@ export const Import = ({
 
 	const clearPayload = () => {
 		batch(() => {
-			interceptorPayload.value = undefined
+			bundle.value = undefined
 			localStorage.removeItem('payload')
 			signers.value.bundleSigners = {}
 			// Keep burner wallet as long as it has funds, should clear is later if there is left over dust but not needed.
@@ -85,11 +92,11 @@ export const Import = ({
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex flex-col sm:flex-row gap-4'>
 					<Button
-						onClick={() => importFromInterceptor(interceptorPayload, provider, blockInfo, appSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
+						onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
 					>
 						Import Payload from The Interceptor
 					</Button>
-					{interceptorPayload.value ? (
+					{bundle.value ? (
 						<Button variant='secondary' onClick={clearPayload}>
 							Reset
 						</Button>

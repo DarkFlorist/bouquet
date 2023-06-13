@@ -2,7 +2,7 @@ import { Signal, useSignal } from '@preact/signals'
 import { utils } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
-import { AppSettings, BlockInfo } from '../library/types.js'
+import { AppSettings, BlockInfo } from '../types/types.js'
 import { SettingsIcon, SettingsModal } from './Settings.js'
 
 export const Navbar = ({
