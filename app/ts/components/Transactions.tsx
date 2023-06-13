@@ -1,13 +1,13 @@
 import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { BigNumberish, utils } from 'ethers'
+import { utils } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { createBundleTransactions, FlashbotsBundleTransaction, } from '../library/bundleUtils.js'
+import { createBundleTransactions, FlashbotsBundleTransaction } from '../library/bundleUtils.js'
 import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
-import { BouquetTransactionList, EthereumAddress, EthereumData } from '../library/interceptor-types.js'
+import { TransactionList } from '../types/bouquetTypes.js'
 
 function formatTransactionDescription(tx: utils.TransactionDescription) {
 	if (tx.functionFragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -89,11 +89,8 @@ export const Transactions = ({
 	}
 
 	function copyTransactions() {
-		if (!transactions.value) return
-		const parsedList = BouquetTransactionList.safeSerialize(
-			// @ts-ignore
-			transactions.value.map(tx => tx.transaction).map(({ from, to, value, data, chainId }: { from: string, to?: string, value: bigint, data: string, chainId: bigint }) => ({ from: EthereumAddress.parse(from), to: to ? EthereumAddress.parse(to) : null, value, data: EthereumData.parse(data), chainId: BigInt(chainId) }))
-		)
+		if (!bundle.value) return
+		const parsedList = TransactionList.safeSerialize(bundle.value.transactions)
 		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
 	}
 	return (
