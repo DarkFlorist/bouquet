@@ -563,6 +563,10 @@ video {
 	height: 2rem;
 }
 
+.h-96 {
+	height: 24rem;
+}
+
 .h-full {
 	height: 100%;
 }
@@ -611,6 +615,10 @@ video {
 
 .max-w-screen-lg {
 	max-width: 1024px;
+}
+
+.max-w-screen-sm {
+	max-width: 640px;
 }
 
 @keyframes spin {
@@ -702,6 +710,11 @@ video {
 
 .border-r-2 {
 	border-right-width: 2px;
+}
+
+.border-red-200 {
+	--tw-border-opacity: 1;
+	border-color: rgb(254 202 202 / var(--tw-border-opacity));
 }
 
 .border-slate-200\/70 {

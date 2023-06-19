@@ -1,4 +1,4 @@
-import { batch, Signal } from '@preact/signals'
+import { batch, Signal, useSignal } from '@preact/signals'
 import { utils } from 'ethers'
 import { useState } from 'preact/hooks'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
@@ -7,6 +7,7 @@ import { Button } from './Button.js'
 import { AppSettings, Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
 import { TransactionList } from '../types/bouquetTypes.js'
+import { ImportModal } from './ImportModal.js'
 
 export async function importFromInterceptor(
 	bundle: Signal<Bundle | undefined>,
@@ -74,6 +75,7 @@ export const Import = ({
 	signers: Signal<Signers>
 	appSettings: Signal<AppSettings>
 }) => {
+	const showImportModal = useSignal<boolean>(false)
 	const [error, setError] = useState<string | undefined>(undefined)
 
 	const clearPayload = () => {
@@ -88,6 +90,7 @@ export const Import = ({
 
 	return (
 		<>
+			{showImportModal.value ? <ImportModal bundle={bundle} display={showImportModal} /> : null}
 			<h2 className='font-bold text-2xl'>1. Import</h2>
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex flex-col sm:flex-row gap-4'>
@@ -95,6 +98,11 @@ export const Import = ({
 						onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
 					>
 						Import Payload from The Interceptor
+					</Button>
+					<Button
+						onClick={() => showImportModal.value = true}
+					>
+						Import From JSON
 					</Button>
 					{bundle.value ? (
 						<Button variant='secondary' onClick={clearPayload}>
