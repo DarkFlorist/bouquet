@@ -1,5 +1,5 @@
 import { Signal, useSignal } from '@preact/signals'
-import { utils } from 'ethers'
+import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { MEV_RELAY_MAINNET } from '../constants.js'
 import { AppSettings } from '../types/types.js'
@@ -38,7 +38,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		if (!value) return
 		try {
 			const parsedValue = Number(value);
-			editedSettings.value = { ...editedSettings.peek(), priorityFee: utils.parseUnits(String(parsedValue), 'gwei').toBigInt() }
+			editedSettings.value = { ...editedSettings.peek(), priorityFee: parseUnits(String(parsedValue), 'gwei') }
 		} catch {
 			return
 		}
@@ -79,7 +79,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 					<h3 className='font-semibold'>Priority Fee (GWEI)</h3>
 					<input
 						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)}
-						value={utils.formatUnits(editedSettings.value.priorityFee, 'gwei')} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+						value={formatUnits(editedSettings.value.priorityFee, 'gwei')} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
 				</div>
 				<div>
 					<h3 className='font-semibold'>Target Blocks In Future For Bundle Confirmation</h3>
