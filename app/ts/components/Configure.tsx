@@ -99,9 +99,8 @@ export const Configure = ({
 								<input
 									type='text'
 									value={signerKeys.value[address].input}
-									onKeyUp={(e: JSX.TargetedEvent<HTMLInputElement>) => tryUpdateSigners(address, e.currentTarget.value)}
-									className={`p-4 text-lg rounded-xl border-slate-200/70 border-2 ${signerKeys.value[address].wallet ? 'bg-success/10' : signerKeys.peek()[address].input ? 'bg-error/10' : 'bg-background'
-										}`}
+									onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => tryUpdateSigners(address, e.currentTarget.value)}
+									className={`p-4 text-lg rounded-xl border-slate-200/70 border-2 ${signerKeys.value[address].wallet ? 'bg-success/10' : signerKeys.peek()[address].input ? 'bg-error/10' : 'bg-background' }`}
 									placeholder={`Private key for ${address}`}
 								/>
 							</>
