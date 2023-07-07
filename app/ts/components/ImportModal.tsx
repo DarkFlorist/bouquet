@@ -69,7 +69,7 @@ export const ImportModal = ({ display, bundle }: { display: Signal<boolean>, bun
 					<h3 className='font-semibold'>MEV Relay URL</h3>
 					<textarea
 						placeholder={placeholder}
-						onChange={(e: JSX.TargetedEvent<HTMLTextAreaElement>) => jsonInput.value = e.currentTarget.value}
+						onInput={(e: JSX.TargetedEvent<HTMLTextAreaElement>) => jsonInput.value = e.currentTarget.value}
 						value={jsonInput.value} type="url" className={`p-2 h-96 rounded-xl ${jsonInput.value !== '' && !isValid.value ? 'border-red-200' : 'border-slate-200/70'} border-2 bg-background w-full`} />
 				</div>
 				<div className='flex gap-2'>
