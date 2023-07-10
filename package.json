@@ -5,6 +5,7 @@
 	"scripts": {
 		"build": "tsc",
 		"watch": "tsc --watch",
+		"trace": "tsc --traceResolution",
 		"serve": "npx http-server ./app",
 		"vendor": "npm ci --ignore-scripts && cd build && npm ci --ignore-scripts && npm run vendor",
 		"styles": "cd twcss && npm run styles"
@@ -16,6 +17,7 @@
 		"@preact/signals": "1.1.1",
 		"ethers": "6.6.2",
 		"funtypes": "5.0.3",
+		"@types/node": "npm:@types/web",
 		"preact": "10.8.1"
 	}
 }
