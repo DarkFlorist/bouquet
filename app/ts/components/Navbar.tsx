@@ -1,5 +1,5 @@
 import { Signal, useSignal } from '@preact/signals'
-import { utils } from 'ethers'
+import { formatUnits } from 'ethers'
 import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { AppSettings, BlockInfo } from '../types/types.js'
@@ -71,7 +71,7 @@ export const Navbar = ({
 									stroke-linejoin='round'
 								></path>
 							</svg>
-							Base {Number(utils.formatUnits(blockInfo.value.baseFee, 'gwei')).toLocaleString('en-us')} gwei
+							Base {Number(formatUnits(blockInfo.value.baseFee, 'gwei')).toLocaleString('en-us')} gwei
 						</span>
 					</>
 				) : (

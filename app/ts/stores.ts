@@ -1,5 +1,5 @@
 import { useComputed, useSignal } from '@preact/signals'
-import { utils, Wallet } from 'ethers'
+import { getAddress, Wallet } from 'ethers'
 import { MEV_RELAY_MAINNET } from './constants.js'
 import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
 import { EthereumAddress } from './types/ethereumTypes.js'
@@ -7,12 +7,12 @@ import { ProviderStore } from './library/provider.js'
 import { AppSettings, BlockInfo, Bundle, serialize, Signers } from './types/types.js'
 import { TransactionList } from './types/bouquetTypes.js'
 
-function fetchBurnerWalletFromStorage() {
+function fetchBurnerWalletFromStorage(): Wallet {
 	const burnerPrivateKey = localStorage.getItem('wallet')
 	try {
-		return burnerPrivateKey ? new Wallet(burnerPrivateKey) : Wallet.createRandom()
+		return burnerPrivateKey ? new Wallet(burnerPrivateKey) : new Wallet(Wallet.createRandom().privateKey)
 	} catch {
-		return Wallet.createRandom()
+		return new Wallet(Wallet.createRandom().privateKey)
 	}
 }
 
@@ -27,7 +27,7 @@ function fetchBundleFromStorage(): Bundle | undefined {
 	const parsed = tryParse.value
 
 	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
-	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
+	const uniqueSigners = [...new Set(parsed.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
 		(_, index) => !(index === 0 && containsFundingTx),
 	)
 	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)

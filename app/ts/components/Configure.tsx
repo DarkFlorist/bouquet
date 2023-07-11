@@ -1,5 +1,5 @@
 import { batch, ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
-import { Wallet, utils } from 'ethers'
+import { formatEther, getAddress, Wallet } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { ProviderStore } from '../library/provider.js'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
@@ -35,7 +35,7 @@ export const Configure = ({
 						},
 						address,
 					) => {
-						curr[utils.getAddress(address)] = { input: '', wallet: null }
+						curr[getAddress(address)] = { input: '', wallet: null }
 						return curr
 					},
 					{},
@@ -45,7 +45,7 @@ export const Configure = ({
 
 	blockInfo.subscribe(() => {
 		if (provider.value && signers.value.burner) {
-			provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance.toBigInt()))
+			provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance))
 		}
 	})
 
@@ -57,7 +57,7 @@ export const Configure = ({
 				signerKeys.value = {
 					...signerKeys.peek(),
 					[address]: {
-						wallet: wallet.address === utils.getAddress(address) ? wallet : null,
+						wallet: wallet.address === getAddress(address) ? wallet : null,
 						input: privateKey,
 					},
 				}
@@ -131,9 +131,9 @@ export const Configure = ({
 								</button>
 							</span>
 							<p className='font-semibold'>
-								Wallet Balance: <span className='font-medium font-mono'>{utils.formatEther(signers.value.burnerBalance)}</span> ETH
+								Wallet Balance: <span className='font-medium font-mono'>{formatEther(signers.value.burnerBalance)}</span> ETH
 								<br />
-								Minimum Required Balance: <span className='font-medium font-mono'>{utils.formatEther(fundingAmountMin.value)}</span> ETH
+								Minimum Required Balance: <span className='font-medium font-mono'>{formatEther(fundingAmountMin.value)}</span> ETH
 							</p>
 						</div>
 					) : (

@@ -1,4 +1,4 @@
-import { utils } from 'ethers'
+import { id, keccak256, Transaction } from 'ethers'
 import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { createBundleTransactions, getMaxBaseFeeInFutureBlock, signBundle } from './bundleUtils.js'
 import { ProviderStore } from './provider.js'
@@ -65,7 +65,7 @@ export async function simulateBundle(
 	)
 
 	const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_callBundle', params: [{ txs, blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
-	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(utils.id(payload))}`
+	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 	const request = await fetch(appSettings.relayEndpoint,
 		{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
 	)
@@ -106,7 +106,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 	)
 
 	const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendBundle', params: [{ txs, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }] })
-	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(utils.id(payload))}`
+	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 	const request = await fetch(appSettings.relayEndpoint,
 		{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
 	)
@@ -120,10 +120,10 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 	}
 
 	const bundleTransactions = txs.map((signedTransaction) => {
-		const transactionDetails = utils.parseTransaction(signedTransaction)
+		const transactionDetails = Transaction.from(signedTransaction)
 		return {
 			signedTransaction,
-			hash: utils.keccak256(signedTransaction),
+			hash: keccak256(signedTransaction),
 			account: transactionDetails.from || '0x0',
 			nonce: BigInt(transactionDetails.nonce),
 		}

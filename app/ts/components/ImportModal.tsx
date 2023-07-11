@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal } from "@preact/signals"
-import { utils } from "ethers"
+import { getAddress } from "ethers"
 import { JSX } from "preact/jsx-runtime"
 import { TransactionList } from "../types/bouquetTypes.js"
 import { EthereumAddress } from "../types/ethereumTypes.js"
@@ -45,7 +45,7 @@ export const ImportModal = ({ display, bundle }: { display: Signal<boolean>, bun
 		localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(txList)))
 
 		const containsFundingTx = txList.length > 1 && txList[0].to === txList[1].from
-		const uniqueSigners = [...new Set(txList.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
+		const uniqueSigners = [...new Set(txList.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
 			(_, index) => !(index === 0 && containsFundingTx),
 		)
 

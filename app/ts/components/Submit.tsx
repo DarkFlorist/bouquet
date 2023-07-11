@@ -1,4 +1,4 @@
-import { utils } from 'ethers'
+import { formatUnits } from 'ethers'
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { Button } from './Button.js'
@@ -93,7 +93,7 @@ export const Bundles = ({
 							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 						</svg>
-						<p>Attempting to get bundle included in block {bundle.targetBlock.toString(10)} with max fee of {Number(utils.formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
+						<p>Attempting to get bundle included in block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
 					</div>
 			))}
 		</div>
@@ -253,7 +253,7 @@ export const Submit = ({
 			) : (
 				<div className='flex flex-col w-full gap-4'>
 					<div>
-						<p><span className='font-bold'>Gas:</span> {utils.formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {utils.formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+						<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 						<p><span className='font-bold'>Network:</span> {appSettings.value.relayEndpoint}</p>
 						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
 						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>

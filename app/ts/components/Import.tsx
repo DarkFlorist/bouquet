@@ -1,6 +1,6 @@
 import { batch, Signal, useSignal } from '@preact/signals'
-import { utils } from 'ethers'
 import { useState } from 'preact/hooks'
+import { getAddress } from 'ethers'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
@@ -21,7 +21,7 @@ export async function importFromInterceptor(
 	signers: Signal<Signers> | undefined,
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('Import Error: No Ethereum wallet detected')
-	connectBrowserProvider(provider, appSettings, blockInfo, signers)
+	connectBrowserProvider(provider, blockInfo, signers, appSettings)
 
 	const { payload } = await window.ethereum
 		.request({
@@ -47,7 +47,7 @@ export async function importFromInterceptor(
 	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(converted.value)))
 
 	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
-	const uniqueSigners = [...new Set(parsed.map((x) => utils.getAddress(serialize(EthereumAddress, x.from))))].filter(
+	const uniqueSigners = [...new Set(parsed.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
 		(_, index) => !(index === 0 && containsFundingTx),
 	)
 

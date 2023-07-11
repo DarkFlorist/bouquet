@@ -17,7 +17,8 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "preact",
 		"lib": ["ES2021", "DOM"],
-		"typeRoots": ["./node_modules/@types", "./typings"]
+		"typeRoots": ["./node_modules/@types", "./typings"],
+		"types": []
 	},
 	"include": ["./app/ts/**/*.ts", "./app/ts/**/*.tsx"]
 }
