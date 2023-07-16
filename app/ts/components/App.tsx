@@ -6,13 +6,13 @@ import { Transactions } from './Transactions.js'
 import { connectBrowserProvider } from '../library/provider.js'
 import { Navbar } from './Navbar.js'
 import { createGlobalState } from '../stores.js'
+import { Footer } from './Footer.js'
 
 export function App() {
 	const state = createGlobalState()
 
 	return (
-		<main class='bg-background text-primary w-full min-h-screen sm:px-6 font-serif flex flex-col items-center'>
-			<article className='p-4 max-w-screen-lg w-full'>
+		<main class='bg-black text-primary w-screen max-w-screen overflow-hidden min-h-screen sm:p-4 p-6 gap-4 font-serif flex flex-col items-center'>
 				<Navbar {...state} />
 				<div className='p-4 mt-4 flex flex-col gap-8'>
 					{!state.provider.value && state.bundle.value ? (
@@ -33,7 +33,7 @@ export function App() {
 						</>
 					)}
 				</div>
-			</article>
+			<Footer />
 		</main>
 	)
 }
