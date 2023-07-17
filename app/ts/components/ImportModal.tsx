@@ -25,7 +25,7 @@ const placeholder = `[
   }
 ]`
 
-export const ImportModal = ({ display, bundle }: { display: Signal<boolean>, bundle: Signal<Bundle | undefined> }) => {
+export const ImportModal = ({ display, bundle, clearError }: { display: Signal<boolean>, clearError: () => void, bundle: Signal<Bundle | undefined> }) => {
 	const jsonInput = useSignal<string>('')
 
 	const isValid = useComputed(() => {
@@ -54,6 +54,7 @@ export const ImportModal = ({ display, bundle }: { display: Signal<boolean>, bun
 		const inputValue = txList.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
 
 		bundle.value = { transactions: txList, containsFundingTx, uniqueSigners, totalGas, inputValue }
+		clearError()
 		close()
 	}
 
@@ -62,15 +63,17 @@ export const ImportModal = ({ display, bundle }: { display: Signal<boolean>, bun
 		display.value = false
 	}
 	return display.value ? (
-		<div onClick={close} class='flex items-center justify-center bg-black/50 h-full fixed inset-0'>
-			<div class='h-max w-full max-w-screen-sm p-4 flex flex-col gap-4 rounded-2xl bg-background' onClick={(e) => e.stopPropagation()}>
+		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
+			<div class='h-max px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>Import Transactions From JSON</h2>
 				<div>
-					<h3 className='font-semibold'>MEV Relay URL</h3>
 					<textarea
 						placeholder={placeholder}
 						onInput={(e: JSX.TargetedEvent<HTMLTextAreaElement>) => jsonInput.value = e.currentTarget.value}
-						value={jsonInput.value} type="url" className={`p-2 h-96 rounded-xl ${jsonInput.value !== '' && !isValid.value ? 'border-red-200' : 'border-slate-200/70'} border-2 bg-background w-full`} />
+						value={jsonInput.value}
+						type="url"
+						className={`p-2 w-96 h-96 border ${jsonInput.value && isValid.value ? 'border-green-400' : jsonInput.value && !isValid.value ? 'border-red-400' : 'border-white/50 focus-within:border-white/90'} bg-transparent outline-none focus-within:bg-white/5 px-4`}
+					/>
 				</div>
 				<div className='flex gap-2'>
 					<Button onClick={importJson} disabled={!isValid.value} variant='primary'>Import</Button>

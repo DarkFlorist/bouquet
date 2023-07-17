@@ -246,7 +246,7 @@ export const Submit = ({
 
 	return (
 		<>
-			<h2 className='font-bold text-2xl'>3. Submit</h2>
+			<h2 className='font-bold text-2xl'><span class='text-gray-500'>3.</span> Submit</h2>
 			<SettingsModal display={showSettings} appSettings={appSettings} />
 			{missingRequirements.value ? (
 				<p>{missingRequirements.peek()}</p>
