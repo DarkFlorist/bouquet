@@ -12,7 +12,7 @@ export function App() {
 	const state = createGlobalState()
 
 	return (
-		<main class='bg-black text-primary w-screen max-w-screen overflow-hidden min-h-screen sm:p-4 p-6 gap-4 font-serif flex flex-col items-center'>
+		<main class='bg-black text-primary w-screen max-w-screen overflow-hidden min-h-screen sm:p-4 p-6 gap-4 font-serif flex flex-col items-center max-w-screen-xl'>
 				<Navbar {...state} />
 				<div className='p-4 mt-4 flex flex-col gap-8'>
 					{!state.provider.value && state.bundle.value ? (

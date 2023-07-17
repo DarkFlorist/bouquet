@@ -544,6 +544,10 @@ video {
 	margin-bottom: 0.5rem;
 }
 
+.ml-2 {
+	margin-left: 0.5rem;
+}
+
 .mt-4 {
 	margin-top: 1rem;
 }
@@ -809,6 +813,10 @@ video {
 	background-color: rgb(152 206 0 / 0.1);
 }
 
+.bg-transparent {
+	background-color: transparent;
+}
+
 .bg-white {
 	--tw-bg-opacity: 1;
 	background-color: rgb(255 255 255 / var(--tw-bg-opacity));
@@ -844,9 +852,19 @@ video {
 	padding-right: 1rem;
 }
 
+.px-8 {
+	padding-left: 2rem;
+	padding-right: 2rem;
+}
+
 .py-1 {
 	padding-top: 0.25rem;
 	padding-bottom: 0.25rem;
+}
+
+.py-4 {
+	padding-top: 1rem;
+	padding-bottom: 1rem;
 }
 
 .py-8 {
@@ -975,6 +993,24 @@ video {
 	transition-duration: 200ms;
 }
 
+.placeholder\:text-gray-600::-moz-placeholder {
+	--tw-text-opacity: 1;
+	color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+
+.placeholder\:text-gray-600::placeholder {
+	--tw-text-opacity: 1;
+	color: rgb(75 85 99 / var(--tw-text-opacity));
+}
+
+.focus-within\:border-white\/80:focus-within {
+	border-color: rgb(255 255 255 / 0.8);
+}
+
+.focus-within\:bg-white\/5:focus-within {
+	background-color: rgb(255 255 255 / 0.05);
+}
+
 .hover\:rotate-45:hover {
 	--tw-rotate: 45deg;
 	transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -1021,5 +1057,11 @@ video {
 	.sm\:py-6 {
 		padding-top: 1.5rem;
 		padding-bottom: 1.5rem;
+	}
+}
+
+@media (min-width: 768px) {
+	.md\:pt-24 {
+		padding-top: 6rem;
 	}
 }

@@ -59,33 +59,26 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function resetSettings() {
 		appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
-		close()
 	}
 	function close() {
 		editedSettings.value = appSettings.value
 		display.value = false
 	}
 	return display.value ? (
-		<div onClick={close} class='flex items-center justify-center bg-black/50 h-full fixed inset-0'>
-			<div class='h-max w-82 p-4 flex flex-col gap-4 rounded-2xl bg-background' onClick={(e) => e.stopPropagation()}>
+		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
+			<div class='h-max px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
-				<div>
-					<h3 className='font-semibold'>MEV Relay URL</h3>
-					<input
-						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputRPC(e.currentTarget.value)}
-						value={editedSettings.value.relayEndpoint} type="url" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+					<span className='text-sm text-white/50'>MEV Relay URL</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputRPC(e.currentTarget.value)} value={editedSettings.value.relayEndpoint} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
-				<div>
-					<h3 className='font-semibold'>Priority Fee (GWEI)</h3>
-					<input
-						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)}
-						value={formatUnits(editedSettings.value.priorityFee, 'gwei')} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+					<span className='text-sm text-white/50'>Priority Fee (GWEI)</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)} value={formatUnits(editedSettings.value.priorityFee, 'gwei')} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
 				</div>
-				<div>
-					<h3 className='font-semibold'>Target Blocks In Future For Bundle Confirmation</h3>
-					<input
-						onChange={(e: JSX.TargetedEvent<HTMLInputElement>) => inputTargetBlocks(e.currentTarget.value)}
-						value={editedSettings.value.blocksInFuture.toString()} type="number" className="p-2 text-lg rounded-xl border-slate-200/70 border-2 bg-background w-full" />
+				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+					<span className='text-sm text-white/50'>Target Blocks In Future For Bundle Confirmation</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputTargetBlocks(e.currentTarget.value)} value={editedSettings.value.blocksInFuture.toString()} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 				</div>
 				<div className='flex gap-2'>
 					<Button onClick={saveSettings} variant='primary'>Save</Button>

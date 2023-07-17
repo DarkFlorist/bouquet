@@ -1,5 +1,5 @@
 export const Footer = () => (
-	<footer className='mt-auto w-full  max-w-screen-xl'>
+	<footer className='mt-auto w-full'>
 		<div className='flex flex-col sm:flex-row w-full gap-6 justify-around items-center'>
 			<div className='flex flex-col gap-2'>
 				<h2 className='font-semibold'>Contact</h2>
