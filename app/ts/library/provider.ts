@@ -107,7 +107,7 @@ export const connectBrowserProvider = async (
 			if (!block) return
 			updateLatestBlock(block, store, blockInfo, signers)
 		} catch (error) {
-			// TODO: handle error somehow
+			return console.error("Block Callback Error: ", error)
 		}
 	}
 
