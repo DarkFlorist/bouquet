@@ -2,13 +2,14 @@ import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from 
 import { formatEther, getAddress, Interface, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { createBundleTransactions, FlashbotsBundleTransaction } from '../library/bundleUtils.js'
-import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
+import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
+import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -93,7 +94,43 @@ export const Transactions = ({
 		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
 	}
 
-	const differentInterceptorStack = useSignal(false)
+
+	const compareInterceptorSimulation = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
+	const compare = async () => {
+		// Return false if error fetching check, don't return false positive
+		if (!provider.value || !provider.value.isInterceptor || !bundle.value) return false
+
+		try {
+			const { payload } = await provider.value.provider.send('interceptor_getSimulationStack', ['1.0.0'])
+			const tryParse = GetSimulationStackReply.safeParse(payload)
+			if (!tryParse.success) return false
+
+			const interceptorValue = TransactionList.safeParse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+			const bouquetValue = TransactionList.serialize(bundle.value.transactions)
+			return interceptorValue !== bouquetValue
+		} catch {
+			return false
+		}
+	}
+
+	async function createCompareInterval() {
+		if (!provider.value || !provider.value.isInterceptor) return;
+		const different = await compare()
+		compareInterceptorSimulation.value = { different, intervalId: setInterval(compare, 20000)}
+	}
+
+	useSignalEffect(() => {
+		if (provider.value && !compareInterceptorSimulation.value.intervalId) createCompareInterval()
+	})
+	useSignalEffect(() => {
+		// Refernce bundle to compare on update
+		bundle.value;
+		bundle.value?.transactions;
+		const check = async () => {
+			compareInterceptorSimulation.value = { ...compareInterceptorSimulation.value, different: await compare() }
+		}
+		check()
+	})
 
 	return (
 		<>
@@ -119,7 +156,7 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
-			{differentInterceptorStack.value ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
+			{compareInterceptorSimulation.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{transactions.value.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>
