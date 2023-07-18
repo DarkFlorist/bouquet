@@ -97,10 +97,15 @@ export const connectBrowserProvider = async (
 			provider.on('block', blockCallback)
 		}
 		accountsChangedCallback(await Promise.all(accounts.map(account => account.getAddress())))
-		if (block) blockCallback(block)
-	}
-	const blockCallback = (block: Block | null) => {
 		if (block) updateLatestBlock(block, store, blockInfo, signers)
+	}
+
+	const blockCallback = (blockNumber: number | null) => {
+		if (blockNumber) {
+			provider.getBlock(blockNumber).then((block) => {
+				if (block) updateLatestBlock(block, store, blockInfo, signers)
+			})
+		}
 	}
 
 	provider.getBlock('latest').then((block) => {
@@ -128,6 +133,7 @@ export async function updateLatestBlock(
 	blockInfo: Signal<BlockInfo>,
 	signers: Signal<Signers> | undefined,
 ) {
+	console.log(block, provider.value, blockInfo.value, signers?.value)
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
 	if (provider.value && signers && signers.value.burner) {
