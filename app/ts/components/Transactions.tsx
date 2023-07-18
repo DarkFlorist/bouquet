@@ -8,6 +8,7 @@ import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
 import { TransactionList } from '../types/bouquetTypes.js'
+import { SingleNotice } from './Warns.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -91,6 +92,9 @@ export const Transactions = ({
 		const parsedList = TransactionList.safeSerialize(bundle.value.transactions)
 		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
 	}
+
+	const differentInterceptorStack = useSignal(false)
+
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
@@ -115,36 +119,37 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
+			{differentInterceptorStack.value ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{transactions.value.map((tx, index) => (
-					<div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>
-						<div class='flex w-24 flex-col items-center justify-center text-white border-r-2'>
+					<div class='flex w-full min-h-[96px] border border-white/90'>
+						<div class='flex w-24 flex-col items-center justify-center text-white'>
 							<span class='text-lg font-bold'>#{index}</span>
 						</div>
-						<div class='bg-card flex w-full justify-center flex-col gap-2 rounded-r-xl p-4 text-sm font-semibold'>
+						<div class='bg-gray-500/30 flex w-full justify-center flex-col gap-2 p-4 text-sm font-semibold'>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>From</span>
-								<span class='rounded bg-background px-2 py-1 font-mono font-medium'>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>
 									{fundingTx.value && tx.transaction.from === transactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
 								</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>To</span>
-								<span class='rounded bg-background px-2 py-1 font-mono font-medium'>{tx.transaction.to}</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.transaction.to}</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>
-								<span class='rounded bg-background px-2 py-1 font-mono font-medium'>{formatEther(tx.transaction.value ?? 0n)} ETH</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{formatEther(tx.transaction.value ?? 0n)} ETH</span>
 							</div>
 							{tx.decoded ? (
 								<div class='flex gap-2 items-center'>
 									<span class='w-10 text-right'>Data</span>
-									<span class='rounded bg-background px-2 py-1 font-mono font-medium w-full break-all'>{tx.decoded}</span>
+									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{tx.decoded}</span>
 								</div>
 							) : tx.transaction.data && tx.transaction.data !== '0x' ? (
 								<div class='flex gap-2 items-center'>
 									<span class='w-10 text-right'>Data</span>
-									<span class='rounded bg-background px-2 py-1 font-mono font-medium w-full break-all'>{tx.transaction.data.toString()}</span>
+									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{tx.transaction.data.toString()}</span>
 								</div>
 							) : null}
 						</div>
