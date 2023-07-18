@@ -97,10 +97,18 @@ export const connectBrowserProvider = async (
 			provider.on('block', blockCallback)
 		}
 		accountsChangedCallback(await Promise.all(accounts.map(account => account.getAddress())))
-		if (block) blockCallback(block)
-	}
-	const blockCallback = (block: Block | null) => {
 		if (block) updateLatestBlock(block, store, blockInfo, signers)
+	}
+
+	const blockCallback = async (blockNumber: number | null) => {
+		try {
+			if (!blockNumber) return
+			const block = await provider.getBlock(blockNumber)
+			if (!block) return
+			updateLatestBlock(block, store, blockInfo, signers)
+		} catch (error) {
+			return console.error("Block Callback Error: ", error)
+		}
 	}
 
 	provider.getBlock('latest').then((block) => {
