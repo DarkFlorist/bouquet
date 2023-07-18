@@ -133,7 +133,6 @@ export async function updateLatestBlock(
 	blockInfo: Signal<BlockInfo>,
 	signers: Signal<Signers> | undefined,
 ) {
-	console.log(block, provider.value, blockInfo.value, signers?.value)
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
 	if (provider.value && signers && signers.value.burner) {
