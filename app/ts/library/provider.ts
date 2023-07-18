@@ -100,11 +100,14 @@ export const connectBrowserProvider = async (
 		if (block) updateLatestBlock(block, store, blockInfo, signers)
 	}
 
-	const blockCallback = (blockNumber: number | null) => {
-		if (blockNumber) {
-			provider.getBlock(blockNumber).then((block) => {
-				if (block) updateLatestBlock(block, store, blockInfo, signers)
-			})
+	const blockCallback = async (blockNumber: number | null) => {
+		try {
+			if (!blockNumber) return
+			const block = await provider.getBlock(blockNumber)
+			if (!block) return
+			updateLatestBlock(block, store, blockInfo, signers)
+		} catch (error) {
+			// TODO: handle error somehow
 		}
 	}
 
