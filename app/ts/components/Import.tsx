@@ -1,6 +1,6 @@
 import { batch, Signal, useSignal } from '@preact/signals'
 import { useState } from 'preact/hooks'
-import { getAddress } from 'ethers'
+import { getAddress, parseEther } from 'ethers'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
@@ -39,24 +39,42 @@ export async function importFromInterceptor(
 
 	const tryParse = GetSimulationStackReply.safeParse(payload)
 	if (!tryParse.success) throw new Error('Wallet does not support returning simulations')
-	const parsed = tryParse.value
-	if (parsed.length === 0) throw new Error('You have no transactions on your simulation')
+	if (tryParse.value.length === 0) throw new Error('You have no transactions on your simulation')
 
-	const converted = TransactionList.safeParse(serialize(GetSimulationStackReply, parsed).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+	const converted = TransactionList.safeParse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
 	if (!converted.success) throw new Error('Malformed simulation stack')
 
+	if (converted.value.length >= 2 && converted.value[0].to === converted.value[1].from && converted.value[0].value === parseEther('200000')) {
+		const fundingAddrr = converted.value[0].from
+		converted.value = converted.value.map(tx => tx.from === fundingAddrr ? { ...tx, from: 'FUNDING' } : tx)
+	}
+
+	const uniqueToAddresses = [...new Set(converted.value.map(({ from }) => from))]
+	const containsFundingTx = uniqueToAddresses.includes('FUNDING')
+	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => getAddress(serialize(EthereumAddress, address)))
+
+	const totalGas = converted.value.reduce((sum, tx) => tx.gasLimit + sum, 0n)
+
+	// Take addresses that recieved funding, determine spend deficit - gas fees
+	const fundingRecipients = new Set(converted.value.reduce((result: bigint[], tx) => (tx.to && tx.from === 'FUNDING' ? [...result, tx.to] : result), []))
+	const spenderDeficits = tryParse.value.reduce((amounts: { [account: string]: bigint }, tx) => {
+		if (!fundingRecipients.has(tx.from)) return amounts
+		const txDiff = tx.value - tx.balanceChanges.filter(x => x.address === tx.from).reduce((sum, bal) => sum + bal.before - bal.after, 0n) + tx.maxPriorityFeePerGas * tx.gasSpent
+		const amount = amounts[tx.from.toString()] ? amounts[tx.from.toString()] + txDiff : txDiff
+		amounts[tx.from.toString()] = amount
+		return amounts
+	}, {})
+
+	const inputValue = Object.values(spenderDeficits).reduce((sum, amount) => amount + sum, 0n)
+
+	// Copy value and set, input of funding to inputValue
+	const transactions = [...converted.value]
+	if (containsFundingTx) {
+		transactions[0] = { ...transactions[0], value: inputValue }
+	}
+
 	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(converted.value)))
-
-	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
-	const uniqueSigners = [...new Set(parsed.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
-		(_, index) => !(index === 0 && containsFundingTx),
-	)
-
-	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-	// @TODO: Change this to track minimum amount of ETH needed to deposit
-	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
-
-	bundle.value = { transactions: converted.value, containsFundingTx, uniqueSigners, totalGas, inputValue }
+	bundle.value = { transactions, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
 export const Import = ({

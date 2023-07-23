@@ -3,7 +3,7 @@ import { EthereumAddress, EthereumInput, EthereumQuantity } from './ethereumType
 
 export type TransactionList = t.Static<typeof TransactionList>
 export const TransactionList = t.ReadonlyArray(t.Object({
-	from: EthereumAddress,
+	from: t.Union(EthereumAddress, t.Literal("FUNDING")),
 	to: t.Union(EthereumAddress, t.Null),
 	value: EthereumQuantity,
 	input: EthereumInput,

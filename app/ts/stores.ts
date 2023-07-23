@@ -26,13 +26,12 @@ function fetchBundleFromStorage(): Bundle | undefined {
 	}
 	const parsed = tryParse.value
 
-	const containsFundingTx = parsed.length > 1 && parsed[0].to === parsed[1].from
-	const uniqueSigners = [...new Set(parsed.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
-		(_, index) => !(index === 0 && containsFundingTx),
-	)
-	const totalGas = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-	// @TODO: Change this to track minimum amount of ETH needed to deposit
-	const inputValue = parsed.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
+	const uniqueToAddresses = [...new Set(parsed.map(({ from }) => from))]
+	const containsFundingTx = uniqueToAddresses.includes('FUNDING')
+	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => getAddress(serialize(EthereumAddress, address)))
+
+	const totalGas = parsed.reduce((sum, tx) => tx.gasLimit + sum, 0n)
+	const inputValue = parsed.reduce((sum, tx) => tx.from === 'FUNDING' ? tx.value + sum : sum, 0n)
 
 	return { transactions: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }

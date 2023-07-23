@@ -105,9 +105,11 @@ export const Transactions = ({
 			const tryParse = GetSimulationStackReply.safeParse(payload)
 			if (!tryParse.success) return false
 
-			const interceptorValue = TransactionList.safeParse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+			const parsedInterceptorTransactions = TransactionList.parse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+			if (parsedInterceptorTransactions.length === 0) return false
+			const interceptorValue = TransactionList.serialize(parsedInterceptorTransactions)
 			const bouquetValue = TransactionList.serialize(bundle.value.transactions)
-			return interceptorValue !== bouquetValue
+			return JSON.stringify(interceptorValue) !== JSON.stringify(bouquetValue)
 		} catch {
 			return false
 		}
@@ -121,15 +123,16 @@ export const Transactions = ({
 
 	useSignalEffect(() => {
 		if (provider.value && !compareInterceptorSimulation.value.intervalId) createCompareInterval()
+		if (bundle.value && bundle.value.transactions) compare()
 	})
 	useSignalEffect(() => {
 		// Refernce bundle to compare on update
-		bundle.value;
-		bundle.value?.transactions;
-		const check = async () => {
-			compareInterceptorSimulation.value = { ...compareInterceptorSimulation.value, different: await compare() }
-		}
-		check()
+		// bundle.value;
+		// bundle.value?.transactions;
+		// const check = async () => {
+		// 	compareInterceptorSimulation.value = { ...compareInterceptorSimulation.value, different: await compare() }
+		// }
+		// check()
 	})
 
 	return (

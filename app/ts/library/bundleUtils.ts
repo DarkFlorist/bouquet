@@ -61,13 +61,14 @@ export const createBundleTransactions = async (
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }, index) => {
+	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
-		if (index === 0 && bundle.containsFundingTx && signers.burner) {
+		if (from === 'FUNDING') {
+			if (!signers.burner) throw new Error("No burner wallet provided")
 			return {
 				signer: signers.burner,
 				transaction: {

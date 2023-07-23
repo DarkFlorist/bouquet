@@ -130,6 +130,8 @@ export const GetSimulationStackReply = t.ReadonlyArray(
 		t.Object({
 			realizedGasPrice: EthereumQuantity,
 			gasLimit: EthereumQuantity,
+			maxPriorityFeePerGas: EthereumQuantity,
+			balanceChanges: EthBalanceChanges
 		}).asReadonly()
 	)
 )
