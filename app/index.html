@@ -25,6 +25,7 @@
 
 		<main></main>
 
-		<script async type="module" src="./js/index.js"></script>
+		<!-- a workaround for bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1803984 -->
+		<script async type='module'>import './js/index.js'</script>
 	</body>
 </html>
