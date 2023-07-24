@@ -73,7 +73,7 @@ export async function importFromInterceptor(
 		transactions[0] = { ...transactions[0], value: inputValue }
 	}
 
-	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(converted.value)))
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(transactions)))
 	bundle.value = { transactions, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 

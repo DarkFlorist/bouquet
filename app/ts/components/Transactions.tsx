@@ -1,7 +1,6 @@
-import { ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { formatEther, getAddress, Interface, TransactionDescription } from 'ethers'
+import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
+import { formatEther, getAddress, Interface, parseEther, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { createBundleTransactions, FlashbotsBundleTransaction } from '../library/bundleUtils.js'
 import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { MEV_RELAY_GOERLI } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
@@ -10,6 +9,7 @@ import { useAsyncState } from '../library/asyncState.js'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
+import { EthereumAddress } from '../types/ethereumTypes.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -26,10 +26,8 @@ function formatTransactionDescription(tx: TransactionDescription) {
 export const Transactions = ({
 	provider,
 	bundle,
-	signers,
 	blockInfo,
 	appSettings,
-	fundingAmountMin,
 }: {
 	provider: Signal<ProviderStore | undefined>
 	bundle: Signal<Bundle | undefined>
@@ -38,36 +36,22 @@ export const Transactions = ({
 	appSettings: Signal<AppSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
-	const fundingTx = useComputed(() => bundle.value ? bundle.value.containsFundingTx : false)
 	const interfaces = useSignal<{ [address: string]: Interface }>({})
-	const transactions = useSignal<(FlashbotsBundleTransaction & { decoded?: JSXInternal.Element })[]>([])
-	const updateTx = async () => {
-		if (!provider.value || !bundle.value) return transactions.value = []
-		const result = await createBundleTransactions(bundle.value, signers.value, blockInfo.value, appSettings.value.blocksInFuture, fundingAmountMin.value)
-		if (Object.keys(interfaces.value).length === 0) {
-			return transactions.value = result
-		} else {
-			const parsed = transactions.value.map((tx) => {
-				if (tx.transaction.to && tx.transaction.data && tx.transaction.data.length > 2) {
-					const txDescription = interfaces.value[tx.transaction.to.toString()].parseTransaction({ value: tx.transaction.value ?? undefined, data: tx.transaction.data ?? undefined })
-					return txDescription ? { ...tx, decoded: formatTransactionDescription(txDescription) } : tx
-				}
-				return tx
-			})
-			return transactions.value = parsed
-		}
+	const decodedTransactions = useSignal<(JSXInternal.Element | null)[]>([])
+	const interceptorComparison = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
+
+	function copyTransactions() {
+		if (!bundle.value) return
+		const parsedList = TransactionList.safeSerialize(bundle.value.transactions)
+		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
 	}
-	useSignalEffect(() => {
-		if (provider.value && bundle.value) {
-			updateTx()
-		}
-	})
 
 	const fetchingAbis = useAsyncState()
 
-	async function parseTransactions() {
+	async function fetchAbis() {
+		if (!bundle.value || !bundle.value.transactions) return
 		try {
-			const uniqueAddresses = [...new Set(transactions.value.filter(tx => typeof tx.transaction.to === 'string').map((x) => x.transaction.to))] as string[]
+			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? serialize(EthereumAddress, tx.to) : null ).filter(addr => addr))] as string[]
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
@@ -81,65 +65,73 @@ export const Transactions = ({
 				if (curr.status === '1') return { ...acc, [`${uniqueAddresses[index]}`]: new Interface(curr.result) }
 				else return acc
 			}, {})
-			updateTx()
 		} catch (error) {
 			console.log('parseTransactionsCb Error:', error)
 			interfaces.value = {}
 		}
 	}
 
-	function copyTransactions() {
+	useSignalEffect(() => {
+		if (interfaces.value && bundle.value) {
+			parseTransactions()
+			compareWithInterceptor()
+		}
+		if (provider.value && !interceptorComparison.value.intervalId) createCompareInterval()
+	})
+
+	const parseTransactions = async () => {
 		if (!bundle.value) return
-		const parsedList = TransactionList.safeSerialize(bundle.value.transactions)
-		if ('success' in parsedList && parsedList.success) navigator.clipboard.writeText(JSON.stringify(parsedList.value, null, 2))
+		decodedTransactions.value = bundle.value.transactions.map((tx) => {
+			if (tx.to && tx.input && tx.input.length > 0) {
+				const contractAddr = serialize(EthereumAddress, tx.to)
+				const txDescription = interfaces.value[contractAddr] ? interfaces.value[contractAddr].parseTransaction({ value: tx.value ?? undefined, data: tx.input.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '0x') }) : null
+				return txDescription ? formatTransactionDescription(txDescription) : null
+			}
+			return null
+		})
 	}
 
-
-	const compareInterceptorSimulation = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
 	const compare = async () => {
-		// Return false if error fetching check, don't return false positive
 		if (!provider.value || !provider.value.isInterceptor || !bundle.value) return false
-
 		try {
+			// fetch stack from Interceptor
 			const { payload } = await provider.value.provider.send('interceptor_getSimulationStack', ['1.0.0'])
 			const tryParse = GetSimulationStackReply.safeParse(payload)
 			if (!tryParse.success) return false
-
-			const parsedInterceptorTransactions = TransactionList.parse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+			let parsedInterceptorTransactions = TransactionList.parse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
 			if (parsedInterceptorTransactions.length === 0) return false
-			const interceptorValue = TransactionList.serialize(parsedInterceptorTransactions)
-			const bouquetValue = TransactionList.serialize(bundle.value.transactions)
+
+			// Detect 'make me rich'
+			if (parsedInterceptorTransactions.length >= 2 && parsedInterceptorTransactions[0].to === parsedInterceptorTransactions[1].from && parsedInterceptorTransactions[0].value === parseEther('200000')) {
+				const fundingAddrr = parsedInterceptorTransactions[0].from
+				parsedInterceptorTransactions = parsedInterceptorTransactions.map(tx => tx.from === fundingAddrr ? { ...tx, from: 'FUNDING' } : tx)
+			}
+
+			// Compare
+			const interceptorValue = TransactionList.serialize(parsedInterceptorTransactions.filter(tx => tx.from !== 'FUNDING'))
+			const bouquetValue = TransactionList.serialize(bundle.value.transactions.filter(tx => tx.from !== 'FUNDING'))
 			return JSON.stringify(interceptorValue) !== JSON.stringify(bouquetValue)
 		} catch {
 			return false
 		}
 	}
 
+	const compareWithInterceptor = async () => {
+		const different = await compare()
+		interceptorComparison.value = { ...interceptorComparison.value, different }
+	}
+
 	async function createCompareInterval() {
 		if (!provider.value || !provider.value.isInterceptor) return;
 		const different = await compare()
-		compareInterceptorSimulation.value = { different, intervalId: setInterval(compare, 20000)}
+		interceptorComparison.value = { different, intervalId: setInterval(compareWithInterceptor, 20000)}
 	}
-
-	useSignalEffect(() => {
-		if (provider.value && !compareInterceptorSimulation.value.intervalId) createCompareInterval()
-		if (bundle.value && bundle.value.transactions) compare()
-	})
-	useSignalEffect(() => {
-		// Refernce bundle to compare on update
-		// bundle.value;
-		// bundle.value?.transactions;
-		// const check = async () => {
-		// 	compareInterceptorSimulation.value = { ...compareInterceptorSimulation.value, different: await compare() }
-		// }
-		// check()
-	})
 
 	return (
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
 			<div className='flex flex-row gap-4'>
-				<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(parseTransactions)}>Decode Transactions From Etherscan</Button>
+				<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(fetchAbis)}>Decode Transactions From Etherscan</Button>
 				<Button variant='secondary' onClick={copyTransactions}><>Copy Transaction List
 					<svg
 						className='h-8 inline-block'
@@ -159,9 +151,9 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
-			{compareInterceptorSimulation.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
+			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
 			<div class='flex w-full flex-col gap-2'>
-				{transactions.value.map((tx, index) => (
+				{bundle.value?.transactions.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>
 						<div class='flex w-24 flex-col items-center justify-center text-white'>
 							<span class='text-lg font-bold'>#{index}</span>
@@ -170,26 +162,26 @@ export const Transactions = ({
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>From</span>
 								<span class='bg-black px-2 py-1 font-mono font-medium'>
-									{fundingTx.value && tx.transaction.from === transactions.peek()[0].transaction.from ? 'FUNDING WALLET' : tx.transaction.from}
+									{tx.from}
 								</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>To</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.transaction.to}</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.to ?? 'Contract Deployment'}</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{formatEther(tx.transaction.value ?? 0n)} ETH</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{formatEther(tx.value + (bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * (blockInfo.value.baseFee + blockInfo.value.priorityFee) : 0n))} ETH</span>
 							</div>
-							{tx.decoded ? (
+							{decodedTransactions.value[index] ? (
 								<div class='flex gap-2 items-center'>
 									<span class='w-10 text-right'>Data</span>
-									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{tx.decoded}</span>
+									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{decodedTransactions.value[index]}</span>
 								</div>
-							) : tx.transaction.data && tx.transaction.data !== '0x' ? (
+							) : tx.input && tx.input.length > 0 ? (
 								<div class='flex gap-2 items-center'>
 									<span class='w-10 text-right'>Data</span>
-									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{tx.transaction.data.toString()}</span>
+									<span class='bg-black px-2 py-1 font-mono font-medium w-full break-all'>{tx.input.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '0x')}</span>
 								</div>
 							) : null}
 						</div>
