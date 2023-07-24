@@ -1,6 +1,6 @@
 import { batch, Signal, useSignal } from '@preact/signals'
 import { useState } from 'preact/hooks'
-import { getAddress, parseEther } from 'ethers'
+import { parseEther } from 'ethers'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
@@ -9,6 +9,7 @@ import { EthereumAddress } from '../types/ethereumTypes.js'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
+import { addressString } from '../library/utils.js'
 
 export async function importFromInterceptor(
 	bundle: Signal<Bundle | undefined>,
@@ -51,7 +52,7 @@ export async function importFromInterceptor(
 
 	const uniqueToAddresses = [...new Set(converted.value.map(({ from }) => from))]
 	const containsFundingTx = uniqueToAddresses.includes('FUNDING')
-	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => getAddress(serialize(EthereumAddress, address)))
+	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => addressString(address))
 
 	const totalGas = converted.value.reduce((sum, tx) => tx.gasLimit + sum, 0n)
 

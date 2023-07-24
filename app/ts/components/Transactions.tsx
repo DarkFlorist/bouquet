@@ -9,7 +9,7 @@ import { useAsyncState } from '../library/asyncState.js'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
-import { EthereumAddress } from '../types/ethereumTypes.js'
+import { addressString } from '../library/utils.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -51,7 +51,7 @@ export const Transactions = ({
 	async function fetchAbis() {
 		if (!bundle.value || !bundle.value.transactions) return
 		try {
-			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? serialize(EthereumAddress, tx.to) : null ).filter(addr => addr))] as string[]
+			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? addressString(tx.to) : null ).filter(addr => addr))] as string[]
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
@@ -83,7 +83,7 @@ export const Transactions = ({
 		if (!bundle.value) return
 		decodedTransactions.value = bundle.value.transactions.map((tx) => {
 			if (tx.to && tx.input && tx.input.length > 0) {
-				const contractAddr = serialize(EthereumAddress, tx.to)
+				const contractAddr = addressString(tx.to)
 				const txDescription = interfaces.value[contractAddr] ? interfaces.value[contractAddr].parseTransaction({ value: tx.value ?? undefined, data: tx.input.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '0x') }) : null
 				return txDescription ? formatTransactionDescription(txDescription) : null
 			}
@@ -162,12 +162,12 @@ export const Transactions = ({
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>From</span>
 								<span class='bg-black px-2 py-1 font-mono font-medium'>
-									{tx.from}
+									{tx.from !== 'FUNDING' ? addressString(tx.from) : tx.from}
 								</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>To</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.to ?? 'Contract Deployment'}</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.to ? addressString(tx.to) : 'Contract Deployment'}</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>

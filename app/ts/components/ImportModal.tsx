@@ -1,9 +1,9 @@
 import { Signal, useComputed, useSignal } from "@preact/signals"
-import { getAddress } from "ethers"
 import { JSX } from "preact/jsx-runtime"
+import { addressString } from "../library/utils.js"
 import { TransactionList } from "../types/bouquetTypes.js"
 import { EthereumAddress } from "../types/ethereumTypes.js"
-import { Bundle, serialize } from "../types/types.js"
+import { Bundle } from "../types/types.js"
 import { Button } from "./Button.js"
 
 const placeholder = `[
@@ -46,7 +46,7 @@ export const ImportModal = ({ display, bundle, clearError }: { display: Signal<b
 
 		const uniqueToAddresses = [...new Set(txList.map(({ from }) => from))]
 		const containsFundingTx = uniqueToAddresses.includes('FUNDING')
-		const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => getAddress(serialize(EthereumAddress, address)))
+		const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => addressString(address))
 
 		const totalGas = txList.reduce((sum, tx) => tx.gasLimit + sum, 0n)
 		const inputValue = txList.reduce((sum, tx) => (tx.from === 'FUNDING' ? tx.value : 0n) + sum, 0n)
