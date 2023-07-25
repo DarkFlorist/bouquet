@@ -1,9 +1,9 @@
 import { Signal, useComputed, useSignal } from "@preact/signals"
-import { getAddress } from "ethers"
 import { JSX } from "preact/jsx-runtime"
+import { addressString } from "../library/utils.js"
 import { TransactionList } from "../types/bouquetTypes.js"
 import { EthereumAddress } from "../types/ethereumTypes.js"
-import { Bundle, serialize } from "../types/types.js"
+import { Bundle } from "../types/types.js"
 import { Button } from "./Button.js"
 
 const placeholder = `[
@@ -44,14 +44,12 @@ export const ImportModal = ({ display, bundle, clearError }: { display: Signal<b
 
 		localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(txList)))
 
-		const containsFundingTx = txList.length > 1 && txList[0].to === txList[1].from
-		const uniqueSigners = [...new Set(txList.map((x) => getAddress(serialize(EthereumAddress, x.from))))].filter(
-			(_, index) => !(index === 0 && containsFundingTx),
-		)
+		const uniqueToAddresses = [...new Set(txList.map(({ from }) => from))]
+		const containsFundingTx = uniqueToAddresses.includes('FUNDING')
+		const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => addressString(address))
 
-		const totalGas = txList.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 21000n : BigInt(tx.gasLimit.toString()) + sum), 0n)
-		// @TODO: Change this to track minimum amount of ETH needed to deposit
-		const inputValue = txList.reduce((sum, tx, index) => (index === 0 && containsFundingTx ? 0n : BigInt(tx.value.toString()) + sum), 0n)
+		const totalGas = txList.reduce((sum, tx) => tx.gasLimit + sum, 0n)
+		const inputValue = txList.reduce((sum, tx) => (tx.from === 'FUNDING' ? tx.value : 0n) + sum, 0n)
 
 		bundle.value = { transactions: txList, containsFundingTx, uniqueSigners, totalGas, inputValue }
 		clearError()

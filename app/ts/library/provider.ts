@@ -9,14 +9,16 @@ export type ProviderStore = {
 	_clearEvents: () => unknown
 	authSigner: HDNodeWallet,
 	walletAddress: EthereumAddress
-	chainId: bigint
+	chainId: bigint,
+	isInterceptor: boolean
 }
 
 const addProvider = async (
 	store: Signal<ProviderStore | undefined>,
 	provider: BrowserProvider,
 	clearEvents: () => unknown,
-	appSettings: Signal<AppSettings>
+	appSettings: Signal<AppSettings>,
+	isInterceptor: boolean
 ) => {
 	const [signer, network] = await Promise.all([provider.getSigner(), provider.getNetwork()])
 	const address = await signer.getAddress()
@@ -37,6 +39,7 @@ const addProvider = async (
 		walletAddress: parsedAddress.value,
 		chainId: network.chainId,
 		_clearEvents: clearEvents,
+		isInterceptor
 	}
 }
 
@@ -119,7 +122,10 @@ export const connectBrowserProvider = async (
 		provider.removeListener('block', blockCallback)
 	}
 
-	addProvider(store, provider, clearEvents, appSettings)
+	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.0'] })])
+	const isInterceptor = getSimulationStack.status === 'fulfilled'
+
+	addProvider(store, provider, clearEvents, appSettings, isInterceptor)
 }
 
 export async function updateLatestBlock(

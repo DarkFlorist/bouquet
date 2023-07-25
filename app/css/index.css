@@ -799,6 +799,10 @@ video {
 	border-color: rgb(255 255 255 / 0.5);
 }
 
+.border-white\/90 {
+	border-color: rgb(255 255 255 / 0.9);
+}
+
 .bg-background {
 	--tw-bg-opacity: 1;
 	background-color: rgb(22 22 29 / var(--tw-bg-opacity));
@@ -816,6 +820,10 @@ video {
 
 .bg-error\/10 {
 	background-color: rgb(219 84 97 / 0.1);
+}
+
+.bg-gray-500\/30 {
+	background-color: rgb(107 114 128 / 0.3);
 }
 
 .bg-gray-500\/50 {

@@ -1,5 +1,5 @@
 import { Import } from './Import.js'
-import { Configure } from './Configure.js'
+// import { Configure } from './Configure.js'
 import { Submit } from './Submit.js'
 import { Button } from './Button.js'
 import { Transactions } from './Transactions.js'
@@ -28,7 +28,7 @@ export function App() {
 						<>
 							<Import {...state} />
 							{state.bundle.value ? <Transactions {...state} /> : null}
-							<Configure {...state} />
+							{/* <Configure {...state} /> */}
 							<Submit {...state} />
 						</>
 					)}
