@@ -88,7 +88,7 @@ export const Configure = ({
 
 	return (
 		<>
-			<h2 className='font-bold text-2xl'>2. Configure</h2>
+			<h2 className='font-bold text-2xl'><span class='text-gray-500'>2.</span> Configure</h2>
 			{bundle.value ? (
 				<>
 					<div className='flex flex-col w-full gap-4'>

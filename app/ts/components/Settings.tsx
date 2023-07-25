@@ -69,15 +69,15 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 			<div class='h-max px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
 				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
-					<span className='text-sm text-white/50'>MEV Relay URL</span>
+					<span className='text-sm text-gray-500'>MEV Relay URL</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputRPC(e.currentTarget.value)} value={editedSettings.value.relayEndpoint} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
-					<span className='text-sm text-white/50'>Priority Fee (GWEI)</span>
+					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)} value={formatUnits(editedSettings.value.priorityFee, 'gwei')} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
 				</div>
 				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
-					<span className='text-sm text-white/50'>Target Blocks In Future For Bundle Confirmation</span>
+					<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputTargetBlocks(e.currentTarget.value)} value={editedSettings.value.blocksInFuture.toString()} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 				</div>
 				<div className='flex gap-2'>
