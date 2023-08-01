@@ -10,6 +10,7 @@ import { TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
+import { importFromInterceptor } from './Import.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -28,6 +29,7 @@ export const Transactions = ({
 	bundle,
 	blockInfo,
 	appSettings,
+	signers
 }: {
 	provider: Signal<ProviderStore | undefined>
 	bundle: Signal<Bundle | undefined>
@@ -151,7 +153,7 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
-			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description='The transactions imported in Bouquet differ from the current simulation in The Interceptor extension.' /> : null}
+			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{bundle.value?.transactions.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>
