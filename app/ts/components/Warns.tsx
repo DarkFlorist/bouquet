@@ -1,4 +1,4 @@
-import { JSX } from "preact/jsx-runtime"
+import { JSX } from 'preact/jsx-runtime'
 
 export const SingleNotice = ({ variant, title, description }: { variant: 'warn' | 'error', title: string, description?: string | JSX.Element }) => {
 	const variantColors = {
