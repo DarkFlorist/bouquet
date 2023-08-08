@@ -1,4 +1,6 @@
-export const SingleNotice = ({ variant, title, description }: { variant: 'warn' | 'error' | 'success', title: string, description?: string }) => {
+import { JSX } from 'preact/jsx-runtime'
+
+export const SingleNotice = ({ variant, title, description }: { variant: 'warn' | 'error' | 'success', title: string, description?: string | JSX.Element }) => {
 	const variantColors = {
 		warn: 'border-orange-400/50 bg-orange-400/10',
 		error: 'border-red-400/50 bg-red-400/10',
