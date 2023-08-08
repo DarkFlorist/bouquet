@@ -685,6 +685,10 @@ video {
 	flex-direction: column-reverse;
 }
 
+.flex-wrap {
+	flex-wrap: wrap;
+}
+
 .items-end {
 	align-items: flex-end;
 }
@@ -947,6 +951,11 @@ video {
 	line-height: 1.75rem;
 }
 
+.text-xs {
+	font-size: 0.75rem;
+	line-height: 1rem;
+}
+
 .font-bold {
 	font-weight: 700;
 }
@@ -1100,6 +1109,16 @@ video {
 	.sm\:py-6 {
 		padding-top: 1.5rem;
 		padding-bottom: 1.5rem;
+	}
+
+	.sm\:text-base {
+		font-size: 1rem;
+		line-height: 1.5rem;
+	}
+
+	.sm\:text-lg {
+		font-size: 1.125rem;
+		line-height: 1.75rem;
 	}
 }
 

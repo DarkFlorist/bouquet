@@ -63,11 +63,6 @@ export const ConfigureFunding = ({
 	}
 
 	const showWithdrawModal = useSignal<boolean>(false)
-	const showResetModal = useSignal<boolean>(false)
-
-	function openNewBurnerModal() {
-		showResetModal.value = true
-	}
 
 	function openWithdrawModal() {
 		showWithdrawModal.value = true
@@ -80,10 +75,10 @@ export const ConfigureFunding = ({
 				<div className='flex flex-col w-full gap-4'>
 					<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
 					<p className='text-orange-600 font-semibold'>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
-					<div className='flex items-center gap-2'>
+					<div className='flex items-center gap-2 flex-wrap'>
 						<Button variant='secondary' onClick={copyBurnerToClipboard}>
 							<>
-								{signers.value.burner.address}
+								<span className='text-xs sm:text-base'>{signers.value.burner.address}</span>
 								<svg
 									className='h-8 inline-block'
 									aria-hidden='true'
@@ -109,19 +104,11 @@ export const ConfigureFunding = ({
 								</svg>
 							</span>
 						</Button>
-						<Button variant='primary' onClick={openNewBurnerModal}>
-							<span className='flex gap-2 text-sm items-center'>
-								New Temp Account
-								<svg aria-hidden="true" class='h-8 inline-block' fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-									<path d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.678 48.678 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3m-12 3c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l3 3m-3-3l-3 3" stroke-linecap="round" stroke-linejoin="round"></path>
-								</svg>
-							</span>
-						</Button>
 					</div>
-					<p className='font-semibold text-lg'>
-						Wallet Balance: <span className='font-medium font-mono'>{EtherSymbol} {formatEther(signers.value.burnerBalance)}</span>
+					<p className='font-semibold sm:text-lg'>
+						Wallet Balance: <span className='font-medium font-mono'>{EtherSymbol}{formatEther(signers.value.burnerBalance)}</span>
 						<br />
-						Minimum Required Balance: <span className='font-medium font-mono'>{EtherSymbol} {formatEther(fundingAmountMin.value)}</span>
+						Minimum Required Balance: <span className='font-medium font-mono'>{EtherSymbol}{formatEther(fundingAmountMin.value)}</span>
 					</p>
 				</div>
 			) : null}
@@ -192,6 +179,22 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 				</div>
 				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title="Error Withdrawing" /> : ''}</p>
 				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={`Transaction submitted with TX Hash ${signedMessage.value.value}`} title="Transaction Submitted" /> : ''}</p>
+			</div>
+		</div>
+	)
+}
+
+const ResetModal = ({ display }: { display: Signal<boolean> }) => {
+	if (!display.value) return null
+
+	function close() {
+		display.value = false
+	}
+
+	return (
+		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
+			<div class='h-max w-full max-w-xl px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
+				<h2 className='text-xl font-semibold'>Create New Funding Wallet</h2>
 			</div>
 		</div>
 	)
