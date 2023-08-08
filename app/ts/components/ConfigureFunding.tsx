@@ -99,8 +99,8 @@ export const ConfigureFunding = ({
 						<Button variant='primary' onClick={openWithdrawModal}>
 							<span className='flex gap-2 text-sm items-center'>
 								Withdraw ETH
-								<svg class='h-8 inline-block' aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-									<path d="M8.25 9.75h4.875a2.625 2.625 0 010 5.25H12M8.25 9.75L10.5 7.5M8.25 9.75L10.5 12m9-7.243V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" stroke-linecap="round" stroke-linejoin="round"></path>
+								<svg class='h-8 inline-block' aria-hidden='true' fill='none' stroke='currentColor' stroke-width='1.5' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+									<path d='M8.25 9.75h4.875a2.625 2.625 0 010 5.25H12M8.25 9.75L10.5 7.5M8.25 9.75L10.5 12m9-7.243V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z' stroke-linecap='round' stroke-linejoin='round'></path>
 								</svg>
 							</span>
 						</Button>
@@ -136,14 +136,14 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 
 	function withdraw() {
 		waitFor(async () => {
-			if (withdrawAmount.value.amount <= 0n) throw "Funding account's balance is to small to withdraw"
-			if (!signers.value.burner) throw "No funding account found"
-			if (!provider.value) throw "User not connected"
-			if (!appSettings.value.relayEndpoint) throw "No Flashbots RPC provided"
-			if (!recipientAddress.value.address) throw "No recipient provided"
+			if (withdrawAmount.value.amount <= 0n) throw 'Funding account\'s balance is to small to withdraw'
+			if (!signers.value.burner) throw 'No funding account found'
+			if (!provider.value) throw 'User not connected'
+			if (!appSettings.value.relayEndpoint) throw 'No Flashbots RPC provided'
+			if (!recipientAddress.value.address) throw 'No recipient provided'
 
 			const [tx] = await signBundle([{ signer: signers.value.burner, transaction: { chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), value: withdrawAmount.value.amount, gasLimit: 21000, type: 2 }}], provider.value.provider, blockInfo.value, getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 10n))
-			const payload = JSON.stringify({ jsonrpc: "2.0", method: "eth_sendPrivateTransaction", params: [{ tx }] })
+			const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendPrivateTransaction', params: [{ tx }] })
 			const flashbotsSig = `${await provider.value.authSigner.getAddress()}:${await provider.value.authSigner.signMessage(id(payload))}`
 			const request = await fetch(appSettings.value.relayEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } })
 			const response = await request.json()
@@ -151,7 +151,7 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 				throw Error(response.error.message)
 			}
 			if ('result' in response && typeof response.result === 'string') return response.result
-			else throw "Flashbots RPC returned invalid data"
+			else throw 'Flashbots RPC returned invalid data'
 		})
 	}
 
@@ -177,24 +177,8 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 				<div className='flex gap-2'>
 					<Button onClick={withdraw} variant='primary'>Withdraw</Button>
 				</div>
-				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title="Error Withdrawing" /> : ''}</p>
-				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={`Transaction submitted with TX Hash ${signedMessage.value.value}`} title="Transaction Submitted" /> : ''}</p>
-			</div>
-		</div>
-	)
-}
-
-const ResetModal = ({ display }: { display: Signal<boolean> }) => {
-	if (!display.value) return null
-
-	function close() {
-		display.value = false
-	}
-
-	return (
-		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
-			<div class='h-max w-full max-w-xl px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
-				<h2 className='text-xl font-semibold'>Create New Funding Wallet</h2>
+				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title='Error Withdrawing' /> : ''}</p>
+				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={`Transaction submitted with TX Hash ${signedMessage.value.value}`} title='Transaction Submitted' /> : ''}</p>
 			</div>
 		</div>
 	)

@@ -1,10 +1,10 @@
-import { Signal, useComputed, useSignal } from "@preact/signals"
-import { JSX } from "preact/jsx-runtime"
-import { addressString } from "../library/utils.js"
-import { TransactionList } from "../types/bouquetTypes.js"
-import { EthereumAddress } from "../types/ethereumTypes.js"
-import { Bundle } from "../types/types.js"
-import { Button } from "./Button.js"
+import { Signal, useComputed, useSignal } from '@preact/signals'
+import { JSX } from 'preact/jsx-runtime'
+import { addressString } from '../library/utils.js'
+import { TransactionList } from '../types/bouquetTypes.js'
+import { EthereumAddress } from '../types/ethereumTypes.js'
+import { Bundle } from '../types/types.js'
+import { Button } from './Button.js'
 
 const placeholder = `[
   {
@@ -69,7 +69,7 @@ export const ImportModal = ({ display, bundle, clearError }: { display: Signal<b
 						placeholder={placeholder}
 						onInput={(e: JSX.TargetedEvent<HTMLTextAreaElement>) => jsonInput.value = e.currentTarget.value}
 						value={jsonInput.value}
-						type="url"
+						type='url'
 						className={`p-2 w-96 h-96 border ${jsonInput.value && isValid.value ? 'border-green-400 bg-green-200/10' : jsonInput.value && !isValid.value ? 'border-red-400 bg-red-200/10' : 'border-white/50 focus-within:border-white/90 bg-transparent focus-within:bg-white/5'} outline-none px-4`}
 					/>
 				</div>
