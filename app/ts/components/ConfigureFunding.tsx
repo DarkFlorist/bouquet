@@ -74,7 +74,7 @@ export const ConfigureFunding = ({
 			{bundle.value && bundle.value.containsFundingTx && signers.value.burner ? (
 				<div className='flex flex-col w-full gap-4'>
 					<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
-					<p className='text-orange-600 font-semibold'>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
+					<p className='text-orange-600 font-semibold'>This is a temporary account, send only enough needed plus a tiny bit to account for possible rising gas price changes.</p>
 					<div className='flex items-center gap-2 flex-wrap'>
 						<Button variant='secondary' onClick={copyBurnerToClipboard}>
 							<>
