@@ -66,7 +66,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	return display.value ? (
 		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
-			<div class='h-max px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
+			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
 				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
 					<span className='text-sm text-gray-500'>MEV Relay URL</span>

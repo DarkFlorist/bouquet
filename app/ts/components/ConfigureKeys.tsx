@@ -78,7 +78,7 @@ export const ConfigureKeys = ({
 		<div className='flex flex-col w-full gap-4'>
 			<h3 className='text-2xl font-semibold'>Enter Private Keys For Signing Accounts</h3>
 			{Object.keys(signerKeys.value).map((address) => (
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 ${signerKeys.value[address].wallet ? 'border-green-400 bg-green-200/10' : signerKeys.peek()[address].input ? 'bg-red-200/10 border-red-400' : 'border-white/50 focus-within:border-white/80 focus-within:bg-white/5 bg-transparent'}`}>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${signerKeys.value[address].wallet ? 'border-green-400' : (signerKeys.peek()[address].input ? 'border-red-400' : 'border-white/50 focus-within:border-white/80')}`}>
 					<span className='text-sm text-gray-500'>{address}</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => tryUpdateSigners(address, e.currentTarget.value)} value={signerKeys.value[address].input} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder={`Enter private key for account`} />
 				</div>

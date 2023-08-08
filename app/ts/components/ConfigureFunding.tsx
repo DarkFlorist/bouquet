@@ -1,11 +1,18 @@
-import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
-import { formatEther, getAddress, Wallet } from 'ethers'
+import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
+import { EtherSymbol, formatEther, getAddress, id, Wallet } from 'ethers'
+import { JSX } from 'preact/jsx-runtime'
+import { useAsyncState } from '../library/asyncState.js'
+import { getMaxBaseFeeInFutureBlock, signBundle } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
-import { BlockInfo, Bundle, Signers } from '../types/types.js'
+import { addressString } from '../library/utils.js'
+import { EthereumAddress } from '../types/ethereumTypes.js'
+import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
 import { Button } from './Button.js'
+import { SingleNotice } from './Warns.js'
 
 export const ConfigureFunding = ({
 	provider,
+	appSettings,
 	bundle,
 	fundingAmountMin,
 	signers,
@@ -15,7 +22,8 @@ export const ConfigureFunding = ({
 	bundle: Signal<Bundle | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
-	blockInfo: Signal<BlockInfo>
+	blockInfo: Signal<BlockInfo>,
+	appSettings: Signal<AppSettings>
 }) => {
 	const signerKeys = useSignal<{
 		[address: string]: { input: string; wallet: Wallet | null }
@@ -54,21 +62,24 @@ export const ConfigureFunding = ({
 		navigator.clipboard.writeText(signers.value.burner.address)
 	}
 
-	function openNewBurnerModal() {
+	const showWithdrawModal = useSignal<boolean>(false)
+	const showResetModal = useSignal<boolean>(false)
 
+	function openNewBurnerModal() {
+		showResetModal.value = true
 	}
 
 	function openWithdrawModal() {
-
+		showWithdrawModal.value = true
 	}
 
 	return (
 		<>
+			<WithdrawModal {...{ display: showWithdrawModal, blockInfo, signers, appSettings, provider }}/>
 			{bundle.value && bundle.value.containsFundingTx && signers.value.burner ? (
 				<div className='flex flex-col w-full gap-4'>
 					<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
-					<p>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
-
+					<p className='text-orange-600 font-semibold'>This is a temporary account, send only enough needed plus a tiny bit to account for rising gas price changes.</p>
 					<div className='flex items-center gap-2'>
 						<Button variant='secondary' onClick={copyBurnerToClipboard}>
 							<>
@@ -106,15 +117,83 @@ export const ConfigureFunding = ({
 								</svg>
 							</span>
 						</Button>
-
 					</div>
-					<p className='font-semibold'>
-						Wallet Balance: <span className='font-medium font-mono'>{formatEther(signers.value.burnerBalance)} ETH</span>
+					<p className='font-semibold text-lg'>
+						Wallet Balance: <span className='font-medium font-mono'>{EtherSymbol} {formatEther(signers.value.burnerBalance)}</span>
 						<br />
-						Minimum Required Balance: <span className='font-medium font-mono'>{formatEther(fundingAmountMin.value)} ETH</span>
+						Minimum Required Balance: <span className='font-medium font-mono'>{EtherSymbol} {formatEther(fundingAmountMin.value)}</span>
 					</p>
 				</div>
 			) : null}
 		</>
 	)
 }
+
+const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: { display: Signal<boolean>, 	provider: Signal<ProviderStore | undefined>, appSettings: Signal<AppSettings>, signers: Signal<Signers>, blockInfo: Signal<BlockInfo> }) => {
+	if (!display.value) return null
+
+	const recipientAddress = useSignal<{ input: string, address?: EthereumAddress }>({ input: '' })
+	const inputStyle = useComputed(() => `flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${recipientAddress.value.address ? 'border-green-400' : (recipientAddress.value.input ? 'border-red-400' : 'border-white/50 focus-within:border-white/80')}`)
+	function parseInput(input: string) {
+		const address = EthereumAddress.safeParse(input)
+		recipientAddress.value = { input, address: address.success ? address.value : undefined }
+	}
+
+	const withdrawAmount = useComputed(() => {
+		let fee = (blockInfo.value.baseFee + blockInfo.value.priorityFee) * 11n / 10n * 21000n
+		let amount = signers.value.burnerBalance - fee
+		return { amount, fee }
+	})
+
+	const { value: signedMessage, waitFor } = useAsyncState<string>()
+
+	function withdraw() {
+		waitFor(async () => {
+			if (withdrawAmount.value.amount <= 0n) throw "Funding account's balance is to small to withdraw"
+			if (!signers.value.burner) throw "No funding account found"
+			if (!provider.value) throw "User not connected"
+			if (!appSettings.value.relayEndpoint) throw "No Flashbots RPC provided"
+			if (!recipientAddress.value.address) throw "No recipient provided"
+
+			const [tx] = await signBundle([{ signer: signers.value.burner, transaction: { chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), value: withdrawAmount.value.amount, gasLimit: 21000, type: 2 }}], provider.value.provider, blockInfo.value, getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 10n))
+			const payload = JSON.stringify({ jsonrpc: "2.0", method: "eth_sendPrivateTransaction", params: [{ tx }] })
+			const flashbotsSig = `${await provider.value.authSigner.getAddress()}:${await provider.value.authSigner.signMessage(id(payload))}`
+			const request = await fetch(appSettings.value.relayEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } })
+			const response = await request.json()
+			if (response.error !== undefined && response.error !== null) {
+				throw Error(response.error.message)
+			}
+			if ('result' in response && typeof response.result === 'string') return response.result
+			else throw "Flashbots RPC returned invalid data"
+		})
+	}
+
+	function close() {
+		batch(() => {
+			display.value = false
+			recipientAddress.value = { input: '' }
+			signedMessage.value.state = 'inactive'
+		})
+	}
+
+	return (
+		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
+			<div class='h-max w-full max-w-xl px-8 py-4 flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
+				<h2 className='text-xl font-semibold'>Withdraw From Funding Account</h2>
+				<div className={inputStyle.value}>
+					<span className='text-sm text-gray-500'>ETH Recipient</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => parseInput(e.currentTarget.value)} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0x...' />
+				</div>
+				{withdrawAmount.value.amount > 0n
+					? (<p>Withdraw {EtherSymbol} {formatEther(withdrawAmount.value.amount)} + {EtherSymbol} {formatEther(withdrawAmount.value.fee)} fee</p>)
+					: (<p>Transfer fee ({EtherSymbol} {formatEther(withdrawAmount.value.fee)}) is more than funding account balance</p>)}
+				<div className='flex gap-2'>
+					<Button onClick={withdraw} variant='primary'>Withdraw</Button>
+				</div>
+				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title="Error Withdrawing" /> : ''}</p>
+				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={`Transaction submitted with TX Hash ${signedMessage.value.value}`} title="Transaction Submitted" /> : ''}</p>
+			</div>
+		</div>
+	)
+}
+

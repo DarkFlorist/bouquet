@@ -137,6 +137,6 @@ export async function updateLatestBlock(
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
 	if (provider.value && signers && signers.value.burner) {
-		provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance))
+		provider.value.provider.getBalance(signers.value.burner.address).then((burnerBalance) => signers.value = { ...signers.value, burnerBalance})
 	}
 }
