@@ -27,7 +27,7 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 		}, {})
 		return result
 	} catch (error) {
-		console.error("getSimulatedCountsOnNetwork error: ", error)
+		console.error('getSimulatedCountsOnNetwork error: ', error)
 		return {}
 	}
 }
@@ -69,7 +69,7 @@ export const createBundleTransactions = async (
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
 		if (from === 'FUNDING') {
-			if (!signers.burner) throw new Error("No burner wallet provided")
+			if (!signers.burner) throw new Error('No burner wallet provided')
 			return {
 				signer: signers.burner,
 				transaction: {

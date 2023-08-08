@@ -1,5 +1,4 @@
 import { Import } from './Import.js'
-// import { Configure } from './Configure.js'
 import { Submit } from './Submit.js'
 import { Button } from './Button.js'
 import { Transactions } from './Transactions.js'
@@ -7,6 +6,8 @@ import { connectBrowserProvider } from '../library/provider.js'
 import { Navbar } from './Navbar.js'
 import { createGlobalState } from '../stores.js'
 import { Footer } from './Footer.js'
+import { ConfigureKeys } from './ConfigureKeys.js'
+import { ConfigureFunding } from './ConfigureFunding.js'
 
 export function App() {
 	const state = createGlobalState()
@@ -28,7 +29,8 @@ export function App() {
 						<>
 							<Import {...state} />
 							{state.bundle.value ? <Transactions {...state} /> : null}
-							{/* <Configure {...state} /> */}
+							<h2 className='font-bold text-2xl'><span class='text-gray-500'>2.</span> Configure</h2>
+							{state.bundle.value ? (<><ConfigureKeys {...state} /><ConfigureFunding {...state} /></>) : <p>No transactions imported yet.</p>}
 							<Submit {...state} />
 						</>
 					)}

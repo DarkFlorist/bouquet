@@ -25,7 +25,7 @@ const addProvider = async (
 	if (store.peek()) removeProvider(store)
 
 	const parsedAddress = AddressParser.parse(getAddress(address))
-	if (!parsedAddress.success) throw new Error("Provider provided invalid address!")
+	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 
 	if (![1n, 5n].includes(network.chainId)) {
 		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
@@ -77,7 +77,7 @@ export const connectBrowserProvider = async (
 			removeProvider(store)
 		} else {
 			const parsedAddress = AddressParser.parse(getAddress(accounts[0]))
-			if (!parsedAddress.success) throw new Error("Provider provided invalid address!")
+			if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 			store.value = store.value ? { ...store.value, walletAddress: parsedAddress.value } : undefined
 		}
 	}
@@ -137,6 +137,6 @@ export async function updateLatestBlock(
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
 	if (provider.value && signers && signers.value.burner) {
-		provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance))
+		provider.value.provider.getBalance(signers.value.burner.address).then((burnerBalance) => signers.value = { ...signers.value, burnerBalance})
 	}
 }

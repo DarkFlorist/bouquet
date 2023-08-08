@@ -536,10 +536,6 @@ video {
 	left: 0px;
 }
 
-.-mb-2 {
-	margin-bottom: -0.5rem;
-}
-
 .mb-2 {
 	margin-bottom: 0.5rem;
 }
@@ -659,6 +655,10 @@ video {
 	max-width: 1280px;
 }
 
+.max-w-xl {
+	max-width: 36rem;
+}
+
 .flex-grow {
 	flex-grow: 1;
 }
@@ -683,6 +683,10 @@ video {
 
 .flex-col-reverse {
 	flex-direction: column-reverse;
+}
+
+.flex-wrap {
+	flex-wrap: wrap;
 }
 
 .items-end {
@@ -769,6 +773,10 @@ video {
 	border-color: rgb(74 222 128 / var(--tw-border-opacity));
 }
 
+.border-green-400\/50 {
+	border-color: rgb(74 222 128 / 0.5);
+}
+
 .border-orange-400\/50 {
 	border-color: rgb(251 146 60 / 0.5);
 }
@@ -780,10 +788,6 @@ video {
 
 .border-red-400\/50 {
 	border-color: rgb(248 113 113 / 0.5);
-}
-
-.border-slate-200\/70 {
-	border-color: rgb(226 232 240 / 0.7);
 }
 
 .border-slate-400\/30 {
@@ -818,10 +822,6 @@ video {
 	background-color: rgb(46 47 48 / var(--tw-bg-opacity));
 }
 
-.bg-error\/10 {
-	background-color: rgb(219 84 97 / 0.1);
-}
-
 .bg-gray-500\/30 {
 	background-color: rgb(107 114 128 / 0.3);
 }
@@ -830,25 +830,28 @@ video {
 	background-color: rgb(107 114 128 / 0.5);
 }
 
+.bg-green-200\/10 {
+	background-color: rgb(187 247 208 / 0.1);
+}
+
+.bg-green-400\/10 {
+	background-color: rgb(74 222 128 / 0.1);
+}
+
 .bg-orange-400\/10 {
 	background-color: rgb(251 146 60 / 0.1);
+}
+
+.bg-red-200\/10 {
+	background-color: rgb(254 202 202 / 0.1);
 }
 
 .bg-red-400\/10 {
 	background-color: rgb(248 113 113 / 0.1);
 }
 
-.bg-success\/10 {
-	background-color: rgb(152 206 0 / 0.1);
-}
-
 .bg-transparent {
 	background-color: transparent;
-}
-
-.bg-white {
-	--tw-bg-opacity: 1;
-	background-color: rgb(255 255 255 / var(--tw-bg-opacity));
 }
 
 .bg-white\/10 {
@@ -948,6 +951,11 @@ video {
 	line-height: 1.75rem;
 }
 
+.text-xs {
+	font-size: 0.75rem;
+	line-height: 1rem;
+}
+
 .font-bold {
 	font-weight: 700;
 }
@@ -973,11 +981,6 @@ video {
 	color: rgb(108 207 246 / var(--tw-text-opacity));
 }
 
-.text-background {
-	--tw-text-opacity: 1;
-	color: rgb(22 22 29 / var(--tw-text-opacity));
-}
-
 .text-error {
 	--tw-text-opacity: 1;
 	color: rgb(219 84 97 / var(--tw-text-opacity));
@@ -986,6 +989,11 @@ video {
 .text-gray-500 {
 	--tw-text-opacity: 1;
 	color: rgb(107 114 128 / var(--tw-text-opacity));
+}
+
+.text-orange-600 {
+	--tw-text-opacity: 1;
+	color: rgb(234 88 12 / var(--tw-text-opacity));
 }
 
 .text-primary {
@@ -1076,10 +1084,6 @@ video {
 	background-color: rgb(107 114 128 / 0.2);
 }
 
-.active\:text-background\/70:active {
-	color: rgb(22 22 29 / 0.7);
-}
-
 .disabled\:opacity-50:disabled {
 	opacity: 0.5;
 }
@@ -1105,6 +1109,16 @@ video {
 	.sm\:py-6 {
 		padding-top: 1.5rem;
 		padding-bottom: 1.5rem;
+	}
+
+	.sm\:text-base {
+		font-size: 1rem;
+		line-height: 1.5rem;
+	}
+
+	.sm\:text-lg {
+		font-size: 1.125rem;
+		line-height: 1.75rem;
 	}
 }
 

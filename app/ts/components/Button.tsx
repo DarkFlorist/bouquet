@@ -1,4 +1,4 @@
-import { ComponentChildren } from "preact"
+import { ComponentChildren } from 'preact'
 
 const classNames = {
 	primary: 'h-12 px-4 border border-white/50 bg-gray-500/50 outline-none focus:border-white/90 focus:bg-gray-500/20 flex items-center gap-2 justify-center',
