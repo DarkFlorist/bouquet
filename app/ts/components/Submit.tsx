@@ -69,24 +69,21 @@ export const Bundles = ({
 }: {
 	outstandingBundles: Signal<PendingBundle>
 }) => {
-	if (outstandingBundles.value.error) return (<div>
-		<h3 class='font-semibold text-error mb-2'>Error Sending Bundle</h3>
-		<p class='rounded bg-background font-mono font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>
-	</div>)
+	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
+
 	return (
 		<div class='flex flex-col-reverse gap-4'>
 			{Object.values(outstandingBundles.value.bundles).map((bundle) => (
-				bundle.included ?
-					<div class='flex items-center flex-col font-semibold gap-2'>
+				bundle.included
+					? <div class='flex items-center flex-col font-semibold gap-2'>
 						<h2 class='font-bold text-lg text-success'>Bundle Included!</h2>
 					</div>
-					:
-					<div class='flex items-center gap-2 text-white'>
+					: <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>Attempting to get bundle included in block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
+						<p>Attempting to get bundle included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
 					</div>
 			))}
 		</div>
@@ -108,16 +105,8 @@ export const Submit = ({
 	appSettings: Signal<AppSettings>
 	blockInfo: Signal<BlockInfo>
 }) => {
+	// General component state
 	const showSettings = useSignal<boolean>(false)
-
-	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint }>({ active: false, lastBlock: 0n })
-	const { value: simulationPromise, waitFor: waitForSimulation } = useAsyncState<SimulationResponseSuccess>()
-
-	useSignalEffect(() => {
-		if (blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
-			bundleSubmission(blockInfo.value.blockNumber)
-		}
-	})
 
 	const missingRequirements = useComputed(() => {
 		if (!bundle.value) return 'No transactions imported yet.'
@@ -128,6 +117,9 @@ export const Submit = ({
 		if (insufficientBalance) return 'Funding wallet has insufficent balance.'
 		return false
 	})
+
+	// Simulations
+	const { value: simulationPromise, waitFor: waitForSimulation } = useAsyncState<SimulationResponseSuccess>()
 
 	async function simulateCallback() {
 		if (!provider.value) throw 'User not connected'
@@ -144,7 +136,15 @@ export const Submit = ({
 		else return simulationResult
 	}
 
+	// Submissions
+	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint }>({ active: false, lastBlock: 0n })
 	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
+
+	useSignalEffect(() => {
+		if (blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
+			bundleSubmission(blockInfo.value.blockNumber)
+		}
+	})
 
 	async function bundleSubmission(blockNumber: bigint) {
 		submissionStatus.value = { ...submissionStatus.peek(), lastBlock: blockNumber }
@@ -183,14 +183,13 @@ export const Submit = ({
 			outstandingBundles.value = {
 				error: outstandingBundles.peek().error,
 				bundles: Object.keys(outstandingBundles.peek().bundles)
-					.filter(tx => outstandingBundles.peek().bundles[tx].targetBlock > blockNumber)
+					.filter(tx => outstandingBundles.peek().bundles[tx].targetBlock + 1n > blockNumber)
 					.reduce((obj: {
 						[bundleHash: string]: {
 							targetBlock: bigint,
 							gas: { priorityFee: bigint, baseFee: bigint }
 							transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
 							included: boolean
-
 						}
 					}, bundleHash) => {
 						obj[bundleHash] = outstandingBundles.peek().bundles[bundleHash]
@@ -203,6 +202,7 @@ export const Submit = ({
 				try {
 					const targetBlock = blockNumber + appSettings.peek().blocksInFuture
 					const gas = blockInfo.peek()
+					gas.priorityFee = appSettings.value.priorityFee
 
 					const bundleRequest = await sendBundle(
 						bundle.value,
@@ -215,11 +215,11 @@ export const Submit = ({
 					)
 
 					if (!(bundleRequest.bundleHash in outstandingBundles.peek())) {
-						outstandingBundles.value = { ...outstandingBundles.peek(), [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } }
+						outstandingBundles.value = { bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
 					}
 				} catch (err) {
 					console.error('SendBundle error', err)
-					const error = err && typeof err === 'object' && 'name' in err && 'message' in err && typeof err.name === 'string' && typeof err.message === 'string' ? new Error(err.message) : new Error('Unknown Error')
+					const error = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? new Error(err.message) : new Error('Unknown Error')
 					batch(() => {
 						submissionStatus.value = { active: false, lastBlock: blockNumber }
 						outstandingBundles.value = { ...outstandingBundles.peek(), error }
@@ -254,7 +254,7 @@ export const Submit = ({
 					</div>
 					<div className='flex flex-row gap-6'>
 						<Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
-						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop' : 'Submit'}</Button>
+						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop Submitting Bundle' : 'Submit'}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
 					<Bundles outstandingBundles={outstandingBundles} />
