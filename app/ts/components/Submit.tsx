@@ -1,4 +1,4 @@
-import { formatUnits } from 'ethers'
+import { EtherSymbol, formatEther, formatUnits } from 'ethers'
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { Button } from './Button.js'
@@ -29,35 +29,34 @@ const SimulationResult = ({
 	if (state.value.state === 'pending') return <div>Simulating...</div>
 	if (state.value.state === 'resolved') {
 		return state.value.value.firstRevert ?
-			<div>
-				<h3 class='font-semibold text-error mb-2'>A Transaction Reverted During Simulation</h3>
-				<div class='flex w-full min-h-[96px] border-2 border-white rounded-xl'>
-					<div class='flex w-24 flex-col items-center justify-center text-white border-r-2'>
+			<SingleNotice variant='error' title='A Transaction Reverted During Simulation' description={
+				<div class='flex w-full min-h-[96px] border border-white/90 mt-4'>
+					<div class='flex w-16 flex-col items-center justify-center text-white'>
 						<span class='text-lg font-bold'>#{state.value.value.results.findIndex((x) => 'error' in x)}</span>
 					</div>
-					<div class='bg-card flex w-full justify-center flex-col gap-2 rounded-r-xl p-4 text-sm font-semibold'>
+					<div class='bg-gray-500/30 flex w-full justify-center flex-col gap-2 p-4 text-sm font-semibold'>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>From</span>
-							<span class='rounded bg-background px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.fromAddress}</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>
+								{state.value.value.firstRevert.fromAddress}
+							</span>
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>To</span>
-							<span class='rounded bg-background px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.toAddress}</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.toAddress}</span>
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>Gas Used</span>
-							<span class='rounded bg-background px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.gasUsed} gas</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.gasUsed} ETH</span>
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>Error</span>
-							<span class='rounded bg-background px-2 py-1 font-mono font-medium'>
-								{'error' in state.value.value.firstRevert ? String(state.value.value.firstRevert.error) : 'Unknown'}
-							</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>{'error' in state.value.value.firstRevert ? String(state.value.value.firstRevert.error) : 'Unknown'}</span>
 						</div>
 					</div>
 				</div>
-			</div>
-			: <SingleNotice variant='success' title='Simulation Succeeded' />
+			} />
+			: <SingleNotice variant='success' title='Simulation Succeeded' description={<p><b>{state.value.value.results.length}</b> Transactions succeeded, consuming <b>{state.value.value.totalGasUsed}</b> gas with a total fee of <b>{EtherSymbol}{formatEther(state.value.value.gasFees)}</b>.</p>} />
 	}
 	if (state.value.state === 'rejected') {
 		return <SingleNotice variant='error' title='Simulation Failed' description={<p class='font-medium w-full break-all'>{state.value.error.message}</p>} />
@@ -232,6 +231,7 @@ export const Submit = ({
 
 	async function toggleSubmission() {
 		batch(() => {
+			simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
 			submissionStatus.value = { ...submissionStatus.peek(), active: !submissionStatus.peek().active }
 			outstandingBundles.value = { ...outstandingBundles.peek(), error: undefined }
 		})

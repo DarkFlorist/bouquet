@@ -33,11 +33,11 @@ export interface RelayResponseError {
 }
 
 export interface SimulationResponseSuccess {
-	bundleGasPrice: BigInt
+	bundleGasPrice: bigint
 	bundleHash: string
-	coinbaseDiff: BigInt
-	ethSentToCoinbase: BigInt
-	gasFees: BigInt
+	coinbaseDiff: bigint
+	ethSentToCoinbase: bigint
+	gasFees: bigint
 	results: Array<TransactionSimulation>
 	totalGasUsed: number
 	stateBlockNumber: number
@@ -65,7 +65,6 @@ export async function simulateBundle(
 	)
 
 	const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_callBundle', params: [{ txs, blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
-	console.log(JSON.parse(payload).params[0].blockNumber, payload)
 	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 	const request = await fetch(appSettings.relayEndpoint,
 		{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
