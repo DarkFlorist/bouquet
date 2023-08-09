@@ -8,6 +8,7 @@ import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
 import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots.js'
 import { SingleNotice } from './Warns.js'
+import { BLOCK_EXPLORERS } from '../constants.js'
 
 type PendingBundle = {
 	bundles: {
@@ -66,18 +67,29 @@ const SimulationResult = ({
 
 export const Bundles = ({
 	outstandingBundles,
+	provider
 }: {
-	outstandingBundles: Signal<PendingBundle>
+	outstandingBundles: Signal<PendingBundle>,
+	provider: Signal<ProviderStore | undefined>
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
+
+	const chainIdString = provider.value ? provider.value.chainId.toString(10) : '-1'
+	const blockExplorerBaseUrl = BLOCK_EXPLORERS[chainIdString] ?? null
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>
 			{Object.values(outstandingBundles.value.bundles).map((bundle) => (
 				bundle.included
-					? <div class='flex items-center flex-col font-semibold gap-2'>
-						<h2 class='font-bold text-lg text-success'>Bundle Included!</h2>
-					</div>
+					? <SingleNotice variant='success' title='Bundle Included!' description={<div>
+						<h3 class='text-md'><b>{bundle.transactions.length}</b> transactions were included in block <b>{bundle.targetBlock.toString(10)}</b></h3>
+						<div class='flex flex-col gap-1 py-1'>
+							{bundle.transactions.map((tx, index) => blockExplorerBaseUrl
+								? <p class='flex items-center gap-2'><b>#{index}</b><a class='underline text-white/50 flex items-center gap-2' href={`${blockExplorerBaseUrl}tx/${tx.hash}`} target="_blank">{tx.hash}<svg aria-hidden="true" class='h-6' fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"> <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></p>
+								: <p><b>#{index}</b> <span class='semibold text-white/50'>{tx.hash}</span></p>
+							)}
+						</div>
+					</div>} />
 					: <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
@@ -177,6 +189,7 @@ export const Submit = ({
 					}, {})
 				}
 				submissionStatus.value = { active: false, lastBlock: blockNumber }
+				simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
 			})
 		} else {
 			// Remove old submissions
@@ -257,7 +270,7 @@ export const Submit = ({
 						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop Submitting Bundle' : 'Submit'}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
-					<Bundles outstandingBundles={outstandingBundles} />
+					<Bundles outstandingBundles={outstandingBundles} provider={provider} />
 				</div>
 			)}
 		</>
