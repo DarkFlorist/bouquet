@@ -7,6 +7,7 @@ import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
 import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots.js'
+import { SingleNotice } from './Warns.js'
 
 type PendingBundle = {
 	bundles: {
@@ -56,17 +57,10 @@ const SimulationResult = ({
 					</div>
 				</div>
 			</div>
-			: <div>
-				<h3 class='font-semibold text-success'>Simulation Succeeded</h3>
-			</div>
+			: <SingleNotice variant='success' title='Simulation Succeeded' />
 	}
 	if (state.value.state === 'rejected') {
-		return (
-			<div>
-				<h3 class='font-semibold text-error mb-2'>Simulation Failed</h3>
-				<p class='rounded bg-background font-mono font-medium w-full break-all'>{state.value.error.message}</p>
-			</div>
-		)
+		return <SingleNotice variant='error' title='Simulation Failed' description={<p class='font-medium w-full break-all'>{state.value.error.message}</p>} />
 	}
 	return <></>
 }
@@ -254,7 +248,7 @@ export const Submit = ({
 				<div className='flex flex-col w-full gap-4'>
 					<div>
 						<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
-						<p><span className='font-bold'>Network:</span> {appSettings.value.relayEndpoint}</p>
+						<p><span className='font-bold'>Network:</span> {appSettings.value.relayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
 						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
 						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>
 					</div>
