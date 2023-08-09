@@ -19,7 +19,13 @@ type PendingBundle = {
 			included: boolean
 		}
 	}
-	error?: Error
+	error?: Error,
+	success?: {
+		targetBlock: bigint,
+		gas: { priorityFee: bigint, baseFee: bigint }
+		transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
+		included: boolean
+	}
 }
 
 const SimulationResult = ({
@@ -79,25 +85,24 @@ export const Bundles = ({
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>
-			{Object.values(outstandingBundles.value.bundles).map((bundle) => (
-				bundle.included
-					? <SingleNotice variant='success' title='Bundle Included!' description={<div>
-						<h3 class='text-md'><b>{bundle.transactions.length}</b> transactions were included in block <b>{bundle.targetBlock.toString(10)}</b></h3>
+			{outstandingBundles.value.success
+				? <SingleNotice variant='success' title='Bundle Included!' description={<div>
+						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> transactions were included in block <b>{outstandingBundles.value.success.targetBlock.toString(10)}</b></h3>
 						<div class='flex flex-col gap-1 py-1'>
-							{bundle.transactions.map((tx, index) => blockExplorerBaseUrl
+							{outstandingBundles.value.success.transactions.map((tx, index) => blockExplorerBaseUrl
 								? <p class='flex items-center gap-2'><b>#{index}</b><a class='underline text-white/50 flex items-center gap-2' href={`${blockExplorerBaseUrl}tx/${tx.hash}`} target="_blank">{tx.hash}<svg aria-hidden="true" class='h-6' fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"> <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></p>
 								: <p><b>#{index}</b> <span class='semibold text-white/50'>{tx.hash}</span></p>
 							)}
 						</div>
 					</div>} />
-					: <div class='flex items-center gap-2 text-white'>
+				: Object.values(outstandingBundles.value.bundles).map((bundle) => <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
 						<p>Attempting to get bundle included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
 					</div>
-			))}
+			)}
 		</div>
 	)
 }
@@ -171,22 +176,24 @@ export const Submit = ({
 		if (included.length > 0) {
 			// We done!
 			batch(() => {
+				const checkedBundles = Object.keys(outstandingBundles.peek().bundles).reduce((checked: {
+					[bundleHash: string]: {
+						targetBlock: bigint,
+						gas: { priorityFee: bigint, baseFee: bigint }
+						transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
+						included: boolean
+					}
+				}, current, index) => {
+					if (checkedPending[index].included) {
+						checked[current] = outstandingBundles.peek().bundles[current]
+						checked[current].included = checkedPending[index].included
+					}
+					return checked
+				}, {})
 				outstandingBundles.value = {
 					error: outstandingBundles.peek().error,
-					bundles: Object.keys(outstandingBundles.peek().bundles).reduce((checked: {
-						[bundleHash: string]: {
-							targetBlock: bigint,
-							gas: { priorityFee: bigint, baseFee: bigint }
-							transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
-							included: boolean
-						}
-					}, current, index) => {
-						if (checkedPending[index].included) {
-							checked[current] = outstandingBundles.peek().bundles[current]
-							checked[current].included = checkedPending[index].included
-						}
-						return checked
-					}, {})
+					bundles: checkedBundles,
+					success: Object.values(checkedBundles).find(x => x.included)
 				}
 				submissionStatus.value = { active: false, lastBlock: blockNumber }
 				simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
@@ -195,6 +202,7 @@ export const Submit = ({
 			// Remove old submissions
 			outstandingBundles.value = {
 				error: outstandingBundles.peek().error,
+				success: outstandingBundles.peek().success,
 				bundles: Object.keys(outstandingBundles.peek().bundles)
 					.filter(tx => outstandingBundles.peek().bundles[tx].targetBlock + 1n > blockNumber)
 					.reduce((obj: {
@@ -211,7 +219,7 @@ export const Submit = ({
 			}
 
 			// Try Submit
-			if (submissionStatus.value.active) {
+			if (submissionStatus.value.active && !outstandingBundles.value.success) {
 				try {
 					const targetBlock = blockNumber + appSettings.peek().blocksInFuture
 					const gas = blockInfo.peek()
@@ -227,8 +235,8 @@ export const Submit = ({
 						appSettings.peek()
 					)
 
-					if (!(bundleRequest.bundleHash in outstandingBundles.peek())) {
-						outstandingBundles.value = { bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
+					if (!(bundleRequest.bundleHash in outstandingBundles.peek().bundles)) {
+						outstandingBundles.value = { ...outstandingBundles.peek(),  bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
 					}
 				} catch (err) {
 					console.error('SendBundle error', err)
@@ -245,8 +253,8 @@ export const Submit = ({
 	async function toggleSubmission() {
 		batch(() => {
 			simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
+			outstandingBundles.value = { bundles: !outstandingBundles.peek().success ? outstandingBundles.peek().bundles : {}, error: undefined, success: submissionStatus.peek().active ? outstandingBundles.peek().success : undefined }
 			submissionStatus.value = { ...submissionStatus.peek(), active: !submissionStatus.peek().active }
-			outstandingBundles.value = { ...outstandingBundles.peek(), error: undefined }
 		})
 		bundleSubmission(blockInfo.peek().blockNumber)
 	}
@@ -255,7 +263,7 @@ export const Submit = ({
 		<>
 			<h2 className='font-bold text-2xl'><span class='text-gray-500'>3.</span> Submit</h2>
 			<SettingsModal display={showSettings} appSettings={appSettings} />
-			{missingRequirements.value ? (
+			{!outstandingBundles.value.success && missingRequirements.value ? (
 				<p>{missingRequirements.peek()}</p>
 			) : (
 				<div className='flex flex-col w-full gap-4'>
