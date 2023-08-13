@@ -44,13 +44,13 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 			parseUnits(String(Number(value)), 'gwei');
 			return priorityFeeInput.value = { value, valid: true }
 		} catch {
-			 return priorityFeeInput.value = { value, valid: false }
+			return priorityFeeInput.value = { value, valid: false }
 		}
 	}
 	function validateBlocksInFutureInput(value: string) {
 		if (!value) return blocksInFutureInput.value = { value, valid: false }
 		try {
-			BigInt(Number(value))
+			BigInt(value)
 			return blocksInFutureInput.value = { value, valid: true }
 		} catch {
 			return blocksInFutureInput.value = { value, valid: false }
