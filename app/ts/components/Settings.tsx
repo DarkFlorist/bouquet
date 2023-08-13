@@ -1,4 +1,4 @@
-import { Signal, useSignal } from '@preact/signals'
+import { batch, Signal, useComputed, useSignal } from '@preact/signals'
 import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { MEV_RELAY_MAINNET } from '../constants.js'
@@ -27,61 +27,78 @@ export const SettingsIcon = () => {
 }
 
 export const SettingsModal = ({ display, appSettings }: { display: Signal<boolean>, appSettings: Signal<AppSettings> }) => {
-	const editedSettings = useSignal(appSettings.value)
-	function inputRPC(value: string) {
+	const relayEndpointInput = useSignal({ value: appSettings.peek().relayEndpoint, valid: true })
+	const priorityFeeInput = useSignal({ value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true })
+	const blocksInFutureInput = useSignal({ value: appSettings.peek().blocksInFuture.toString(10), valid: true })
+
+	const allValidInputs = useComputed(() => relayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
+
+	function validateRelayEndpointInput(value: string) {
 		// https://urlregex.com/
 		const matchURL = value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
-		if (!value || !matchURL || matchURL.length !== 1) return
-		editedSettings.value = { ...editedSettings.peek(), relayEndpoint: value }
+		relayEndpointInput.value = { value, valid: !value || !matchURL || matchURL.length !== 1 }
 	}
-	function inputPriorityFee(value: string) {
-		if (!value) return
+	function validatePriorityFeeInput(value: string) {
+		if (!value) return priorityFeeInput.value = { value, valid: false }
 		try {
-			const parsedValue = Number(value);
-			editedSettings.value = { ...editedSettings.peek(), priorityFee: parseUnits(String(parsedValue), 'gwei') }
+			parseUnits(String(Number(value)), 'gwei');
+			return priorityFeeInput.value = { value, valid: true }
 		} catch {
-			return
+			return priorityFeeInput.value = { value, valid: false }
 		}
 	}
-	function inputTargetBlocks(value: string) {
-		if (!value) return
+	function validateBlocksInFutureInput(value: string) {
+		if (!value) return blocksInFutureInput.value = { value, valid: false }
 		try {
-			const parsedValue = Number(value)
-			editedSettings.value = { ...editedSettings.peek(), blocksInFuture: BigInt(parsedValue) }
+			BigInt(value)
+			return blocksInFutureInput.value = { value, valid: true }
 		} catch {
-			return
+			return blocksInFutureInput.value = { value, valid: false }
 		}
 	}
 	function saveSettings() {
-		appSettings.value = editedSettings.value
-		localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: editedSettings.value.priorityFee.toString(), blocksInFuture: editedSettings.value.blocksInFuture.toString(), relayEndpoint: editedSettings.value.relayEndpoint }))
-		close()
+		if (allValidInputs.value) {
+			const newSettings: AppSettings = { relayEndpoint: relayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(Number(blocksInFutureInput.value.value)) }
+			appSettings.value = newSettings
+			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: newSettings.priorityFee.toString(), blocksInFuture: newSettings.blocksInFuture.toString(), relayEndpoint: newSettings.relayEndpoint }))
+			close()
+		}
 	}
 	function resetSettings() {
-		appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+		batch(() => {
+			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: appSettings.value.priorityFee.toString(), blocksInFuture: appSettings.value.blocksInFuture.toString(), relayEndpoint: appSettings.value.relayEndpoint }))
+			relayEndpointInput.value = { value: appSettings.peek().relayEndpoint, valid: true }
+			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
+			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
+		})
 	}
 	function close() {
-		editedSettings.value = appSettings.value
-		display.value = false
+		batch(() => {
+			relayEndpointInput.value = { value: appSettings.peek().relayEndpoint, valid: true }
+			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
+			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
+			display.value = false
+		})
 	}
 	return display.value ? (
 		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
 			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
-				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!relayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>MEV Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputRPC(e.currentTarget.value)} value={editedSettings.value.relayEndpoint} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateRelayEndpointInput(e.currentTarget.value)} value={relayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
-				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputPriorityFee(e.currentTarget.value)} value={formatUnits(editedSettings.value.priorityFee, 'gwei')} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validatePriorityFeeInput(e.currentTarget.value)} value={priorityFeeInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
 				</div>
-				<div className='flex flex-col justify-center border border-white/50 focus-within:border-white/80 h-16 bg-transparent outline-none focus-within:bg-white/5 px-4 bg-transparent'>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => inputTargetBlocks(e.currentTarget.value)} value={editedSettings.value.blocksInFuture.toString()} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 				</div>
 				<div className='flex gap-2'>
-					<Button onClick={saveSettings} variant='primary'>Save</Button>
+					<Button onClick={saveSettings} disabled={!allValidInputs.value} variant='primary'>Save</Button>
 					<Button onClick={resetSettings} variant='secondary'>Reset</Button>
 				</div>
 			</div>
