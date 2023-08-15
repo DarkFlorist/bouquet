@@ -54,7 +54,7 @@ const SimulationResult = ({
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>Gas Used</span>
-							<span class='bg-black px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.gasUsed} ETH</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>{state.value.value.firstRevert.gasUsed} gas</span>
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>Error</span>
