@@ -78,7 +78,7 @@ export const Transactions = ({
 			parseTransactions()
 			compareWithInterceptor()
 		}
-		if (provider.value && !interceptorComparison.value.intervalId) createCompareInterval()
+		if (provider.value && provider.value.isInterceptor && !interceptorComparison.value.intervalId) createCompareInterval()
 	})
 
 	const parseTransactions = async () => {
