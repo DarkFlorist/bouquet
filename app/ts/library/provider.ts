@@ -69,6 +69,11 @@ export const connectBrowserProvider = async (
 
 	const provider = new BrowserProvider(window.ethereum, 'any')
 
+	const blockCallback = async (blockNumber: number) => {
+		const block = await provider.getBlock(blockNumber)
+		if (block) updateLatestBlock(block, store, blockInfo, signers)
+	}
+
 	const disconnectEventCallback = () => {
 		removeProvider(store)
 	}
@@ -100,15 +105,11 @@ export const connectBrowserProvider = async (
 			provider.on('block', blockCallback)
 		}
 		accountsChangedCallback(await Promise.all(accounts.map(account => account.getAddress())))
-		if (block) blockCallback(block)
-	}
-	const blockCallback = (block: Block | null) => {
 		if (block) updateLatestBlock(block, store, blockInfo, signers)
 	}
 
-	provider.getBlock('latest').then((block) => {
-		if (block) updateLatestBlock(block, store, blockInfo, signers)
-	})
+	const block = await provider.getBlock('latest')
+	if (block) await updateLatestBlock(block, store, blockInfo, signers)
 
 	window.ethereum.on('disconnect', disconnectEventCallback)
 	window.ethereum.on('accountsChanged', accountsChangedCallback)
