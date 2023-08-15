@@ -58,7 +58,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function saveSettings() {
 		if (allValidInputs.value) {
-			const newSettings: AppSettings = { relayEndpoint: relayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(Number(blocksInFutureInput.value.value)) }
+			const newSettings: AppSettings = { relayEndpoint: relayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
 			appSettings.value = newSettings
 			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: newSettings.priorityFee.toString(), blocksInFuture: newSettings.blocksInFuture.toString(), relayEndpoint: newSettings.relayEndpoint }))
 			close()
