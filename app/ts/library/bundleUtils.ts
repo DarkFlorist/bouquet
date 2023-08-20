@@ -1,6 +1,7 @@
 import { BrowserProvider, getAddress, Signer, TransactionRequest } from 'ethers'
 import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
-import { EthereumAddress, EthereumData } from '../types/ethereumTypes.js'
+import { EthereumData } from '../types/ethereumTypes.js'
+import { addressString } from './utils.js'
 
 export interface FlashbotsBundleTransaction {
 	transaction: TransactionRequest
@@ -26,7 +27,7 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 		}, {})
 		return result
 	} catch (error) {
-		console.error("getSimulatedCountsOnNetwork error: ", error)
+		console.error('getSimulatedCountsOnNetwork error: ', error)
 		return {}
 	}
 }
@@ -61,20 +62,21 @@ export const createBundleTransactions = async (
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }, index) => {
+	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
-		if (index === 0 && bundle.containsFundingTx && signers.burner) {
+		if (from === 'FUNDING') {
+			if (!signers.burner) throw new Error('No burner wallet provided')
 			return {
 				signer: signers.burner,
 				transaction: {
 					from: signers.burner.address,
 					...(bundle && bundle.transactions[0].to
 						? {
-							to: getAddress(serialize(EthereumAddress, bundle.transactions[0].to)),
+							to: addressString(bundle.transactions[0].to),
 						}
 						: {}),
 					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
@@ -86,10 +88,10 @@ export const createBundleTransactions = async (
 			}
 		} else
 			return {
-				signer: signers.bundleSigners[getAddress(serialize(EthereumAddress, from))],
+				signer: signers.bundleSigners[addressString(from)],
 				transaction: {
-					from: getAddress(serialize(EthereumAddress, from)),
-					...(to ? { to: getAddress(serialize(EthereumAddress, to)) } : {}),
+					from: addressString(from),
+					...(to ? { to: addressString(to) } : {}),
 					gasLimit,
 					data: serialize(EthereumData, input),
 					value,

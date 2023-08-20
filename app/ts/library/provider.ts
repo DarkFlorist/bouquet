@@ -9,21 +9,23 @@ export type ProviderStore = {
 	_clearEvents: () => unknown
 	authSigner: HDNodeWallet,
 	walletAddress: EthereumAddress
-	chainId: bigint
+	chainId: bigint,
+	isInterceptor: boolean
 }
 
 const addProvider = async (
 	store: Signal<ProviderStore | undefined>,
 	provider: BrowserProvider,
 	clearEvents: () => unknown,
-	appSettings: Signal<AppSettings>
+	appSettings: Signal<AppSettings>,
+	isInterceptor: boolean
 ) => {
 	const [signer, network] = await Promise.all([provider.getSigner(), provider.getNetwork()])
 	const address = await signer.getAddress()
 	if (store.peek()) removeProvider(store)
 
 	const parsedAddress = AddressParser.parse(getAddress(address))
-	if (!parsedAddress.success) throw new Error("Provider provided invalid address!")
+	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 
 	if (![1n, 5n].includes(network.chainId)) {
 		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
@@ -37,6 +39,7 @@ const addProvider = async (
 		walletAddress: parsedAddress.value,
 		chainId: network.chainId,
 		_clearEvents: clearEvents,
+		isInterceptor
 	}
 }
 
@@ -66,6 +69,11 @@ export const connectBrowserProvider = async (
 
 	const provider = new BrowserProvider(window.ethereum, 'any')
 
+	const blockCallback = async (blockNumber: number) => {
+		const block = await provider.getBlock(blockNumber)
+		if (block) updateLatestBlock(block, store, blockInfo, signers)
+	}
+
 	const disconnectEventCallback = () => {
 		removeProvider(store)
 	}
@@ -74,7 +82,7 @@ export const connectBrowserProvider = async (
 			removeProvider(store)
 		} else {
 			const parsedAddress = AddressParser.parse(getAddress(accounts[0]))
-			if (!parsedAddress.success) throw new Error("Provider provided invalid address!")
+			if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 			store.value = store.value ? { ...store.value, walletAddress: parsedAddress.value } : undefined
 		}
 	}
@@ -100,20 +108,8 @@ export const connectBrowserProvider = async (
 		if (block) updateLatestBlock(block, store, blockInfo, signers)
 	}
 
-	const blockCallback = async (blockNumber: number | null) => {
-		try {
-			if (!blockNumber) return
-			const block = await provider.getBlock(blockNumber)
-			if (!block) return
-			updateLatestBlock(block, store, blockInfo, signers)
-		} catch (error) {
-			return console.error("Block Callback Error: ", error)
-		}
-	}
-
-	provider.getBlock('latest').then((block) => {
-		if (block) updateLatestBlock(block, store, blockInfo, signers)
-	})
+	const block = await provider.getBlock('latest')
+	if (block) await updateLatestBlock(block, store, blockInfo, signers)
 
 	window.ethereum.on('disconnect', disconnectEventCallback)
 	window.ethereum.on('accountsChanged', accountsChangedCallback)
@@ -127,7 +123,10 @@ export const connectBrowserProvider = async (
 		provider.removeListener('block', blockCallback)
 	}
 
-	addProvider(store, provider, clearEvents, appSettings)
+	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.0'] })])
+	const isInterceptor = getSimulationStack.status === 'fulfilled'
+
+	addProvider(store, provider, clearEvents, appSettings, isInterceptor)
 }
 
 export async function updateLatestBlock(
@@ -139,6 +138,6 @@ export async function updateLatestBlock(
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
 	if (provider.value && signers && signers.value.burner) {
-		provider.value.provider.getBalance(signers.value.burner.address).then((balance) => (signers.value.burnerBalance = balance))
+		provider.value.provider.getBalance(signers.value.burner.address).then((burnerBalance) => signers.value = { ...signers.value, burnerBalance})
 	}
 }

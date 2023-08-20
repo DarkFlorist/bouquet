@@ -33,11 +33,11 @@ export interface RelayResponseError {
 }
 
 export interface SimulationResponseSuccess {
-	bundleGasPrice: BigInt
+	bundleGasPrice: bigint
 	bundleHash: string
-	coinbaseDiff: BigInt
-	ethSentToCoinbase: BigInt
-	gasFees: BigInt
+	coinbaseDiff: bigint
+	ethSentToCoinbase: bigint
+	gasFees: bigint
 	results: Array<TransactionSimulation>
 	totalGasUsed: number
 	stateBlockNumber: number
