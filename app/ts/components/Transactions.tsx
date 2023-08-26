@@ -58,13 +58,26 @@ export const Transactions = ({
 				uniqueAddresses.map((address) =>
 					fetch(
 						`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
-						}.etherscan.io/api?module=contract&action=getabi&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+						}.etherscan.io/api?module=contract&action=getsourcecode&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
 					),
 				),
 			)
-			const abis = await Promise.all(requests.map((request) => request.json()))
-			interfaces.value = abis.reduce((acc, curr: { status: string; result: string }, index) => {
-				if (curr.status === '1') return { ...acc, [`${uniqueAddresses[index]}`]: new Interface(curr.result) }
+			const contracts = await Promise.all(requests.map((request) => request.json()))
+			const abis: (string | undefined)[] = []
+			for (let contract of contracts) {
+				if (!contract || !contract.status || !contract.result || contract.status !== '1') abis.push(undefined)
+				else {
+					if (contract.result[0].Proxy === '0') abis.push(contract.result[0].ABI)
+					else {
+						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${getAddress(contract.result[0].Implementation.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
+						const implResult = await implReq.json() as { status: '1' | '0', result?: string }
+						abis.push(implResult.status === "1" && implResult.result ? implResult.result : undefined)
+
+					}
+				}
+			}
+			interfaces.value = abis.reduce((acc, curr, index) => {
+				if (curr) return { ...acc, [`${uniqueAddresses[index]}`]: new Interface(curr) }
 				else return acc
 			}, {})
 		} catch (error) {
