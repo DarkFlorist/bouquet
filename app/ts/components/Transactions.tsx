@@ -69,7 +69,7 @@ export const Transactions = ({
 			const parsedSourceCode = sourcecodeResults.map(x => EtherscanSourceCodeResult.safeParse(x))
 
 			// Extract ABI from getSourceCode request if not proxy, otherwise attempt to fetch ABI of implementation
-			for (let contract of parsedSourceCode) {
+			for (const contract of parsedSourceCode) {
 				if (contract.success == false || contract.value.status !== '1') abis.push(undefined)
 				else {
 					if (contract.value.result[0].Proxy === '1' && contract.value.result[0].Implementation !== '') {
