@@ -11,6 +11,7 @@ import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
 import { importFromInterceptor } from './Import.js'
+import { EtherscanGetABIResult, EtherscanSourceCodeResult } from '../types/apiTypes.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -54,6 +55,8 @@ export const Transactions = ({
 		if (!bundle.value || !bundle.value.transactions) return
 		try {
 			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? addressString(tx.to) : null ).filter(addr => addr))] as string[]
+			const abis: (string | undefined)[] = []
+
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
@@ -62,20 +65,21 @@ export const Transactions = ({
 					),
 				),
 			)
-			const contracts = await Promise.all(requests.map((request) => request.json()))
-			const abis: (string | undefined)[] = []
-			for (let contract of contracts) {
-				if (!contract || !contract.status || !contract.result || contract.status !== '1') abis.push(undefined)
-				else {
-					if (contract.result[0].Proxy === '0') abis.push(contract.result[0].ABI)
-					else {
-						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${getAddress(contract.result[0].Implementation.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
-						const implResult = await implReq.json() as { status: '1' | '0', result?: string }
-						abis.push(implResult.status === "1" && implResult.result ? implResult.result : undefined)
+			const sourcecodeResults = await Promise.all(requests.map((request) => request.json()))
+			const parsedSourceCode = sourcecodeResults.map(x => EtherscanSourceCodeResult.safeParse(x))
 
-					}
+			// Extract ABI from getSourceCode request if not proxy, otherwise attempt to fetch ABI of implementation
+			for (let contract of parsedSourceCode) {
+				if (contract.success == false || contract.value.status !== '1') abis.push(undefined)
+				else {
+					if (contract.value.result[0].Proxy === '1' && contract.value.result[0].Implementation !== '') {
+						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
+						const implResult = EtherscanGetABIResult.safeParse(await implReq.json())
+						abis.push(implResult.success && implResult.value.status === '1' ? implResult.value.result : undefined)
+					} else abis.push(contract.value.result[0].ABI ?? undefined)
 				}
 			}
+
 			interfaces.value = abis.reduce((acc, curr, index) => {
 				if (curr) return { ...acc, [`${uniqueAddresses[index]}`]: new Interface(curr) }
 				else return acc
