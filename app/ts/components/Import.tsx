@@ -60,12 +60,11 @@ export async function importFromInterceptor(
 	const fundingRecipients = new Set(converted.value.reduce((result: bigint[], tx) => (tx.to && tx.from === 'FUNDING' ? [...result, tx.to] : result), []))
 	const spenderDeficits = tryParse.value.reduce((amounts: { [account: string]: bigint }, tx) => {
 		if (!fundingRecipients.has(tx.from)) return amounts
-		const txDiff = tx.value - tx.balanceChanges.filter(x => x.address === tx.from).reduce((sum, bal) => sum + bal.before - bal.after, 0n) + tx.maxPriorityFeePerGas * tx.gasSpent
+		const txDiff = tx.balanceChanges.filter(x => x.address === tx.from).reduce((sum, bal) => sum + bal.before - bal.after, 0n) + tx.maxPriorityFeePerGas * tx.gasSpent
 		const amount = amounts[tx.from.toString()] ? amounts[tx.from.toString()] + txDiff : txDiff
 		amounts[tx.from.toString()] = amount
 		return amounts
 	}, {})
-
 	const inputValue = Object.values(spenderDeficits).reduce((sum, amount) => amount + sum, 0n)
 
 	// Copy value and set, input of funding to inputValue

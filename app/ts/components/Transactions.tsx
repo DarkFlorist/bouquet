@@ -76,7 +76,7 @@ export const Transactions = ({
 						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
 						const implResult = EtherscanGetABIResult.safeParse(await implReq.json())
 						abis.push(implResult.success && implResult.value.status === '1' ? implResult.value.result : undefined)
-					} else abis.push(contract.value.result[0].ABI ?? undefined)
+					} else abis.push(contract.value.result[0].ABI && contract.value.result[0].ABI !== 'Contract source code not verified' ? contract.value.result[0].ABI : undefined)
 				}
 			}
 
