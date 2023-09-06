@@ -1,6 +1,6 @@
 import { batch, Signal } from '@preact/signals'
 import { Block, BrowserProvider, getAddress, HDNodeWallet, Wallet } from 'ethers'
-import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
+import { NETWORKS } from '../constants.js'
 import { AddressParser, EthereumAddress } from '../types/ethereumTypes.js'
 import { AppSettings, BlockInfo, Signers } from '../types/types.js'
 
@@ -28,9 +28,9 @@ const addProvider = async (
 	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 
 	if (![1n, 5n].includes(network.chainId)) {
-		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
+		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === NETWORKS['1'].mevRelay ? '0x1' : '0x5' }])
 	} else {
-		appSettings.value = { ...appSettings.peek(), relayEndpoint: network.chainId === 1n ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
+		appSettings.value = { ...appSettings.peek(), relayEndpoint: network.chainId === 1n ? NETWORKS['1'].mevRelay : NETWORKS['5'].mevRelay }
 	}
 
 	store.value = {
@@ -89,7 +89,7 @@ export const connectBrowserProvider = async (
 	const chainChangedCallback = async (chainId: string) => {
 		if ([1n, 5n].includes(BigInt(chainId))) {
 			batch(() => {
-				appSettings.value = { ...appSettings.peek(), relayEndpoint: BigInt(chainId) === 1n ? MEV_RELAY_MAINNET : MEV_RELAY_GOERLI }
+				appSettings.value = { ...appSettings.peek(), relayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].mevRelay : NETWORKS['5'].mevRelay }
 				store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
 			})
 		} else {

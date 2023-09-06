@@ -2,7 +2,7 @@ import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/sign
 import { formatEther, getAddress, Interface, parseEther, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
-import { MEV_RELAY_GOERLI } from '../constants.js'
+import { NETWORKS } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
@@ -60,7 +60,7 @@ export const Transactions = ({
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
-						`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''
+						`https://api${appSettings.peek().relayEndpoint === NETWORKS['5'].mevRelay ? '-goerli' : ''
 						}.etherscan.io/api?module=contract&action=getsourcecode&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
 					),
 				),
@@ -73,7 +73,7 @@ export const Transactions = ({
 				if (contract.success == false || contract.value.status !== '1') abis.push(undefined)
 				else {
 					if (contract.value.result[0].Proxy === '1' && contract.value.result[0].Implementation !== '') {
-						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint === MEV_RELAY_GOERLI ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
+						const implReq = await fetch(`https://api${appSettings.peek().relayEndpoint ===  NETWORKS['5'].mevRelay ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
 						const implResult = EtherscanGetABIResult.safeParse(await implReq.json())
 						abis.push(implResult.success && implResult.value.status === '1' ? implResult.value.result : undefined)
 					} else abis.push(contract.value.result[0].ABI && contract.value.result[0].ABI !== 'Contract source code not verified' ? contract.value.result[0].ABI : undefined)

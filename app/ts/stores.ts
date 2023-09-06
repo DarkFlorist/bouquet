@@ -1,6 +1,6 @@
 import { useComputed, useSignal } from '@preact/signals'
 import { Wallet } from 'ethers'
-import { MEV_RELAY_MAINNET } from './constants.js'
+import { NETWORKS } from './constants.js'
 import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
 import { EthereumAddress } from './types/ethereumTypes.js'
 import { ProviderStore } from './library/provider.js'
@@ -38,7 +38,7 @@ function fetchBundleFromStorage(): Bundle | undefined {
 }
 
 function fetchSettingsFromStorage() {
-	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: NETWORKS['1'].mevRelay };
 	const custom = localStorage.getItem('bouquetSettings')
 	if (!custom) {
 		return defaultValues

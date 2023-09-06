@@ -8,7 +8,7 @@ import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
 import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots.js'
 import { SingleNotice } from './Warns.js'
-import { BLOCK_EXPLORERS } from '../constants.js'
+import { NETWORKS } from '../constants.js'
 
 type PendingBundle = {
 	bundles: {
@@ -81,7 +81,7 @@ export const Bundles = ({
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
 	const chainIdString = provider.value ? provider.value.chainId.toString(10) : '-1'
-	const blockExplorerBaseUrl = BLOCK_EXPLORERS[chainIdString] ?? null
+	const blockExplorerBaseUrl = NETWORKS[chainIdString].blockExplorer ?? null
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>

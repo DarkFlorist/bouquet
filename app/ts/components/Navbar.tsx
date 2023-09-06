@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { MEV_RELAY_GOERLI, MEV_RELAY_MAINNET } from '../constants.js'
+import { NETWORKS } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
 import { AppSettings, serialize } from '../types/types.js'
@@ -19,7 +19,7 @@ export const Navbar = ({
 		if (!provider.value) {
 			appSettings.value = { ...appSettings.peek(), relayEndpoint }
 		} else {
-			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === MEV_RELAY_MAINNET ? '0x1' : '0x5' }])
+			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === NETWORKS['1'].mevRelay ? '0x1' : '0x5' }])
 		}
 	}
 
@@ -42,9 +42,9 @@ export const Navbar = ({
 									onChange={switchNetwork}
 									className='px-2 py-1 bg-black'
 								>
-									<option value={MEV_RELAY_MAINNET}>Ethereum</option>
-									<option value={MEV_RELAY_GOERLI}>Goerli</option>
-									{appSettings.value.relayEndpoint !== MEV_RELAY_MAINNET && appSettings.value.relayEndpoint !== MEV_RELAY_GOERLI ?
+									<option value={NETWORKS['1'].mevRelay}>Ethereum</option>
+									<option value={NETWORKS['5'].mevRelay}>Goerli</option>
+									{appSettings.value.relayEndpoint !== NETWORKS['1'].mevRelay && appSettings.value.relayEndpoint !== NETWORKS['5'].mevRelay ?
 										<option value={appSettings.value.relayEndpoint}>Custom</option>
 										: null}
 								</select>

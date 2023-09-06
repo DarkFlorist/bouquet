@@ -1,7 +1,7 @@
 import { batch, Signal, useComputed, useSignal } from '@preact/signals'
 import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
-import { MEV_RELAY_MAINNET } from '../constants.js'
+import { NETWORKS } from '../constants.js'
 import { AppSettings } from '../types/types.js'
 import { Button } from './Button.js'
 
@@ -66,7 +66,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function resetSettings() {
 		batch(() => {
-			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: MEV_RELAY_MAINNET };
+			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: NETWORKS['1'].mevRelay };
 			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: appSettings.value.priorityFee.toString(), blocksInFuture: appSettings.value.blocksInFuture.toString(), relayEndpoint: appSettings.value.relayEndpoint }))
 			relayEndpointInput.value = { value: appSettings.peek().relayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
