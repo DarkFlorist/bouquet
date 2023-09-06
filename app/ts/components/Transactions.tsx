@@ -190,7 +190,7 @@ export const Transactions = ({
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value)} + {EtherSymbol}{formatEther(tx.gasLimit * (blockInfo.value.baseFee + blockInfo.value.priorityFee))} Gas Fee</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value + (tx.from === 'FUNDING' && bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * (blockInfo.value.baseFee + blockInfo.value.priorityFee): 0n))} + {EtherSymbol}{formatEther(tx.gasLimit * (blockInfo.value.baseFee + blockInfo.value.priorityFee))} Gas Fee</span>
 							</div>
 							{decodedTransactions.value[index] ? (
 								<div class='flex gap-2 items-center'>
