@@ -1,8 +1,8 @@
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { EtherSymbol, formatEther, getAddress, id, Wallet } from 'ethers'
+import { EtherSymbol, formatEther, getAddress, JsonRpcProvider, Wallet } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
+import { NETWORKS } from '../constants.js'
 import { useAsyncState } from '../library/asyncState.js'
-import { getMaxBaseFeeInFutureBlock, signBundle } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
 import { addressString } from '../library/utils.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
@@ -116,7 +116,7 @@ export const ConfigureFunding = ({
 	)
 }
 
-const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: { display: Signal<boolean>, 	provider: Signal<ProviderStore | undefined>, appSettings: Signal<AppSettings>, signers: Signal<Signers>, blockInfo: Signal<BlockInfo> }) => {
+const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Signal<boolean>, 	provider: Signal<ProviderStore | undefined>, signers: Signal<Signers>, blockInfo: Signal<BlockInfo> }) => {
 	if (!display.value) return null
 
 	const recipientAddress = useSignal<{ input: string, address?: EthereumAddress }>({ input: '' })
@@ -134,24 +134,55 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 
 	const { value: signedMessage, waitFor } = useAsyncState<string>()
 
+	// Default check if we know the network, can also switch to true if sending to known RPC fails
+	const useBrowserProvider = useSignal<boolean>(provider.value && !(provider.value.chainId.toString(10) in NETWORKS) ? true : false)
+
+	const blockExplorer = useComputed<string | undefined>(() => {
+		if (provider.value) {
+			const chainId = provider.value.chainId.toString(10)
+			return chainId in NETWORKS ? NETWORKS[chainId].blockExplorer : undefined
+		}
+		return undefined
+	})
+
 	function withdraw() {
 		waitFor(async () => {
 			if (withdrawAmount.value.amount <= 0n) throw 'Funding account\'s balance is to small to withdraw'
 			if (!signers.value.burner) throw 'No funding account found'
 			if (!provider.value) throw 'User not connected'
-			if (!appSettings.value.relayEndpoint) throw 'No Flashbots RPC provided'
 			if (!recipientAddress.value.address) throw 'No recipient provided'
 
-			const [tx] = await signBundle([{ signer: signers.value.burner, transaction: { chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), value: withdrawAmount.value.amount, gasLimit: 21000, type: 2 }}], provider.value.provider, blockInfo.value, getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 10n))
-			const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendPrivateTransaction', params: [{ tx }] })
-			const flashbotsSig = `${await provider.value.authSigner.getAddress()}:${await provider.value.authSigner.signMessage(id(payload))}`
-			const request = await fetch(appSettings.value.relayEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } })
-			const response = await request.json()
-			if (response.error !== undefined && response.error !== null) {
-				throw Error(response.error.message)
+			// Worst case scenario, attempt to send via browser wallet if no NETWORK config for chainId or previos error sending to known RPC
+			if (useBrowserProvider.value === true) {
+				try {
+					const burnerWithBrowserProvider = signers.value.burner.connect(provider.value.provider)
+					const txInput = await burnerWithBrowserProvider.populateTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.fee / 21000n })
+					const tx = await burnerWithBrowserProvider.signTransaction(txInput)
+					const txHash = await provider.value.provider.send('eth_sendRawTransaction', [tx])
+					return txHash as string
+				} catch (error) {
+					throw error
+				}
 			}
-			if ('result' in response && typeof response.result === 'string') return response.result
-			else throw 'Flashbots RPC returned invalid data'
+
+			// If user is on network that is in NETWORK, send via ethRpc
+			const chainId = provider.value.chainId.toString(10)
+			if (!(chainId in NETWORKS)) {
+				useBrowserProvider.value = true
+				throw 'Unkown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
+			}
+
+			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(NETWORKS[chainId].rpcUrl))
+			try {
+				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.fee / 21000n })
+				fundingWithProvider.provider?.destroy()
+				return tx.hash
+			} catch (error) {
+				console.warn('Error sending burner withdraw tx to known RPC:', error)
+				fundingWithProvider.provider?.destroy()
+				useBrowserProvider.value = true
+				throw 'Unkown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
+			}
 		})
 	}
 
@@ -178,7 +209,7 @@ const WithdrawModal = ({ display, blockInfo, signers, appSettings, provider }: {
 					<Button onClick={withdraw} variant='primary'>Withdraw</Button>
 				</div>
 				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title='Error Withdrawing' /> : ''}</p>
-				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={`Transaction submitted with TX Hash ${signedMessage.value.value}`} title='Transaction Submitted' /> : ''}</p>
+				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={blockExplorer.value ? <span>Transaction submitted with TX Hash <a className='hover:underline' href={`${blockExplorer.value}tx/${signedMessage.value.value}`} target='_blank'>{signedMessage.value.value}</a></span> : <span>Transaction submitted with TX Hash {signedMessage.value.value}</span>} title='Transaction Submitted' /> : ''}</p>
 			</div>
 		</div>
 	)
