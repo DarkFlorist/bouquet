@@ -3,6 +3,7 @@ import { EtherSymbol, formatEther, getAddress, JsonRpcProvider, Wallet } from 'e
 import { JSX } from 'preact/jsx-runtime'
 import { NETWORKS } from '../constants.js'
 import { useAsyncState } from '../library/asyncState.js'
+import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
 import { addressString } from '../library/utils.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
@@ -127,9 +128,10 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 	}
 
 	const withdrawAmount = useComputed(() => {
-		let fee = (blockInfo.value.baseFee + blockInfo.value.priorityFee) * 11n / 10n * 21000n
+		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 20n) + blockInfo.value.priorityFee;
+		let fee = maxFeePerGas * 21000n
 		let amount = signers.value.burnerBalance - fee
-		return { amount, fee }
+		return { amount, fee, maxFeePerGas }
 	})
 
 	const { value: signedMessage, waitFor } = useAsyncState<string>()
@@ -156,7 +158,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 			if (useBrowserProvider.value === true) {
 				try {
 					const burnerWithBrowserProvider = signers.value.burner.connect(provider.value.provider)
-					const txInput = await burnerWithBrowserProvider.populateTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.fee / 21000n })
+					const txInput = await burnerWithBrowserProvider.populateTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.maxFeePerGas })
 					const tx = await burnerWithBrowserProvider.signTransaction(txInput)
 					const txHash = await provider.value.provider.send('eth_sendRawTransaction', [tx])
 					return txHash as string
@@ -174,7 +176,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 
 			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(NETWORKS[chainId].rpcUrl))
 			try {
-				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.fee / 21000n })
+				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.maxFeePerGas })
 				fundingWithProvider.provider?.destroy()
 				return tx.hash
 			} catch (error) {
