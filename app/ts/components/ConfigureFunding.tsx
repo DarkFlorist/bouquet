@@ -152,7 +152,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 			if (!provider.value) throw 'User not connected'
 			if (!recipientAddress.value.address) throw 'No recipient provided'
 
-			// Worst case scenario, attempt to send via browser wallet if no NETWORK config for chainId or previos error sending to known RPC
+			// Worst case scenario, attempt to send via browser wallet if no NETWORK config for chainId or previous error sending to known RPC
 			if (useBrowserProvider.value === true) {
 				try {
 					const burnerWithBrowserProvider = signers.value.burner.connect(provider.value.provider)
@@ -169,7 +169,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 			const chainId = provider.value.chainId.toString(10)
 			if (!(chainId in NETWORKS)) {
 				useBrowserProvider.value = true
-				throw 'Unkown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
+				throw 'Unknown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
 			}
 
 			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(NETWORKS[chainId].rpcUrl))
@@ -181,7 +181,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 				console.warn('Error sending burner withdraw tx to known RPC:', error)
 				fundingWithProvider.provider?.destroy()
 				useBrowserProvider.value = true
-				throw 'Unkown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
+				throw 'Unknown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
 			}
 		})
 	}
