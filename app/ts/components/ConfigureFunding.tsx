@@ -128,7 +128,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 	}
 
 	const withdrawAmount = useComputed(() => {
-		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 20n) + blockInfo.value.priorityFee;
+		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 5n) + blockInfo.value.priorityFee;
 		let fee = maxFeePerGas * 21000n
 		let amount = signers.value.burnerBalance - fee
 		return { amount, fee, maxFeePerGas }
