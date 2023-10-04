@@ -12,16 +12,21 @@ npm run vendor
 
 ## Building
 
-Preact App
-
 ```bash
+# Styles via Tailwind
+npm run styles
+
+# Preact App
 npm run build
 ```
 
-Styles via Tailwind
+## Devlopment
+
+Run `watch` to live rebuilds the Preact app.
+You will need to also need to serve the output and rebuild Tailwind classes when needed.
 
 ```bash
-npm run styles
+npm run watch
 ```
 
 ## Preview
