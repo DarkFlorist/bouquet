@@ -20,7 +20,7 @@ npm run styles
 npm run build
 ```
 
-## Devlopment
+## Dev
 
 Run `watch` to live rebuilds the Preact app.
 You will need to also need to serve the output and rebuild Tailwind classes when needed.
