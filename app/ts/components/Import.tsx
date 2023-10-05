@@ -46,8 +46,8 @@ export async function importFromInterceptor(
 	if (!converted.success) throw new Error('Malformed simulation stack')
 
 	if (converted.value.length >= 2 && converted.value[0].to === converted.value[1].from && converted.value[0].value === parseEther('200000')) {
-		const fundingAddrr = converted.value[0].from
-		converted.value = converted.value.map(tx => tx.from === fundingAddrr ? { ...tx, from: 'FUNDING' } : tx)
+		const fundingAddr = converted.value[0].from
+		converted.value = converted.value.map(tx => tx.from === fundingAddr ? { ...tx, from: 'FUNDING' } : tx)
 	}
 
 	const uniqueToAddresses = [...new Set(converted.value.map(({ from }) => from))]
@@ -58,14 +58,36 @@ export async function importFromInterceptor(
 
 	// Take addresses that recieved funding, determine spend deficit - gas fees
 	const fundingRecipients = new Set(converted.value.reduce((result: bigint[], tx) => (tx.to && tx.from === 'FUNDING' ? [...result, tx.to] : result), []))
-	const spenderDeficits = tryParse.value.reduce((amounts: { [account: string]: bigint }, tx) => {
+
+	const spenderDeficits = tryParse.value.reduce((amounts: { [account: string]: { deficit: bigint, credit: bigint } }, tx) => {
 		if (!fundingRecipients.has(tx.from)) return amounts
-		const txDiff = tx.balanceChanges.filter(x => x.address === tx.from).reduce((sum, bal) => sum + bal.before - bal.after, 0n) + tx.maxPriorityFeePerGas * tx.gasSpent
-		const amount = amounts[tx.from.toString()] ? amounts[tx.from.toString()] + txDiff : txDiff
-		amounts[tx.from.toString()] = amount
+		const receipientBalanceChanges = tx.balanceChanges.filter(x => x.address === tx.from)
+
+		const consumed = tx.value
+		// Rebate is the difference between balance change and consume amount (if there were any internal transactions sending ETH back), ignore gas fees
+		const balanceChange = receipientBalanceChanges.reduce((result: bigint, balanceChange) => result + balanceChange.after - balanceChange.before, 0n)
+		const rebate = balanceChange + consumed + tx.maxPriorityFeePerGas * tx.gasSpent
+
+		// Calcuate current deficit
+		if (tx.from.toString() in amounts) {
+			// If credit, deduct current credit from new consumption, or cancel out new consumption and open credit - whichever is smaller
+			if (amounts[tx.from.toString()].credit > 0n) {
+				if (amounts[tx.from.toString()].credit <= consumed) {
+					amounts[tx.from.toString()].deficit += consumed - amounts[tx.from.toString()].credit
+					amounts[tx.from.toString()].credit = rebate
+				} else {
+					// If consumed less than current rebates, deficit does not increase.
+					amounts[tx.from.toString()].credit += rebate - consumed
+				}
+			}
+		} else {
+			amounts[tx.from.toString()] = { deficit: consumed, credit: rebate }
+		}
 		return amounts
+
 	}, {})
-	const inputValue = Object.values(spenderDeficits).reduce((sum, amount) => amount + sum, 0n)
+
+	const inputValue = Object.values(spenderDeficits).reduce((sum, spender) => spender.deficit + sum, 0n)
 
 	// Copy value and set, input of funding to inputValue
 	const transactions = [...converted.value]
