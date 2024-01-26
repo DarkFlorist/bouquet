@@ -2,15 +2,19 @@
 	"name": "absurd-use",
 	"version": "0.0.1",
 	"private": true,
+	"type": "module",
 	"scripts": {
+		"setup": "npm ci --ignore-scripts && tsc && npm run vendor",
 		"build": "tsc",
 		"watch": "tsc --watch",
-		"serve": "npx http-server ./app",
-		"vendor": "npm ci --ignore-scripts && cd build && npm ci --ignore-scripts && npm run vendor",
+		"serve": "npx http-server --gzip ./app",
+		"vendor": "tsc --project tsconfig.vendor.json && node --enable-source-maps ./build/vendor.mjs && node --input-type=module -e \"import { promises as fs } from 'fs'; await fs.rm('./build/vendor.mjs')\"",
 		"styles": "cd twcss && npm run styles"
 	},
 	"devDependencies": {
-		"typescript": "4.9.3"
+		"@types/node": "20.11.7",
+		"@zoltu/file-copier": "3.0.0",
+		"typescript": "5.3.3"
 	},
 	"dependencies": {
 		"@preact/signals": "1.1.1",
