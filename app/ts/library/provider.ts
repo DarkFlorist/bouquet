@@ -29,12 +29,6 @@ const addProvider = async (
 
 	if (![1n, 5n].includes(network.chainId)) {
 		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().simulationRelayEndpoint === NETWORKS['1'].simulationRelay ? '0x1' : '0x5' }])
-	} else {
-		appSettings.value = {
-			...appSettings.peek(),
-			simulationRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
-			submissionRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].submissionRelay : NETWORKS['5'].submissionRelay,
-		 }
 	}
 
 	store.value = {
