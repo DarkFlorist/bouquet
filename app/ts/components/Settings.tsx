@@ -35,15 +35,15 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
 
 	// https://urlregex.com/
-	const matchUrl = (value: string) => value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
+	const matchUrl = (value: string) => value.match(/(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})/g)
 
 	function validateSimulationRelayEndpointInput(value: string) {
 		const matched = matchUrl(value)
-		simulationRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
+		simulationRelayEndpointInput.value = { value, valid: matched !== null && matched.length === 1  }
 	}
-	function validateAndSetsubmissionRelayEndpointInput(value: string) {
+	function validateAndSetSubmissionRelayEndpointInput(value: string) {
 		const matched = matchUrl(value)
-		submissionRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
+		submissionRelayEndpointInput.value = { value, valid: matched !== null && matched.length === 1 }
 	}
 
 	function validateAndSetPriorityFeeInput(value: string) {
@@ -55,7 +55,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 			return priorityFeeInput.value = { value, valid: false }
 		}
 	}
-	function validateBlocksInFutureInput(value: string) {
+	function validateAndSetBlocksInFutureInput(value: string) {
 		if (!value) return blocksInFutureInput.value = { value, valid: false }
 		try {
 			BigInt(value)
@@ -111,7 +111,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Bundle Submit Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetsubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetSubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>
@@ -119,7 +119,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 				</div>
 				<div className='flex gap-2'>
 					<Button onClick={saveSettings} disabled={!allValidInputs.value} variant='primary'>Save</Button>
