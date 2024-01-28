@@ -107,7 +107,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 
 	const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendBundle', params: [{ txs, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }] })
 	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
-	const request = await fetch(appSettings.submitRelayEndpoint,
+	const request = await fetch(appSettings.submissionRelayEndpoint,
 		{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
 	)
 	const response = await request.json()

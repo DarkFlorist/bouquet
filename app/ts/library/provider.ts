@@ -33,7 +33,7 @@ const addProvider = async (
 		appSettings.value = {
 			...appSettings.peek(),
 			simulationRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
-			submitRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].submitRelay : NETWORKS['5'].submitRelay,
+			submissionRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].submissionRelay : NETWORKS['5'].submissionRelay,
 		 }
 	}
 
@@ -96,7 +96,7 @@ export const connectBrowserProvider = async (
 				appSettings.value = {
 					...appSettings.peek(),
 					simulationRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
-					submitRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].submitRelay : NETWORKS['5'].submitRelay
+					submissionRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].submissionRelay : NETWORKS['5'].submissionRelay
 				}
 				store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
 			})

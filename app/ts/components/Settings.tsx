@@ -28,11 +28,11 @@ export const SettingsIcon = () => {
 
 export const SettingsModal = ({ display, appSettings }: { display: Signal<boolean>, appSettings: Signal<AppSettings> }) => {
 	const simulationRelayEndpointInput = useSignal({ value: appSettings.peek().simulationRelayEndpoint, valid: true })
-	const submitRelayEndpointInput = useSignal({ value: appSettings.peek().submitRelayEndpoint, valid: true })
+	const submissionRelayEndpointInput = useSignal({ value: appSettings.peek().submissionRelayEndpoint, valid: true })
 	const priorityFeeInput = useSignal({ value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true })
 	const blocksInFutureInput = useSignal({ value: appSettings.peek().blocksInFuture.toString(10), valid: true })
 
-	const allValidInputs = useComputed(() => submitRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
+	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
 
 	// https://urlregex.com/
 	const matchUrl = (value: string) => value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
@@ -41,12 +41,12 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		const matched = matchUrl(value)
 		simulationRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
 	}
-	function validateSubmitRelayEndpointInput(value: string) {
+	function validateAndSetsubmissionRelayEndpointInput(value: string) {
 		const matched = matchUrl(value)
-		submitRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
+		submissionRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
 	}
 
-	function validatePriorityFeeInput(value: string) {
+	function validateAndSetPriorityFeeInput(value: string) {
 		if (!value) return priorityFeeInput.value = { value, valid: false }
 		try {
 			parseUnits(String(Number(value)), 'gwei');
@@ -66,28 +66,28 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function saveSettings() {
 		if (allValidInputs.value) {
-			const newSettings: AppSettings = { submitRelayEndpoint: submitRelayEndpointInput.value.value, simulationRelayEndpoint: simulationRelayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
+			const newSettings: AppSettings = { submissionRelayEndpoint: submissionRelayEndpointInput.value.value, simulationRelayEndpoint: simulationRelayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
 			appSettings.value = newSettings
 			localStorage.setItem('bouquetSettings', JSON.stringify({
 				priorityFee: newSettings.priorityFee.toString(),
 				blocksInFuture: newSettings.blocksInFuture.toString(),
 				simulationRelayEndpoint: newSettings.simulationRelayEndpoint,
-				submitRelayEndpoint: newSettings.submitRelayEndpoint,
+				submissionRelayEndpoint: newSettings.submissionRelayEndpoint,
 			}))
 			close()
 		}
 	}
 	function resetSettings() {
 		batch(() => {
-			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: NETWORKS['1'].simulationRelay, submitRelayEndpoint: NETWORKS['1'].submitRelay };
+			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: NETWORKS['1'].simulationRelay, submissionRelayEndpoint: NETWORKS['1'].submissionRelay };
 			localStorage.setItem('bouquetSettings', JSON.stringify({
 				priorityFee: appSettings.value.priorityFee.toString(),
 				blocksInFuture: appSettings.value.blocksInFuture.toString(),
 				simulationRelayEndpoint: appSettings.value.simulationRelayEndpoint,
-				submitRelayEndpoint: appSettings.value.submitRelayEndpoint,
+				submissionRelayEndpoint: appSettings.value.submissionRelayEndpoint,
 			}))
 			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
-			submitRelayEndpointInput.value = { value: appSettings.peek().submitRelayEndpoint, valid: true }
+			submissionRelayEndpointInput.value = { value: appSettings.peek().submissionRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
 			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
 		})
@@ -95,7 +95,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	function close() {
 		batch(() => {
 			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
-			submitRelayEndpointInput.value = { value: appSettings.peek().submitRelayEndpoint, valid: true }
+			submissionRelayEndpointInput.value = { value: appSettings.peek().submissionRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
 			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
 			display.value = false
@@ -109,13 +109,13 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 					<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submitRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Bundle Submit Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSubmitRelayEndpointInput(e.currentTarget.value)} value={submitRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetsubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validatePriorityFeeInput(e.currentTarget.value)} value={priorityFeeInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetPriorityFeeInput(e.currentTarget.value)} value={priorityFeeInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>

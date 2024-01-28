@@ -269,7 +269,7 @@ export const Submit = ({
 				<div className='flex flex-col w-full gap-4'>
 					<div>
 						<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
-						<p><span className='font-bold'>Relays:</span> simulation:{appSettings.value.simulationRelayEndpoint}, submit:{appSettings.value.submitRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
+						<p><span className='font-bold'>Relays:</span> simulation:{appSettings.value.simulationRelayEndpoint}, submit:{appSettings.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
 						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
 						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>
 					</div>
