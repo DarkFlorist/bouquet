@@ -27,17 +27,25 @@ export const SettingsIcon = () => {
 }
 
 export const SettingsModal = ({ display, appSettings }: { display: Signal<boolean>, appSettings: Signal<AppSettings> }) => {
-	const relayEndpointInput = useSignal({ value: appSettings.peek().relayEndpoint, valid: true })
+	const simulationRelayEndpointInput = useSignal({ value: appSettings.peek().simulationRelayEndpoint, valid: true })
+	const submitRelayEndpointInput = useSignal({ value: appSettings.peek().submitRelayEndpoint, valid: true })
 	const priorityFeeInput = useSignal({ value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true })
 	const blocksInFutureInput = useSignal({ value: appSettings.peek().blocksInFuture.toString(10), valid: true })
 
-	const allValidInputs = useComputed(() => relayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
+	const allValidInputs = useComputed(() => submitRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
 
-	function validateRelayEndpointInput(value: string) {
-		// https://urlregex.com/
-		const matchURL = value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
-		relayEndpointInput.value = { value, valid: !value || !matchURL || matchURL.length !== 1 }
+	// https://urlregex.com/
+	const matchUrl = (value: string) => value.match(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[\-;:&=\+\$,\w]+@)?[A-Za-z0-9\.\-]+|(?:www\.|[\-;:&=\+\$,\w]+@)[A-Za-z0-9\.\-]+)((?:\/[\+~%\/\.\w\-_]*)?\??(?:[\-\+=&;%@\.\w_]*)#?(?:[\.\!\/\\\w]*))?)/g)
+
+	function validateSimulationRelayEndpointInput(value: string) {
+		const matched = matchUrl(value)
+		simulationRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
 	}
+	function validateSubmitRelayEndpointInput(value: string) {
+		const matched = matchUrl(value)
+		submitRelayEndpointInput.value = { value, valid: !value || !matched || matched.length !== 1 }
+	}
+
 	function validatePriorityFeeInput(value: string) {
 		if (!value) return priorityFeeInput.value = { value, valid: false }
 		try {
@@ -58,24 +66,36 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function saveSettings() {
 		if (allValidInputs.value) {
-			const newSettings: AppSettings = { relayEndpoint: relayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
+			const newSettings: AppSettings = { submitRelayEndpoint: submitRelayEndpointInput.value.value, simulationRelayEndpoint: simulationRelayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
 			appSettings.value = newSettings
-			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: newSettings.priorityFee.toString(), blocksInFuture: newSettings.blocksInFuture.toString(), relayEndpoint: newSettings.relayEndpoint }))
+			localStorage.setItem('bouquetSettings', JSON.stringify({
+				priorityFee: newSettings.priorityFee.toString(),
+				blocksInFuture: newSettings.blocksInFuture.toString(),
+				simulationRelayEndpoint: newSettings.simulationRelayEndpoint,
+				submitRelayEndpoint: newSettings.submitRelayEndpoint,
+			}))
 			close()
 		}
 	}
 	function resetSettings() {
 		batch(() => {
-			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: NETWORKS['1'].mevRelay };
-			localStorage.setItem('bouquetSettings', JSON.stringify({ priorityFee: appSettings.value.priorityFee.toString(), blocksInFuture: appSettings.value.blocksInFuture.toString(), relayEndpoint: appSettings.value.relayEndpoint }))
-			relayEndpointInput.value = { value: appSettings.peek().relayEndpoint, valid: true }
+			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: NETWORKS['1'].simulationRelay, submitRelayEndpoint: NETWORKS['1'].submitRelay };
+			localStorage.setItem('bouquetSettings', JSON.stringify({
+				priorityFee: appSettings.value.priorityFee.toString(),
+				blocksInFuture: appSettings.value.blocksInFuture.toString(),
+				simulationRelayEndpoint: appSettings.value.simulationRelayEndpoint,
+				submitRelayEndpoint: appSettings.value.submitRelayEndpoint,
+			}))
+			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
+			submitRelayEndpointInput.value = { value: appSettings.peek().submitRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
 			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
 		})
 	}
 	function close() {
 		batch(() => {
-			relayEndpointInput.value = { value: appSettings.peek().relayEndpoint, valid: true }
+			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
+			submitRelayEndpointInput.value = { value: appSettings.peek().submitRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
 			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
 			display.value = false
@@ -85,9 +105,13 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
 			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!relayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-					<span className='text-sm text-gray-500'>MEV Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateRelayEndpointInput(e.currentTarget.value)} value={relayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+					<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+				</div>
+				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submitRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+					<span className='text-sm text-gray-500'>Bundle Submit Relay URL</span>
+					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSubmitRelayEndpointInput(e.currentTarget.value)} value={submitRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>

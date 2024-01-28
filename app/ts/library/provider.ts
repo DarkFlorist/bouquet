@@ -28,9 +28,13 @@ const addProvider = async (
 	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
 
 	if (![1n, 5n].includes(network.chainId)) {
-		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().relayEndpoint === NETWORKS['1'].mevRelay ? '0x1' : '0x5' }])
+		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().simulationRelayEndpoint === NETWORKS['1'].simulationRelay ? '0x1' : '0x5' }])
 	} else {
-		appSettings.value = { ...appSettings.peek(), relayEndpoint: network.chainId === 1n ? NETWORKS['1'].mevRelay : NETWORKS['5'].mevRelay }
+		appSettings.value = {
+			...appSettings.peek(),
+			simulationRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
+			submitRelayEndpoint: network.chainId === 1n ? NETWORKS['1'].submitRelay : NETWORKS['5'].submitRelay,
+		 }
 	}
 
 	store.value = {
@@ -89,7 +93,11 @@ export const connectBrowserProvider = async (
 	const chainChangedCallback = async (chainId: string) => {
 		if ([1n, 5n].includes(BigInt(chainId))) {
 			batch(() => {
-				appSettings.value = { ...appSettings.peek(), relayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].mevRelay : NETWORKS['5'].mevRelay }
+				appSettings.value = {
+					...appSettings.peek(),
+					simulationRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
+					submitRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].submitRelay : NETWORKS['5'].submitRelay
+				}
 				store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
 			})
 		} else {
