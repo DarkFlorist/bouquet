@@ -38,14 +38,15 @@ function fetchBundleFromStorage(): Bundle | undefined {
 }
 
 function fetchSettingsFromStorage() {
-	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, relayEndpoint: NETWORKS['1'].mevRelay };
+	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: NETWORKS['1'].simulationRelay, submissionRelayEndpoint: NETWORKS['1'].submissionRelay };
 	const custom = localStorage.getItem('bouquetSettings')
 	if (!custom) {
 		return defaultValues
 	} else {
 		try {
 			const parsed = JSON.parse(custom)
-			if ('relayEndpoint' in parsed) defaultValues.relayEndpoint = parsed.relayEndpoint
+			if ('simulationRelayEndpoint' in parsed) defaultValues.simulationRelayEndpoint = parsed.simulationRelayEndpoint
+			if ('submissionRelayEndpoint' in parsed) defaultValues.submissionRelayEndpoint = parsed.submissionRelayEndpoint
 			if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
 			if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
 			return defaultValues

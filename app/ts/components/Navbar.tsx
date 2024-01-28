@@ -15,11 +15,13 @@ export const Navbar = ({
 }) => {
 	const switchNetwork = async (e: Event) => {
 		const elm = e.target as HTMLSelectElement
-		const relayEndpoint = elm.value
+		if (elm.value !== '1' && elm.value !== '5') return
+		const simulationRelayEndpoint = NETWORKS[elm.value].simulationRelay
+		const submissionRelayEndpoint = NETWORKS[elm.value].submissionRelay
 		if (!provider.value) {
-			appSettings.value = { ...appSettings.peek(), relayEndpoint }
+			appSettings.value = { ...appSettings.peek(), simulationRelayEndpoint, submissionRelayEndpoint }
 		} else {
-			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: relayEndpoint === NETWORKS['1'].mevRelay ? '0x1' : '0x5' }])
+			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: simulationRelayEndpoint === NETWORKS['1'].simulationRelay ? '0x1' : '0x5' }])
 		}
 	}
 
@@ -38,14 +40,14 @@ export const Navbar = ({
 							<span className='text-gray-500 text-md w-max flex gap-1 items-center'>
 								<svg width='1em' height='1em' viewBox='0 0 48 48' xmlns='http://www.w3.org/2000/svg' className='inline-block'><path fill='currentColor' d='M44 32h-2v-8a2 2 0 0 0-2-2H26v-6h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2v6H8a2 2 0 0 0-2 2v8H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2v-6h12v6h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-2v-6h12v6h-2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2Zm-34 8H6v-4h4ZM22 8h4v4h-4Zm4 32h-4v-4h4Zm16 0h-4v-4h4Z' data-name='icons Q2'></path></svg>
 								<select
-									value={appSettings.value.relayEndpoint}
+									value={'1'}
 									onChange={switchNetwork}
 									className='px-2 py-1 bg-black'
 								>
-									<option value={NETWORKS['1'].mevRelay}>Ethereum</option>
-									<option value={NETWORKS['5'].mevRelay}>Goerli</option>
-									{appSettings.value.relayEndpoint !== NETWORKS['1'].mevRelay && appSettings.value.relayEndpoint !== NETWORKS['5'].mevRelay ?
-										<option value={appSettings.value.relayEndpoint}>Custom</option>
+									<option value={'1'}>Ethereum</option>
+									<option value={'5'}>Goerli</option>
+									{appSettings.value.simulationRelayEndpoint !== NETWORKS['1'].simulationRelay && appSettings.value.simulationRelayEndpoint !== NETWORKS['5'].simulationRelay ?
+										<option value={'custom'}>Custom</option>
 										: null}
 								</select>
 							</span>
