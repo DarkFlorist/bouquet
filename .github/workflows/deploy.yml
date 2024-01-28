@@ -15,8 +15,8 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Install and Build
         run: |
+          npm run setup
           npm run vendor
-          npm run styles
           npm run build
       - name: Deploy to GH Pages
         run: |
