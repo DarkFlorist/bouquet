@@ -94,6 +94,7 @@ export async function simulateBundle(
 	}
 }
 
+let bundleId = 1
 export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, appSettings: AppSettings) {
 	if (appSettings.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 
@@ -105,7 +106,12 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 		maxBaseFee,
 	)
 
-	const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_sendBundle', params: [{ txs, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }] })
+	const payload = JSON.stringify({
+		jsonrpc: '2.0',
+		method: 'eth_sendBundle',
+		id: bundleId++,
+		params: [{ txs, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
+	})
 	const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 	const request = await fetch(appSettings.submissionRelayEndpoint,
 		{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }

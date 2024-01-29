@@ -115,7 +115,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-					<span className='text-sm text-gray-500'>Bundle Submit Relay URL</span>
+					<span className='text-sm text-gray-500'>Bundle Submission Relay URL</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetSubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 				</div>
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
