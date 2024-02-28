@@ -119,7 +119,7 @@ jobs:
             --header "Authorization: Bearer $GITHUB_TOKEN" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
             --data "$REQUEST_DATA" \
-            --write-out "%{http_code}" \ # append the status code to response
+            --write-out "%{http_code}" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases"
           )
 
