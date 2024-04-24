@@ -141,8 +141,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 
 	const blockExplorer = useComputed<string | undefined>(() => {
 		if (provider.value) {
-			const chainId = provider.value.chainId.toString(10)
-			return chainId in NETWORKS ? NETWORKS[chainId].blockExplorer : undefined
+			return NETWORKS.get(provider.value.chainId)?.blockExplorer
 		}
 		return undefined
 	})
@@ -168,13 +167,13 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 			}
 
 			// If user is on network that is in NETWORK, send via ethRpc
-			const chainId = provider.value.chainId.toString(10)
-			if (!(chainId in NETWORKS)) {
+			const network = NETWORKS.get(provider.value.chainId)
+			if (network === undefined) {
 				useBrowserProvider.value = true
 				throw 'Unknown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
 			}
 
-			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(NETWORKS[chainId].rpcUrl))
+			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(network.rpcUrl))
 			try {
 				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.maxFeePerGas })
 				fundingWithProvider.provider?.destroy()

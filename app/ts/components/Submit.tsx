@@ -80,8 +80,8 @@ export const Bundles = ({
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
-	const chainIdString = provider.value ? provider.value.chainId.toString(10) : '-1'
-	const blockExplorerBaseUrl = NETWORKS[chainIdString].blockExplorer ?? null
+	const network = provider.value ? NETWORKS.get(provider.value.chainId) : undefined
+	const blockExplorerBaseUrl = network !== undefined ? network.blockExplorer : null
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>
