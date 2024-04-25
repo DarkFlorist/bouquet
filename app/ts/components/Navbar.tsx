@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { NETWORKS, findNetworkBySimulationRelayEndpoint } from '../constants.js'
+import { NETWORKS, findNetworkBySimulationRelayEndpoint, getSupportedNetworksNamesAndIds } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
 import { AppSettings, serialize } from '../types/types.js'
@@ -45,8 +45,7 @@ export const Navbar = ({
 									onChange={switchNetwork}
 									className='px-2 py-1 bg-black'
 								>
-									<option value={'1'}>Ethereum</option>
-									<option value={'5'}>Goerli</option>
+									{getSupportedNetworksNamesAndIds().map((pair) => <option value={pair.chainid.toString()}>{ pair.networkName }</option>)}
 									{findNetworkBySimulationRelayEndpoint(appSettings.value.simulationRelayEndpoint) === undefined ?
 										<option value={'custom'}>Custom</option>
 										: null}
