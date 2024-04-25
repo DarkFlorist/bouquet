@@ -1,7 +1,7 @@
 import { batch, Signal, useComputed, useSignal } from '@preact/signals'
 import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
-import { NETWORKS } from '../constants.js'
+import { MAINNET } from '../constants.js'
 import { AppSettings } from '../types/types.js'
 import { Button } from './Button.js'
 
@@ -84,7 +84,7 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 	}
 	function resetSettings() {
 		batch(() => {
-			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: NETWORKS['1'].simulationRelay, submissionRelayEndpoint: NETWORKS['1'].submissionRelay };
+			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: MAINNET.simulationRelay, submissionRelayEndpoint: MAINNET.submissionRelay };
 			localStorage.setItem('bouquetSettings', JSON.stringify({
 				priorityFee: appSettings.value.priorityFee.toString(),
 				blocksInFuture: appSettings.value.blocksInFuture.toString(),

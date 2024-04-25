@@ -2,7 +2,7 @@ import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/sign
 import { EtherSymbol, formatEther, getAddress, Interface, parseEther, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
 import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
-import { NETWORKS } from '../constants.js'
+import { MAINNET, findNetworkBySimulationRelayEndpoint } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
@@ -56,12 +56,11 @@ export const Transactions = ({
 		try {
 			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? addressString(tx.to) : null ).filter(addr => addr))] as string[]
 			const abis: (string | undefined)[] = []
-
+			const network = findNetworkBySimulationRelayEndpoint(appSettings.peek().simulationRelayEndpoint) ?? MAINNET
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
-						`https://api${appSettings.peek().simulationRelayEndpoint === NETWORKS['5'].simulationRelay ? '-goerli' : ''
-						}.etherscan.io/api?module=contract&action=getsourcecode&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
+						`${ network.blockExplorerApi }/api?module=contract&action=getsourcecode&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
 					),
 				),
 			)
@@ -73,7 +72,7 @@ export const Transactions = ({
 				if (contract.success == false || contract.value.status !== '1') abis.push(undefined)
 				else {
 					if (contract.value.result[0].Proxy === '1' && contract.value.result[0].Implementation !== '') {
-						const implReq = await fetch(`https://api${appSettings.peek().simulationRelayEndpoint ===  NETWORKS['5'].simulationRelay ? '-goerli' : ''}.etherscan.io/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
+						const implReq = await fetch(`${ network.blockExplorerApi }/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
 						const implResult = EtherscanGetABIResult.safeParse(await implReq.json())
 						abis.push(implResult.success && implResult.value.status === '1' ? implResult.value.result : undefined)
 					} else abis.push(contract.value.result[0].ABI && contract.value.result[0].ABI !== 'Contract source code not verified' ? contract.value.result[0].ABI : undefined)

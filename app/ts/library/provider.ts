@@ -1,6 +1,6 @@
 import { batch, Signal } from '@preact/signals'
 import { Block, BrowserProvider, getAddress, HDNodeWallet, Wallet } from 'ethers'
-import { NETWORKS } from '../constants.js'
+import { findNetworkBySimulationRelayEndpoint, NETWORKS } from '../constants.js'
 import { AddressParser, EthereumAddress } from '../types/ethereumTypes.js'
 import { AppSettings, BlockInfo, Signers } from '../types/types.js'
 
@@ -26,9 +26,10 @@ const addProvider = async (
 
 	const parsedAddress = AddressParser.parse(getAddress(address))
 	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
-
-	if (![1n, 5n].includes(network.chainId)) {
-		await provider.send('wallet_switchEthereumChain', [{ chainId: appSettings.peek().simulationRelayEndpoint === NETWORKS['1'].simulationRelay ? '0x1' : '0x5' }])
+	const relayNetwork = NETWORKS.get(network.chainId)
+	if (relayNetwork === undefined) {
+		const found = findNetworkBySimulationRelayEndpoint(appSettings.peek().simulationRelayEndpoint)
+		await provider.send('wallet_switchEthereumChain', [{ chainId: found?.chainId || '0x1' }])
 	}
 
 	store.value = {
@@ -85,12 +86,13 @@ export const connectBrowserProvider = async (
 		}
 	}
 	const chainChangedCallback = async (chainId: string) => {
-		if ([1n, 5n].includes(BigInt(chainId))) {
+		const network = NETWORKS.get(BigInt(chainId))
+		if (network !== undefined) {
 			batch(() => {
 				appSettings.value = {
 					...appSettings.peek(),
-					simulationRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].simulationRelay : NETWORKS['5'].simulationRelay,
-					submissionRelayEndpoint: BigInt(chainId) === 1n ? NETWORKS['1'].submissionRelay : NETWORKS['5'].submissionRelay
+					simulationRelayEndpoint: network.simulationRelay,
+					submissionRelayEndpoint: network.submissionRelay
 				}
 				store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
 			})

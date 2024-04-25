@@ -1,5 +1,5 @@
 import { Signal, useComputed, useSignal } from '@preact/signals'
-import { NETWORKS } from '../constants.js'
+import { NETWORKS, findNetworkBySimulationRelayEndpoint, getSupportedNetworksNamesAndIds } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
 import { AppSettings, serialize } from '../types/types.js'
@@ -15,13 +15,14 @@ export const Navbar = ({
 }) => {
 	const switchNetwork = async (e: Event) => {
 		const elm = e.target as HTMLSelectElement
-		if (elm.value !== '1' && elm.value !== '5') return
-		const simulationRelayEndpoint = NETWORKS[elm.value].simulationRelay
-		const submissionRelayEndpoint = NETWORKS[elm.value].submissionRelay
+		const network = NETWORKS.get(BigInt(elm.value))
+		if (network === undefined) return
+		const simulationRelayEndpoint = network.simulationRelay
+		const submissionRelayEndpoint = network.submissionRelay
 		if (!provider.value) {
 			appSettings.value = { ...appSettings.peek(), simulationRelayEndpoint, submissionRelayEndpoint }
 		} else {
-			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: simulationRelayEndpoint === NETWORKS['1'].simulationRelay ? '0x1' : '0x5' }])
+			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: network.chainId }])
 		}
 	}
 
@@ -44,9 +45,8 @@ export const Navbar = ({
 									onChange={switchNetwork}
 									className='px-2 py-1 bg-black'
 								>
-									<option value={'1'}>Ethereum</option>
-									<option value={'5'}>Goerli</option>
-									{appSettings.value.simulationRelayEndpoint !== NETWORKS['1'].simulationRelay && appSettings.value.simulationRelayEndpoint !== NETWORKS['5'].simulationRelay ?
+									{getSupportedNetworksNamesAndIds().map((pair) => <option value={pair.chainid.toString()}>{ pair.networkName }</option>)}
+									{findNetworkBySimulationRelayEndpoint(appSettings.value.simulationRelayEndpoint) === undefined ?
 										<option value={'custom'}>Custom</option>
 										: null}
 								</select>
