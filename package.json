@@ -1,7 +1,9 @@
 {
-	"name": "absurd-use",
+	"name": "bouquet",
 	"version": "0.0.1",
-	"private": true,
+	"description": "Turn your Interceptor simulations into MEV bundles",
+	"repository": "https://github.com/darkflorist/bouquet",
+	"license": "Unlicense",
 	"type": "module",
 	"scripts": {
 		"setup": "npm ci --ignore-scripts && tsc && npm run vendor",
