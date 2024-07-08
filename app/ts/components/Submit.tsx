@@ -158,7 +158,7 @@ export const Submit = ({
 	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
 
 	useSignalEffect(() => {
-		if (blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
+		if (submissionStatus.value.lastBlock > 0n && blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
 			bundleSubmission(blockInfo.value.blockNumber)
 		}
 	})
