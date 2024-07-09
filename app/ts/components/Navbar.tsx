@@ -2,16 +2,24 @@ import { Signal, useComputed, useSignal } from '@preact/signals'
 import { NETWORKS, findNetworkBySimulationRelayEndpoint, getSupportedNetworksNamesAndIds } from '../constants.js'
 import { ProviderStore } from '../library/provider.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
-import { AppSettings, serialize } from '../types/types.js'
+import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { Blockie } from './Blockie.js'
 import { SettingsIcon, SettingsModal } from './Settings.js'
+import { Button } from './Button.js'
+import { importFromInterceptor } from './Import.js'
 
 export const Navbar = ({
 	provider,
-	appSettings
+	appSettings,
+	blockInfo,
+	bundle,
+	signers
 }: {
 	provider: Signal<ProviderStore | undefined>,
-	appSettings: Signal<AppSettings>
+	blockInfo: Signal<BlockInfo>,
+	appSettings: Signal<AppSettings>,
+	bundle: Signal<Bundle | undefined>,
+	signers: Signal<Signers>,
 }) => {
 	const switchNetwork = async (e: Event) => {
 		const elm = e.target as HTMLSelectElement
@@ -54,10 +62,12 @@ export const Navbar = ({
 						</div >
 						<Blockie address={walletAddress} scale={blockieScale} />
 					</>
-				) : (
-					<>
-						<p className='w-max'>No Wallet Connected</p>
-					</>
+				) : (!provider.value && bundle.value ? <p className='w-max'> No Wallet Connected </p> :
+					<div className='w-max'>
+						<Button onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers)} >
+							Connect Wallet
+						</Button>
+					</div>
 				)}
 				<button class='hover:rotate-45 duration-200 ml-2' onClick={() => (showSettings.value = true)}>
 					<SettingsIcon />
