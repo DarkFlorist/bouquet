@@ -1,8 +1,9 @@
 import { batch, Signal } from '@preact/signals'
 import { Block, BrowserProvider, getAddress, HDNodeWallet, Wallet } from 'ethers'
-import { findNetworkBySimulationRelayEndpoint, NETWORKS } from '../constants.js'
 import { AddressParser, EthereumAddress } from '../types/ethereumTypes.js'
-import { AppSettings, BlockInfo, Signers } from '../types/types.js'
+import { BlockInfo, Signers } from '../types/types.js'
+import { BouquetSettings } from '../types/bouquetTypes.js'
+import { getNetwork } from '../constants.js'
 
 export type ProviderStore = {
 	provider: BrowserProvider
@@ -17,7 +18,6 @@ const addProvider = async (
 	store: Signal<ProviderStore | undefined>,
 	provider: BrowserProvider,
 	clearEvents: () => unknown,
-	appSettings: Signal<AppSettings>,
 	isInterceptor: boolean
 ) => {
 	const [signer, network] = await Promise.all([provider.getSigner(), provider.getNetwork()])
@@ -26,11 +26,6 @@ const addProvider = async (
 
 	const parsedAddress = AddressParser.parse(getAddress(address))
 	if (!parsedAddress.success) throw new Error('Provider provided invalid address!')
-	const relayNetwork = NETWORKS.get(network.chainId)
-	if (relayNetwork === undefined) {
-		const found = findNetworkBySimulationRelayEndpoint(appSettings.peek().simulationRelayEndpoint)
-		await provider.send('wallet_switchEthereumChain', [{ chainId: found?.chainId || '0x1' }])
-	}
 
 	store.value = {
 		provider,
@@ -55,7 +50,7 @@ export const connectBrowserProvider = async (
 		priorityFee: bigint
 	}>,
 	signers: Signal<Signers> | undefined,
-	appSettings: Signal<AppSettings>
+	bouquetSettings: Signal<BouquetSettings>
 ) => {
 	if (!window.ethereum || !window.ethereum.request) throw new Error('No injected wallet detected')
 	await window.ethereum.request({ method: 'eth_requestAccounts' }).catch((err: { code: number }) => {
@@ -86,19 +81,11 @@ export const connectBrowserProvider = async (
 		}
 	}
 	const chainChangedCallback = async (chainId: string) => {
-		const network = NETWORKS.get(BigInt(chainId))
-		if (network !== undefined) {
-			batch(() => {
-				appSettings.value = {
-					...appSettings.peek(),
-					simulationRelayEndpoint: network.simulationRelay,
-					submissionRelayEndpoint: network.submissionRelay
-				}
-				store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
-			})
-		} else {
+		const network = getNetwork(bouquetSettings.peek(), BigInt(chainId))
+		batch(() => {
+			bouquetSettings.value = { ...bouquetSettings.peek(), ...network }
 			store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
-		}
+		})
 
 		const [accounts, block] = await Promise.all([provider.listAccounts(), provider.getBlock('latest')])
 		if (accounts.length > 0 && window.ethereum) {
@@ -130,7 +117,7 @@ export const connectBrowserProvider = async (
 	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.0'] })])
 	const isInterceptor = getSimulationStack.status === 'fulfilled'
 
-	addProvider(store, provider, clearEvents, appSettings, isInterceptor)
+	addProvider(store, provider, clearEvents, isInterceptor)
 }
 
 export async function updateLatestBlock(

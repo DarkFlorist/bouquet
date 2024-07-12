@@ -20,7 +20,7 @@ export function App() {
 						<article className='items-center flex flex-col gap-4 py-8'>
 							<h2 class='text-2xl font-bold'>Welcome Back</h2>
 							<Button
-								onClick={() => connectBrowserProvider(state.provider, state.blockInfo, state.bundle.peek()?.containsFundingTx ? state.signers : undefined, state.appSettings)}
+								onClick={() => connectBrowserProvider(state.provider, state.blockInfo, state.bundle.peek()?.containsFundingTx ? state.signers : undefined, state.bouquetSettings)}
 							>
 								Connect Wallet
 							</Button>

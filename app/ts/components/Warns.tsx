@@ -16,7 +16,7 @@ export const SingleNotice = ({ variant, title, description }: { variant: 'warn' 
 		<span class='text-2xl'>{variantEmoji[variant]}</span>
 		<div class='py-3 flex-grow'>
 			<h3 class='font-lg font-semibold'>{title}</h3>
-			{description ? (<div class='leading-tight text-white/75 break-all text-sm'>{description}</div>) : null}
+			{description ? (<div class='leading-tight text-white/75 break-word text-sm'>{description}</div>) : null}
 		</div>
 	</div>)
 }

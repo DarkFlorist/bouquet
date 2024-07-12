@@ -32,7 +32,7 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 	}
 }
 
-export const signBundle = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
+export const getRawTransactions = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
 	const transactions: string[] = []
 	const inSimulation = await getSimulatedCountsOnNetwork(provider)
 	const accNonces: { [address: string]: number } = {}

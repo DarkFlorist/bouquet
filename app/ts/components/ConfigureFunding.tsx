@@ -1,19 +1,20 @@
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { EtherSymbol, formatEther, getAddress, JsonRpcProvider, Wallet } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
-import { NETWORKS } from '../constants.js'
 import { useAsyncState } from '../library/asyncState.js'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
 import { addressString } from '../library/utils.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
-import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
+import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { Button } from './Button.js'
 import { SingleNotice } from './Warns.js'
+import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
+import { getNetwork } from '../constants.js'
 
 export const ConfigureFunding = ({
 	provider,
-	appSettings,
+	bouquetSettings,
 	bundle,
 	fundingAmountMin,
 	signers,
@@ -24,11 +25,13 @@ export const ConfigureFunding = ({
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
 	blockInfo: Signal<BlockInfo>,
-	appSettings: Signal<AppSettings>
+	bouquetSettings: Signal<BouquetSettings>
 }) => {
 	const signerKeys = useSignal<{
 		[address: string]: { input: string; wallet: Wallet | null }
 	}>({})
+
+	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
 
 	useSignalEffect(() => {
 		if (!bundle.value) signerKeys.value = {}
@@ -71,7 +74,7 @@ export const ConfigureFunding = ({
 
 	return (
 		<>
-			<WithdrawModal {...{ display: showWithdrawModal, blockInfo, signers, appSettings, provider }}/>
+			<WithdrawModal {...{ display: showWithdrawModal, blockInfo, signers, bouquetNetwork, provider }}/>
 			{bundle.value && bundle.value.containsFundingTx && signers.value.burner ? (
 				<div className='flex flex-col w-full gap-4'>
 					<h3 className='text-2xl font-semibold'>Deposit To Funding Account</h3>
@@ -117,7 +120,7 @@ export const ConfigureFunding = ({
 	)
 }
 
-const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Signal<boolean>, 	provider: Signal<ProviderStore | undefined>, signers: Signal<Signers>, blockInfo: Signal<BlockInfo> }) => {
+const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }: { display: Signal<boolean>, provider: Signal<ProviderStore | undefined>, signers: Signal<Signers>, blockInfo: Signal<BlockInfo>, bouquetNetwork: Signal<BouquetNetwork> }) => {
 	if (!display.value) return null
 
 	const recipientAddress = useSignal<{ input: string, address?: EthereumAddress }>({ input: '' })
@@ -137,14 +140,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 	const { value: signedMessage, waitFor } = useAsyncState<string>()
 
 	// Default check if we know the network, can also switch to true if sending to known RPC fails
-	const useBrowserProvider = useSignal<boolean>(provider.value && !(provider.value.chainId.toString(10) in NETWORKS) ? true : false)
-
-	const blockExplorer = useComputed<string | undefined>(() => {
-		if (provider.value) {
-			return NETWORKS.get(provider.value.chainId)?.blockExplorer
-		}
-		return undefined
-	})
+	const useBrowserProvider = useSignal<boolean>(provider.value && bouquetNetwork.value.rpcUrl ? true : false)
 
 	function withdraw() {
 		waitFor(async () => {
@@ -165,15 +161,8 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 					throw error
 				}
 			}
-
-			// If user is on network that is in NETWORK, send via ethRpc
-			const network = NETWORKS.get(provider.value.chainId)
-			if (network === undefined) {
-				useBrowserProvider.value = true
-				throw 'Unknown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'
-			}
-
-			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(network.rpcUrl))
+			if (bouquetNetwork.value.rpcUrl === undefined) throw new Error('No RPC URL set and not connected to wallet')
+			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(bouquetNetwork.value.rpcUrl))
 			try {
 				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.maxFeePerGas })
 				fundingWithProvider.provider?.destroy()
@@ -210,7 +199,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider }: { display: Sig
 					<Button onClick={withdraw} variant='primary'>Withdraw</Button>
 				</div>
 				<p>{signedMessage.value.state === 'rejected' ? <SingleNotice variant='error' description={signedMessage.value.error.message} title='Error Withdrawing' /> : ''}</p>
-				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={blockExplorer.value ? <span>Transaction submitted with TX Hash <a className='hover:underline' href={`${blockExplorer.value}tx/${signedMessage.value.value}`} target='_blank'>{signedMessage.value.value}</a></span> : <span>Transaction submitted with TX Hash {signedMessage.value.value}</span>} title='Transaction Submitted' /> : ''}</p>
+				<p>{signedMessage.value.state === 'resolved' ? <SingleNotice variant='success' description={bouquetNetwork.value.blockExplorer ? <span>Transaction submitted with TX Hash <a className='hover:underline' href={`${bouquetNetwork.value.blockExplorer}tx/${signedMessage.value.value}`} target='_blank'>{signedMessage.value.value}</a></span> : <span>Transaction submitted with TX Hash {signedMessage.value.value}</span>} title='Transaction Submitted' /> : ''}</p>
 			</div>
 		</div>
 	)

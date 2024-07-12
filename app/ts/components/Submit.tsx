@@ -2,17 +2,18 @@ import { EtherSymbol, formatEther, formatUnits } from 'ethers'
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 import { Button } from './Button.js'
-import { AppSettings, BlockInfo, Bundle, Signers } from '../types/types.js'
+import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
 import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots.js'
 import { SingleNotice } from './Warns.js'
-import { NETWORKS } from '../constants.js'
+import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
+import { getNetwork } from '../constants.js'
 
 type PendingBundle = {
 	bundles: {
-		[bundleHash: string]: {
+		[bundleIdentifier: string]: {
 			targetBlock: bigint,
 			gas: { priorityFee: bigint, baseFee: bigint }
 			transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
@@ -73,15 +74,15 @@ const SimulationResult = ({
 
 export const Bundles = ({
 	outstandingBundles,
-	provider
+	bouquetNetwork,
 }: {
 	outstandingBundles: Signal<PendingBundle>,
-	provider: Signal<ProviderStore | undefined>
+	bouquetNetwork: Signal<BouquetNetwork>,
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
-	const network = provider.value ? NETWORKS.get(provider.value.chainId) : undefined
-	const blockExplorerBaseUrl = network !== undefined ? network.blockExplorer : null
+	const network = bouquetNetwork.value // provider.value ? getNetwork(bouquetSettings.value, provider.value.chainId) : undefined
+	const blockExplorerBaseUrl = network !== undefined ? network.blockExplorer : undefined
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>
@@ -112,16 +113,18 @@ export const Submit = ({
 	bundle,
 	fundingAmountMin,
 	signers,
-	appSettings,
+	bouquetSettings,
 	blockInfo,
 }: {
 	provider: Signal<ProviderStore | undefined>
 	bundle: Signal<Bundle | undefined>
 	signers: Signal<Signers>
 	fundingAmountMin: ReadonlySignal<bigint>
-	appSettings: Signal<AppSettings>
+	bouquetSettings: Signal<BouquetSettings>
 	blockInfo: Signal<BlockInfo>
 }) => {
+	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
+
 	// General component state
 	const showSettings = useSignal<boolean>(false)
 
@@ -147,7 +150,7 @@ export const Submit = ({
 			provider.value,
 			signers.peek(),
 			blockInfo.peek(),
-			appSettings.peek()
+			getNetwork(bouquetSettings.peek(), provider.value.chainId)
 		)
 		if ('error' in simulationResult) throw new Error((simulationResult as RelayResponseError).error.message)
 		else return simulationResult
@@ -221,9 +224,9 @@ export const Submit = ({
 			// Try Submit
 			if (submissionStatus.value.active && !outstandingBundles.value.success) {
 				try {
-					const targetBlock = blockNumber + appSettings.peek().blocksInFuture
+					const targetBlock = blockNumber + bouquetNetwork.peek().blocksInFuture
 					const gas = blockInfo.peek()
-					gas.priorityFee = appSettings.value.priorityFee
+					gas.priorityFee = bouquetNetwork.value.priorityFee
 
 					const bundleRequest = await sendBundle(
 						bundle.value,
@@ -232,11 +235,11 @@ export const Submit = ({
 						provider.value,
 						signers.peek(),
 						blockInfo.peek(),
-						appSettings.peek()
+						bouquetNetwork.peek()
 					)
 
-					if (!(bundleRequest.bundleHash in outstandingBundles.peek().bundles)) {
-						outstandingBundles.value = { ...outstandingBundles.peek(),  bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleHash]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
+					if (!(bundleRequest.bundleIdentifier in outstandingBundles.peek().bundles)) {
+						outstandingBundles.value = { ...outstandingBundles.peek(),  bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleIdentifier]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
 					}
 				} catch (err) {
 					console.error('SendBundle error', err)
@@ -262,23 +265,31 @@ export const Submit = ({
 	return (
 		<>
 			<h2 className='font-bold text-2xl'><span class='text-gray-500'>3.</span> Submit</h2>
-			<SettingsModal display={showSettings} appSettings={appSettings} />
+			<SettingsModal display={showSettings} bouquetNetwork={bouquetNetwork} />
 			{!outstandingBundles.value.success && missingRequirements.value ? (
 				<p>{missingRequirements.peek()}</p>
 			) : (
 				<div className='flex flex-col w-full gap-4'>
 					<div>
-						<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture), 'gwei')} gwei + {formatUnits(appSettings.value.priorityFee.toString(), 'gwei')} gwei priority</p>
-						<p><span className='font-bold'>Relays:</span> simulation:{appSettings.value.simulationRelayEndpoint}, submit:{appSettings.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
-						<p>Transactions will be attempt to be included in the block {appSettings.value.blocksInFuture.toString()} blocks from now.</p>
+						{ bouquetNetwork.value.relayMode === 'mempool' ? <>
+								<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. When mempool mode is enabled. The transactions are sent as individual transactions. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
+							</> : <>
+								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+								<p><span className='font-bold'>Relays:</span> simulation:{bouquetNetwork.value.simulationRelayEndpoint}, submit:{bouquetNetwork.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
+								<p>Transactions will be attempt to be included in the block {bouquetNetwork.value.blocksInFuture.toString()} blocks from now.</p>
+							</>
+						}
+
 						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>
 					</div>
 					<div className='flex flex-row gap-6'>
-						<Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
+						{ bouquetNetwork.value.relayMode === 'relay' ? <><Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button> </> : <></> }
 						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop Submitting Bundle' : 'Submit'}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
-					<Bundles outstandingBundles={outstandingBundles} provider={provider} />
+					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>
 				</div>
 			)}
 		</>
