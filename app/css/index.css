@@ -1167,9 +1167,6 @@ video {
 	width: 50%;
 	background-color: #666;
 	border-radius: 4px;
-	-webkit-transition: all 0.2s ease-out;
-	-moz-transition: all 0.2s ease-out;
-	transition: all 0.2s ease-out;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .toggleSwitch > span span:first-of-type {
@@ -1180,8 +1177,8 @@ video {
 	width: 50%;
 }
 .toggleSwitch > span span:last-of-type {
-	left:auto;
-	right:0;
+	left: auto;
+	right: 0;
 	color: #999;
 	margin: 0;
 	width: 50%;
@@ -1195,17 +1192,14 @@ video {
 	left: 0;
 	top: -2px;
 	border-radius: 30px;
-	-webkit-transition: all 0.2s ease-out;
-	-moz-transition: all 0.2s ease-out;
-	transition: all 0.2s ease-out;
 }
 .toggleSwitch input:checked ~ a {
 	left: calc(50% - 3px);
 }
 .toggleSwitch input:checked ~ span span:first-of-type {
-	left:0;
-	color:#999;
+	left: 0;
+	color: #999;
 }
 .toggleSwitch input:checked ~ span span:last-of-type {
-	color:#FFF;
+	color: #FFF;
 }

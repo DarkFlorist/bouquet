@@ -2,8 +2,8 @@ import { batch, Signal } from '@preact/signals'
 import { Block, BrowserProvider, getAddress, HDNodeWallet, Wallet } from 'ethers'
 import { AddressParser, EthereumAddress } from '../types/ethereumTypes.js'
 import { BlockInfo, Signers } from '../types/types.js'
+import { fetchSettingsFromStorage } from '../stores.js'
 import { BouquetSettings } from '../types/bouquetTypes.js'
-import { getNetwork } from '../constants.js'
 
 export type ProviderStore = {
 	provider: BrowserProvider
@@ -81,10 +81,9 @@ export const connectBrowserProvider = async (
 		}
 	}
 	const chainChangedCallback = async (chainId: string) => {
-		const network = getNetwork(bouquetSettings.peek(), BigInt(chainId))
 		batch(() => {
-			bouquetSettings.value = { ...bouquetSettings.peek(), ...network }
-			store.value = store.value ? { ...store.value, chainId: BigInt(chainId) } : undefined
+			bouquetSettings.value = fetchSettingsFromStorage()
+			if (store.value) store.value = { ...store.value, chainId: BigInt(chainId) }
 		})
 
 		const [accounts, block] = await Promise.all([provider.listAccounts(), provider.getBlock('latest')])

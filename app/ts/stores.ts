@@ -38,9 +38,11 @@ function fetchBundleFromStorage(): Bundle | undefined {
 }
 
 export function fetchSettingsFromStorage() {
-	const custom = BouquetSettings.safeParse(localStorage.getItem('bouquetSettings'))
-	if (!custom.success) return DEFAULT_NETWORKS
-	return custom.value
+	const nonParsed = localStorage.getItem('bouquetSettings')
+	if (nonParsed === null) return DEFAULT_NETWORKS
+	const settings = BouquetSettings.safeParse(JSON.parse(nonParsed))
+	if (!settings.success) return DEFAULT_NETWORKS
+	return settings.value
 }
 
 export function createGlobalState() {

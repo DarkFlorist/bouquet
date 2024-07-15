@@ -24,19 +24,14 @@ export const Navbar = ({
 }) => {
 	const switchNetwork = async (e: Event) => {
 		const elm = e.target as HTMLSelectElement
-		const network = getNetwork(bouquetSettings.value, BigInt(elm.value))
-		if (!provider.value) {
-			bouquetSettings.value = { ...bouquetSettings.peek(), ...network }
-		} else {
-			provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: network.chainId }])
-		}
+		provider.peek()?.provider.send('wallet_switchEthereumChain', [{ chainId: `0x${ BigInt(elm.value).toString(16) }` }])
 	}
 
 	const blockieScale = useSignal(5)
 	const showSettings = useSignal(false)
 	const walletAddress = useComputed(() => provider.value?.walletAddress ?? 0n)
+	//const bouquetNetwork = useSignal(getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
 	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
-
 	return (
 		<div className='flex flex-col w-full sm:flex-row items-center justify-between gap-4 border-slate-400/30 h-12'>
 			<h1 className='font-extrabold text-4xl'>💐</h1>
@@ -52,7 +47,7 @@ export const Navbar = ({
 									onChange={switchNetwork}
 									className='px-2 py-1 bg-black'
 								>
-									{bouquetSettings.peek().map((network) => <option value={network.chainId.toString()}>{ network.networkName }</option>)}
+									{bouquetSettings.value.map((network) => <option value={network.chainId.toString()}>{ network.networkName }</option>)}
 								</select>
 							</span>
 						</div >
@@ -60,7 +55,7 @@ export const Navbar = ({
 					</>
 				) : (!provider.value && bundle.value ? <p className='w-max'> No Wallet Connected </p> :
 					<div className='w-max'>
-						<Button onClick={() => importFromInterceptor(bundle, provider, blockInfo, bouquetSettings, signers)} >
+						<Button onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings)} >
 							Connect Wallet
 						</Button>
 					</div>
@@ -69,7 +64,7 @@ export const Navbar = ({
 					<SettingsIcon />
 				</button>
 			</div>
-			<SettingsModal display={showSettings} bouquetNetwork={bouquetNetwork} />
+			<SettingsModal display={showSettings} bouquetNetwork={bouquetNetwork} bouquetSettings = {bouquetSettings}/>
 		</div>
 	)
 }

@@ -11,7 +11,7 @@ export const MAINNET = {
 	relayMode: 'relay',
 	mempoolSubmitRpcEndpoint: '', // don't set default for Mainnet as its not advisable to use it
 	blocksInFuture: 3n,
-	priorityFee: 10n ** 0n * 3n,
+	priorityFee: 10n ** 9n * 3n,
 } as const
 
 export const DEFAULT_NETWORKS: BouquetNetwork[] = [
@@ -27,7 +27,7 @@ export const DEFAULT_NETWORKS: BouquetNetwork[] = [
 		relayMode: 'relay',
 		mempoolSubmitRpcEndpoint: '', // don't set default for Sepolia as its not advisable to use it
 		blocksInFuture: 3n,
-		priorityFee: 10n ** 0n * 3n,
+		priorityFee: 10n ** 9n * 3n,
 	},
 	{
 		networkName: 'Holesky',
@@ -40,7 +40,7 @@ export const DEFAULT_NETWORKS: BouquetNetwork[] = [
 		relayMode: 'mempool',
 		mempoolSubmitRpcEndpoint: 'https://holesky.dark.florist',
 		blocksInFuture: 3n,
-		priorityFee: 10n ** 0n * 3n,
+		priorityFee: 10n ** 9n * 3n,
 	}
 ]
 
@@ -58,6 +58,6 @@ export const getNetwork = (networks: BouquetSettings, chainId: bigint): BouquetN
 		relayMode: 'mempool',
 		mempoolSubmitRpcEndpoint: '',
 		blocksInFuture: 3n,
-		priorityFee: 10n ** 0n * 3n,
+		priorityFee: 10n ** 9n * 3n,
 	}
 }

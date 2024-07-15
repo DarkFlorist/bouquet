@@ -30,7 +30,7 @@ export const Transactions = ({
 	bundle,
 	blockInfo,
 	bouquetSettings,
-	signers
+	signers,
 }: {
 	provider: Signal<ProviderStore | undefined>
 	bundle: Signal<Bundle | undefined>
@@ -170,7 +170,7 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
-			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, bouquetSettings, signers)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
+			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{bundle.value?.transactions.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>

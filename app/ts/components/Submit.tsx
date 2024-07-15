@@ -265,7 +265,7 @@ export const Submit = ({
 	return (
 		<>
 			<h2 className='font-bold text-2xl'><span class='text-gray-500'>3.</span> Submit</h2>
-			<SettingsModal display={showSettings} bouquetNetwork={bouquetNetwork} />
+			<SettingsModal display={showSettings} bouquetNetwork={bouquetNetwork} bouquetSettings={bouquetSettings}/>
 			{!outstandingBundles.value.success && missingRequirements.value ? (
 				<p>{missingRequirements.peek()}</p>
 			) : (
@@ -286,7 +286,8 @@ export const Submit = ({
 					</div>
 					<div className='flex flex-row gap-6'>
 						{ bouquetNetwork.value.relayMode === 'relay' ? <><Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button> </> : <></> }
-						<Button onClick={toggleSubmission}>{submissionStatus.value.active ? 'Stop Submitting Bundle' : 'Submit'}</Button>
+						<Button onClick={toggleSubmission}>
+							{submissionStatus.value.active ? `Stop submitting to ${ bouquetNetwork.value.relayMode }` : `Submit to ${ bouquetNetwork.value.relayMode }`}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
 					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>

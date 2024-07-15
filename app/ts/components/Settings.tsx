@@ -1,11 +1,12 @@
-import { batch, Signal, useComputed, useSignal } from '@preact/signals'
+import { batch, ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
-import { DEFAULT_NETWORKS, MAINNET } from '../constants.js'
+import { DEFAULT_NETWORKS } from '../constants.js'
 import { Button } from './Button.js'
 import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { fetchSettingsFromStorage } from '../stores.js'
+import { useEffect } from 'preact/hooks'
 
 export const SettingsIcon = () => {
 	return (
@@ -28,7 +29,7 @@ export const SettingsIcon = () => {
 	)
 }
 
-export const SettingsModal = ({ display, bouquetNetwork }: { display: Signal<boolean>, bouquetNetwork: Signal<BouquetNetwork> }) => {
+export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { display: Signal<boolean>, bouquetNetwork: ReadonlySignal<BouquetNetwork>, bouquetSettings: Signal<BouquetSettings>}) => {
 	const chainId = useSignal({ value: bouquetNetwork.peek().chainId, valid: true })
 	const rpcUrl = useSignal({ value: bouquetNetwork.peek().rpcUrl, valid: true })
 	const simulationRelayEndpointInput = useSignal({ value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true })
@@ -37,7 +38,12 @@ export const SettingsModal = ({ display, bouquetNetwork }: { display: Signal<boo
 	const blocksInFutureInput = useSignal({ value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true })
 	const mempoolSubmitRpcEndpoint = useSignal({ value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true })
 	const relayMode = useSignal({ value: bouquetNetwork.peek().relayMode, valid: true })
-
+	const loaded = useSignal(false)
+	
+	useEffect(() => {
+		bringSettingsValues()
+		loaded.value = display.value
+	}, [display.value])
 	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
 
 	// https://urlregex.com/
@@ -79,52 +85,60 @@ export const SettingsModal = ({ display, bouquetNetwork }: { display: Signal<boo
 		}
 	}
 	function saveSettings() {
-		if (allValidInputs.value) {
-			const newSettings = {
-				rpcUrl: rpcUrl.value.value,
-				submissionRelayEndpoint: submissionRelayEndpointInput.value.value,
-				simulationRelayEndpoint: simulationRelayEndpointInput.value.value,
-				priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'),
-				blocksInFuture: BigInt(blocksInFutureInput.value.value),
-				mempoolSubmitRpcEndpoint: mempoolSubmitRpcEndpoint.value.value,
-				relayMode: relayMode.value.value,
-			}
-			bouquetNetwork.value = { ...bouquetNetwork.value, ...newSettings }
-			const oldSettings = fetchSettingsFromStorage()
-			const index = oldSettings.findIndex((item) => item.chainId === chainId.value.value)
-			if (index >= 0) {
-				localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(oldSettings.map((oldSetting) => {
-					if (oldSetting.chainId !== chainId.value.value) return oldSetting
-					return { ...oldSetting, ...newSettings }
-				}))))
-			} else {
-				localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize([
-					...oldSettings,
-					{
-						...newSettings,
-						chainId: chainId.value.value,
-						networkName: `ChainId: ${ chainId }`,
-						blockExplorerApi: '',
-						blockExplorer: '',
-					}
-				])))
-			}
+		if (!allValidInputs.value) return
+		const newSettings = {
+			rpcUrl: rpcUrl.value.value,
+			submissionRelayEndpoint: submissionRelayEndpointInput.value.value,
+			simulationRelayEndpoint: simulationRelayEndpointInput.value.value,
+			priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'),
+			blocksInFuture: BigInt(blocksInFutureInput.value.value),
+			mempoolSubmitRpcEndpoint: mempoolSubmitRpcEndpoint.value.value,
+			relayMode: relayMode.value.value,
 		}
+		const oldSettings = fetchSettingsFromStorage()
+		const index = oldSettings.findIndex((item) => item.chainId === chainId.value.value)
+		if (index >= 0) {
+			localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(oldSettings.map((oldSetting) => {
+				if (oldSetting.chainId !== chainId.value.value) return oldSetting
+				return { ...oldSetting, ...newSettings }
+			}))))
+		} else {
+			localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize([
+				...oldSettings,
+				{
+					...newSettings,
+					chainId: chainId.value.value,
+					networkName: `ChainId: ${ chainId }`,
+					blockExplorerApi: '',
+					blockExplorer: '',
+				}
+			])))
+		}
+		display.value = false
+		bouquetSettings.value = fetchSettingsFromStorage()
 	}
-	function resetSettings() {
+
+	function bringSettingsValues() {
 		batch(() => {
-			bouquetNetwork.value = MAINNET
-			localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(DEFAULT_NETWORKS)))
-			simulationRelayEndpointInput.value = { value: MAINNET.simulationRelayEndpoint, valid: true }
-			submissionRelayEndpointInput.value = { value: MAINNET.submissionRelayEndpoint, valid: true }
-			priorityFeeInput.value = { value: formatUnits(MAINNET.priorityFee, 'gwei'), valid: true }
-			blocksInFutureInput.value = { value: MAINNET.blocksInFuture.toString(10), valid: true }
-			mempoolSubmitRpcEndpoint.value = { value: MAINNET.mempoolSubmitRpcEndpoint, valid: true }
-			relayMode.value = { value: MAINNET.relayMode, valid: true }
+			simulationRelayEndpointInput.value = { value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true }
+			submissionRelayEndpointInput.value = { value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true }
+			priorityFeeInput.value = { value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true }
+			blocksInFutureInput.value = { value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true }
+			mempoolSubmitRpcEndpoint.value = { value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true }
+			relayMode.value = { value: bouquetNetwork.peek().relayMode, valid: true }
 		})
 	}
-	return display.value ? (
-		<div onClick={saveSettings} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
+
+	function resetSettings() {
+		localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(DEFAULT_NETWORKS)))
+		bouquetSettings.value = fetchSettingsFromStorage()
+		bringSettingsValues()
+	}
+	function close() {
+		display.value = false
+	}
+	return display.value && loaded.value ? (
+		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
 			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
 				<label class = 'toggleSwitch nolabel' >

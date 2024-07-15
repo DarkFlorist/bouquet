@@ -19,8 +19,8 @@ export async function importFromInterceptor(
 		baseFee: bigint
 		priorityFee: bigint
 	}>,
-	bouquetSettings: Signal<BouquetSettings>,
 	signers: Signal<Signers> | undefined,
+	bouquetSettings: Signal<BouquetSettings>
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('No Ethereum wallet detected')
 	connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
@@ -137,7 +137,7 @@ export const Import = ({
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex flex-col sm:flex-row gap-4'>
 					<Button
-						onClick={() => importFromInterceptor(bundle, provider, blockInfo, bouquetSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
+						onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
 					>
 						Import Payload from The Interceptor
 					</Button>
