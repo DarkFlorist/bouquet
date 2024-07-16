@@ -272,7 +272,9 @@ export const Submit = ({
 				<div className='flex flex-col w-full gap-4'>
 					<div>
 						{ bouquetNetwork.value.relayMode === 'mempool' ? <>
-								<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. When mempool mode is enabled. The transactions are sent as individual transactions. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+								<div style = 'padding-bottom: 10px;'>
+									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. When mempool mode is enabled. The transactions are sent as individual transactions. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+								</div>
 								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
 							</> : <>
