@@ -26,6 +26,7 @@ type PendingBundle = {
 		gas: { priorityFee: bigint, baseFee: bigint }
 		transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
 		included: boolean
+		includedInBlocks: bigint[]
 	}
 }
 
@@ -87,8 +88,8 @@ export const Bundles = ({
 	return (
 		<div class='flex flex-col-reverse gap-4'>
 			{outstandingBundles.value.success
-				? <SingleNotice variant='success' title='Bundle Included!' description={<div>
-						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> transactions were included in block <b>{outstandingBundles.value.success.targetBlock.toString(10)}</b></h3>
+				? <SingleNotice variant='success' title= { network.relayMode === 'mempool' ? 'Transactions included!' : 'Bundle Included!' } description={<div>
+						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> { `transactions were included in block${ outstandingBundles.value.success.includedInBlocks.length > 1 ? 's' : '' }` } <b>{ outstandingBundles.value.success.includedInBlocks.join(',') }</b></h3>
 						<div class='flex flex-col gap-1 py-1'>
 							{outstandingBundles.value.success.transactions.map((tx, index) => blockExplorerBaseUrl
 								? <p class='flex items-center gap-2'><b>#{index}</b><a class='underline text-white/50 flex items-center gap-2' href={`${blockExplorerBaseUrl}tx/${tx.hash}`} target="_blank">{tx.hash}<svg aria-hidden="true" class='h-6' fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"> <path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" stroke-linecap="round" stroke-linejoin="round"></path></svg></a></p>
@@ -101,7 +102,7 @@ export const Bundles = ({
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>Attempting to get bundle included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
+						<p>Attempting to get { network.relayMode === 'mempool' ? 'transactions' : 'bundle' } included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
 					</div>
 			)}
 		</div>
@@ -157,7 +158,7 @@ export const Submit = ({
 	}
 
 	// Submissions
-	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint }>({ active: false, lastBlock: 0n })
+	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint, timesSubmited: number }>({ active: false, lastBlock: 0n, timesSubmited: 0 })
 	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
 
 	useSignalEffect(() => {
@@ -185,10 +186,11 @@ export const Submit = ({
 						gas: { priorityFee: bigint, baseFee: bigint }
 						transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
 						included: boolean
+						includedInBlocks: bigint[]
 					}
 				}, current, index) => {
 					if (checkedPending[index].included) {
-						checked[current] = outstandingBundles.peek().bundles[current]
+						checked[current] = { ...outstandingBundles.peek().bundles[current], includedInBlocks: checkedPending[index].includedInBlocks }
 						checked[current].included = checkedPending[index].included
 					}
 					return checked
@@ -198,10 +200,11 @@ export const Submit = ({
 					bundles: checkedBundles,
 					success: Object.values(checkedBundles).find(x => x.included)
 				}
-				submissionStatus.value = { active: false, lastBlock: blockNumber }
+				submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: 0 }
 				simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
 			})
 		} else {
+			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
 			// Remove old submissions
 			outstandingBundles.value = {
 				error: outstandingBundles.peek().error,
@@ -223,11 +226,11 @@ export const Submit = ({
 
 			// Try Submit
 			if (submissionStatus.value.active && !outstandingBundles.value.success) {
+				submissionStatus.value = { ...submissionStatus.peek(), timesSubmited: submissionStatus.peek().timesSubmited + 1 }
 				try {
 					const targetBlock = blockNumber + bouquetNetwork.peek().blocksInFuture
 					const gas = blockInfo.peek()
 					gas.priorityFee = bouquetNetwork.value.priorityFee
-
 					const bundleRequest = await sendBundle(
 						bundle.value,
 						targetBlock,
@@ -245,7 +248,7 @@ export const Submit = ({
 					console.error('SendBundle error', err)
 					const error = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? new Error(err.message) : new Error('Unknown Error')
 					batch(() => {
-						submissionStatus.value = { active: false, lastBlock: blockNumber }
+						submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: submissionStatus.peek().timesSubmited }
 						outstandingBundles.value = { ...outstandingBundles.peek(), error }
 					})
 				}
@@ -289,7 +292,7 @@ export const Submit = ({
 					<div className='flex flex-row gap-6'>
 						{ bouquetNetwork.value.relayMode === 'relay' ? <><Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button> </> : <></> }
 						<Button onClick={toggleSubmission}>
-							{submissionStatus.value.active ? `Stop submitting to ${ bouquetNetwork.value.relayMode }` : `Submit to ${ bouquetNetwork.value.relayMode }`}</Button>
+							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : `Submit to ${ bouquetNetwork.value.relayMode }`}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
 					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>

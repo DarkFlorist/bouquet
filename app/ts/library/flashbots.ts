@@ -178,5 +178,6 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 
 export async function checkBundleInclusion(transactions: { hash: string }[], provider: ProviderStore) {
 	const receipts = await Promise.all(transactions.map((tx) => provider.provider.getTransactionReceipt(tx.hash)))
-	return { transactions, included: receipts.filter(x => x === null).length === 0 }
+	const includedInBlocks = Array.from(new Set(receipts.filter((receipt): receipt is ethers.TransactionReceipt => receipt !== null).map((receipt) => BigInt(receipt.blockNumber))))
+	return { transactions, included: receipts.filter(x => x === null).length === 0, includedInBlocks }
 }
