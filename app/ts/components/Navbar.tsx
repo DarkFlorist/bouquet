@@ -30,7 +30,6 @@ export const Navbar = ({
 	const blockieScale = useSignal(5)
 	const showSettings = useSignal(false)
 	const walletAddress = useComputed(() => provider.value?.walletAddress ?? 0n)
-	//const bouquetNetwork = useSignal(getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
 	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
 	return (
 		<div className='flex flex-col w-full sm:flex-row items-center justify-between gap-4 border-slate-400/30 h-12'>

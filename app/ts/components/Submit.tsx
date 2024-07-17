@@ -82,13 +82,12 @@ export const Bundles = ({
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
-	const network = bouquetNetwork.value // provider.value ? getNetwork(bouquetSettings.value, provider.value.chainId) : undefined
-	const blockExplorerBaseUrl = network !== undefined ? network.blockExplorer : undefined
+	const blockExplorerBaseUrl = bouquetNetwork.value !== undefined ? bouquetNetwork.value.blockExplorer : undefined
 
 	return (
 		<div class='flex flex-col-reverse gap-4'>
 			{outstandingBundles.value.success
-				? <SingleNotice variant='success' title= { network.relayMode === 'mempool' ? 'Transactions included!' : 'Bundle Included!' } description={<div>
+				? <SingleNotice variant='success' title= { bouquetNetwork.value.relayMode === 'mempool' ? 'Transactions included!' : 'Bundle Included!' } description={<div>
 						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> { `transactions were included in block${ outstandingBundles.value.success.includedInBlocks.length > 1 ? 's' : '' }` } <b>{ outstandingBundles.value.success.includedInBlocks.join(',') }</b></h3>
 						<div class='flex flex-col gap-1 py-1'>
 							{outstandingBundles.value.success.transactions.map((tx, index) => blockExplorerBaseUrl
@@ -102,7 +101,7 @@ export const Bundles = ({
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>Attempting to get { network.relayMode === 'mempool' ? 'transactions' : 'bundle' } included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
+						<p>Attempting to get { bouquetNetwork.value.relayMode === 'mempool' ? 'transactions' : 'bundle' } included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
 					</div>
 			)}
 		</div>
