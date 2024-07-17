@@ -31,7 +31,7 @@ RUN npm run build
 FROM ipfs/kubo:v0.25.0@sha256:0c17b91cab8ada485f253e204236b712d0965f3d463cb5b60639ddd2291e7c52 as ipfs-kubo
 
 # Create the base image
-FROM debian:12.2-slim@sha256:93ff361288a7c365614a5791efa3633ce4224542afb6b53a1790330a8e52fc7d
+FROM debian:12.6-slim@sha256:39868a6f452462b70cf720a8daff250c63e7342970e749059c105bf7c1e8eeaf
 
 # Add curl to the base image (7.88.1-10+deb12u6)
 # Add jq to the base image (1.6-2.1)
