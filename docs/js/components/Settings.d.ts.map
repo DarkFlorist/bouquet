@@ -1,0 +1,1 @@
+{"version":3,"file":"Settings.d.ts","sourceRoot":"","sources":["../../ts/components/Settings.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAS,MAAM,EAA0B,MAAM,iBAAiB,CAAA;AAEvE,OAAO,EAAE,GAAG,EAAE,MAAM,oBAAoB,CAAA;AAExC,OAAO,EAAE,WAAW,EAAE,MAAM,mBAAmB,CAAA;AAG/C,eAAO,MAAM,YAAY,mBAmBxB,CAAA;AAED,eAAO,MAAM,aAAa;aAAyC,OAAO,OAAO,CAAC;iBAAe,OAAO,WAAW,CAAC;wBA2GnH,CAAA"}
