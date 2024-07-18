@@ -90,6 +90,30 @@ export const LiteralConverterParserFactory: <TInput, TOutput>(input: TInput, out
 	}
 }
 
+const SmallIntParser: t.ParsedValue<t.String, bigint>['config'] = {
+	parse: value => {
+		if (!/^0x([a-fA-F0-9]{1,64})$/.test(value)) return { success: false, message: `${value} is not a hex string encoded number.` }
+		if (BigInt(value) >= 2n**64n) return { success: false, message: `${value} must be smaller than 2^64.` }
+		return { success: true, value: BigInt(value) }
+	},
+	serialize: value => {
+		if (value >= 2n**64n) return { success: false, message: `${value} must be smaller than 2^64.` }
+		if (typeof value !== 'bigint') return { success: false, message: `${typeof value} is not a bigint.`}
+		return { success: true, value: `0x${value.toString(16)}` }
+	},
+}
+
+const TimestampParser: t.ParsedValue<t.String, Date>['config'] = {
+	parse: value => {
+		if (!/^0x([a-fA-F0-9]{0,8})$/.test(value)) return { success: false, message: `${value} is not a hex string encoded timestamp.` }
+		return { success: true, value: new Date(Number.parseInt(value, 16) * 1000) }
+	},
+	serialize: value => {
+		if (!(value instanceof Date)) return { success: false, message: `${typeof value} is not a Date.`}
+		return { success: true, value: `0x${Math.floor(value.valueOf() / 1000).toString(16)}` }
+	},
+}
+
 export const EthereumQuantity = t.String.withParser(BigIntParser)
 export type EthereumQuantity = t.Static<typeof EthereumQuantity>
 
@@ -105,3 +129,39 @@ export type EthereumBytes32 = t.Static<typeof EthereumBytes32>
 export const EthereumInput = t.Union(t.String, t.Undefined).withParser(OptionalBytesParser)
 export type EthereumInput = t.Static<typeof EthereumInput>
 
+export const EthereumQuantitySmall = t.String.withParser(SmallIntParser)
+export type EthereumQuantitySmall = t.Static<typeof EthereumQuantitySmall>
+
+export const EthereumTimestamp = t.String.withParser(TimestampParser)
+export type EthereumTimestamp = t.Static<typeof EthereumTimestamp>
+
+export const EthereumAccessList = t.ReadonlyArray(
+	t.ReadonlyObject({
+		address: EthereumAddress,
+		storageKeys: t.ReadonlyArray(EthereumBytes32)
+	}).asReadonly()
+)
+export type EthereumAccessList = t.Static<typeof EthereumAccessList>
+
+export const EthereumBlockTag = t.Union(EthereumQuantitySmall, EthereumBytes32, t.Literal('latest'), t.Literal('pending'))
+export type EthereumBlockTag = t.Static<typeof EthereumBlockTag>
+
+export type UnionToIntersection<T> = (T extends unknown ? (k: T) => void : never) extends (k: infer I) => void ? I : never
+
+type ToWireType<T> =
+	T extends t.Intersect<infer U> ? UnionToIntersection<{ [I in keyof U]: ToWireType<U[I]> }[number]>
+	: T extends t.Union<infer U> ? { [I in keyof U]: ToWireType<U[I]> }[number]
+	: T extends t.Record<infer U, infer V> ? Record<t.Static<U>, ToWireType<V>>
+	: T extends t.Partial<infer U, infer V> ? V extends true ? { readonly [K in keyof U]?: ToWireType<U[K]> } : { [K in keyof U]?: ToWireType<U[K]> }
+	: T extends t.Object<infer U, infer V> ? V extends true ? { readonly [K in keyof U]: ToWireType<U[K]> } : { [K in keyof U]: ToWireType<U[K]> }
+	: T extends t.Readonly<t.Tuple<infer U>> ? { readonly [P in keyof U]: ToWireType<U[P]>}
+	: T extends t.Tuple<infer U> ? { [P in keyof U]: ToWireType<U[P]>}
+	: T extends t.ReadonlyArray<infer U> ? readonly ToWireType<U>[]
+	: T extends t.Array<infer U> ? ToWireType<U>[]
+	: T extends t.ParsedValue<infer U, infer _> ? ToWireType<U>
+	: T extends t.Codec<infer U> ? U
+	: never
+
+export function serialize<T, U extends t.Codec<T>>(funtype: U, value: T) {
+	return funtype.serialize(value) as ToWireType<U>
+}

@@ -32,8 +32,8 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 	}
 }
 
-export const getRawTransactions = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
-	const transactions: string[] = []
+export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
+	const transactions: { rawTransaction: string, transaction: TransactionRequest } [] = []
 	const inSimulation = await getSimulatedCountsOnNetwork(provider)
 	const accNonces: { [address: string]: number } = {}
 	for (const tx of bundle) {
@@ -49,8 +49,8 @@ export const getRawTransactions = async (bundle: FlashbotsBundleTransaction[], p
 			if (tx.transaction.from.toString() in inSimulation) accNonces[tx.transaction.from.toString()] -= inSimulation[tx.transaction.from.toString()]
 		}
 		tx.transaction.nonce = accNonces[tx.transaction.from.toString()]
-		const signedTx = await tx.signer.signTransaction(tx.transaction)
-		transactions.push(signedTx as string)
+		const rawTransaction = await tx.signer.signTransaction({ ...tx.transaction })
+		transactions.push({ rawTransaction, transaction: tx.transaction })
 	}
 	return transactions
 }

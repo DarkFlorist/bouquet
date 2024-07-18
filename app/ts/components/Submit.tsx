@@ -289,7 +289,7 @@ export const Submit = ({
 						<p>You can edit these settings <button className='font-bold underline' onClick={() => showSettings.value = true}>here</button>.</p>
 					</div>
 					<div className='flex flex-row gap-6'>
-						{ bouquetNetwork.value.relayMode === 'relay' ? <><Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button> </> : <></> }
+						<Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
 						<Button onClick={toggleSubmission}>
 							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : `Submit to ${ bouquetNetwork.value.relayMode }`}</Button>
 					</div>
