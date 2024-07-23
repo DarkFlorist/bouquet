@@ -15,11 +15,11 @@
 }
 
 @layer utilities {
-	.toggleSwitch span span {
+	.toggle-switch span span {
 		display: none;
 	}
 
-	.toggleSwitch {
+	.toggle-switch {
 		display: inline-block;
 		height: 18px;
 		position: relative;
@@ -31,33 +31,33 @@
 		border-radius:5px;
 		height:34px;
 	}
-	.toggleSwitch * {
+	.toggle-switch * {
 		-webkit-box-sizing: border-box;
 		-moz-box-sizing: border-box;
 		box-sizing: border-box;
 	}
-	.toggleSwitch label,
-	.toggleSwitch > span {
+	.toggle-switch label,
+	.toggle-switch > span {
 		line-height: 20px;
 		height: 20px;
 		vertical-align: middle;
 	}
-	.toggleSwitch input:focus ~ a,
-	.toggleSwitch input:focus + label {
+	.toggle-switch input:focus ~ a,
+	.toggle-switch input:focus + label {
 		outline: none;
 	}
-	.toggleSwitch label {
+	.toggle-switch label {
 		position: relative;
 		z-index: 3;
 		display: block;
 		width: 100%;
 	}
-	.toggleSwitch input {
+	.toggle-switch input {
 		position: absolute;
 		opacity: 0;
 		z-index: 5;
 	}
-	.toggleSwitch > span {
+	.toggle-switch > span {
 		position: absolute;
 		left: 0;
 		width: calc(100% - 6px);
@@ -66,7 +66,7 @@
 		white-space: nowrap;
 		margin:0 3px;
 	}
-	.toggleSwitch > span span {
+	.toggle-switch > span span {
 		position: absolute;
 		top: 0;
 		left: 0;
@@ -84,7 +84,7 @@
 		text-align: center;
 		line-height:34px;
 	}
-	.toggleSwitch a {
+	.toggle-switch a {
 		position: absolute;
 		right: 50%;
 		z-index: 4;
@@ -98,21 +98,21 @@
 		border-radius: 4px;
 		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 	}
-	.toggleSwitch > span span:first-of-type {
+	.toggle-switch > span span:first-of-type {
 		color: #FFF;
 		opacity: 1;
 		left: 0;
 		margin: 0;
 		width: 50%;
 	}
-	.toggleSwitch > span span:last-of-type {
+	.toggle-switch > span span:last-of-type {
 		left: auto;
 		right: 0;
 		color: #999;
 		margin: 0;
 		width: 50%;
 	}
-	.toggleSwitch > span:before {
+	.toggle-switch > span:before {
 		content: '';
 		display: block;
 		width: 100%;
@@ -122,14 +122,14 @@
 		top: -2px;
 		border-radius: 30px;
 	}
-	.toggleSwitch input:checked ~ a {
+	.toggle-switch input:checked ~ a {
 		left: calc(50% - 3px);
 	}
-	.toggleSwitch input:checked ~ span span:first-of-type {
+	.toggle-switch input:checked ~ span span:first-of-type {
 		left: 0;
 		color: #999;
 	}
-	.toggleSwitch input:checked ~ span span:last-of-type {
+	.toggle-switch input:checked ~ span span:last-of-type {
 		color: #FFF;
 	}
 }
