@@ -11,7 +11,7 @@
 		"watch": "tsc --watch",
 		"serve": "npx http-server ./app --gzip ",
 		"vendor": "tsc --project tsconfig.vendor.json && node --enable-source-maps ./build/vendor.mjs && node --input-type=module -e \"import { promises as fs } from 'fs'; await fs.rm('./build/vendor.mjs')\"",
-		"styles": "cd twcss && npm run styles"
+		"styles": "npm run styles --prefix twcss && npm run poststyles --prefix twcss"
 	},
 	"devDependencies": {
 		"@types/node": "20.11.7",
