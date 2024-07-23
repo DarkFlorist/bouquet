@@ -121,8 +121,6 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 			for (const request of requests) {
 				const response = await request.json()
 				if (response.error !== undefined && response.error !== null) {
-					console.log(payloads)
-					console.log(response)
 					throw new Error(response.error.message)
 				}
 			}
