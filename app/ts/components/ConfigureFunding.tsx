@@ -140,7 +140,8 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 	const { value: signedMessage, waitFor } = useAsyncState<string>()
 
 	// Default check if we know the network, can also switch to true if sending to known RPC fails
-	const useBrowserProvider = useSignal<boolean>(provider.value && bouquetNetwork.value.rpcUrl ? true : false)
+	const useBrowserProvider = useSignal<boolean>(false)
+	useSignalEffect(() => { useBrowserProvider.value = Boolean(provider.value && bouquetNetwork.value.rpcUrl) })
 
 	function withdraw() {
 		waitFor(async () => {
