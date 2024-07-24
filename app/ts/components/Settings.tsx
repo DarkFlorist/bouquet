@@ -141,7 +141,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
 			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
-				<label class = 'toggle-switch' >
+				<label class = 'toggle-switch'>
 					<input type = 'checkbox' checked = { relayMode.value.value === 'relay' ? false : true } onChange = { (e: JSX.TargetedEvent<HTMLInputElement>) => { relayMode.value = { value: e.currentTarget.checked ? 'mempool' : 'relay', valid: true } } }/>
 					<a></a>
 					<span>
