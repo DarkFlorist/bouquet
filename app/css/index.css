@@ -1,15 +1,6 @@
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-	-webkit-appearance: none;
-	margin: 0;
-}
-
-input[type='number'] {
-	-moz-appearance: textfield;
-	/* Firefox */
-}
-
-/* ! tailwindcss v3.2.7 | MIT License | https://tailwindcss.com */
+/*
+! tailwindcss v3.2.7 | MIT License | https://tailwindcss.com
+*/
 
 /*
 1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
@@ -52,7 +43,21 @@ html {
 	-o-tab-size: 4;
 	tab-size: 4;
 	/* 3 */
-	font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+	font-family:
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		BlinkMacSystemFont,
+		'Segoe UI',
+		Roboto,
+		'Helvetica Neue',
+		Arial,
+		'Noto Sans',
+		sans-serif,
+		'Apple Color Emoji',
+		'Segoe UI Emoji',
+		'Segoe UI Symbol',
+		'Noto Color Emoji';
 	/* 4 */
 	font-feature-settings: normal;
 	/* 5 */
@@ -429,6 +434,17 @@ video {
 	display: none;
 }
 
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+	-webkit-appearance: none;
+	margin: 0;
+}
+
+input[type='number'] {
+	-moz-appearance: textfield;
+	/* Firefox */
+}
+
 *,
 ::before,
 ::after {
@@ -441,16 +457,16 @@ video {
 	--tw-skew-y: 0;
 	--tw-scale-x: 1;
 	--tw-scale-y: 1;
-	--tw-pan-x: ;
-	--tw-pan-y: ;
-	--tw-pinch-zoom: ;
+	--tw-pan-x:  ;
+	--tw-pan-y:  ;
+	--tw-pinch-zoom:  ;
 	--tw-scroll-snap-strictness: proximity;
-	--tw-ordinal: ;
-	--tw-slashed-zero: ;
-	--tw-numeric-figure: ;
-	--tw-numeric-spacing: ;
-	--tw-numeric-fraction: ;
-	--tw-ring-inset: ;
+	--tw-ordinal:  ;
+	--tw-slashed-zero:  ;
+	--tw-numeric-figure:  ;
+	--tw-numeric-spacing:  ;
+	--tw-numeric-fraction:  ;
+	--tw-ring-inset:  ;
 	--tw-ring-offset-width: 0px;
 	--tw-ring-offset-color: #fff;
 	--tw-ring-color: rgb(59 130 246 / 0.5);
@@ -458,24 +474,24 @@ video {
 	--tw-ring-shadow: 0 0 #0000;
 	--tw-shadow: 0 0 #0000;
 	--tw-shadow-colored: 0 0 #0000;
-	--tw-blur: ;
-	--tw-brightness: ;
-	--tw-contrast: ;
-	--tw-grayscale: ;
-	--tw-hue-rotate: ;
-	--tw-invert: ;
-	--tw-saturate: ;
-	--tw-sepia: ;
-	--tw-drop-shadow: ;
-	--tw-backdrop-blur: ;
-	--tw-backdrop-brightness: ;
-	--tw-backdrop-contrast: ;
-	--tw-backdrop-grayscale: ;
-	--tw-backdrop-hue-rotate: ;
-	--tw-backdrop-invert: ;
-	--tw-backdrop-opacity: ;
-	--tw-backdrop-saturate: ;
-	--tw-backdrop-sepia: ;
+	--tw-blur:  ;
+	--tw-brightness:  ;
+	--tw-contrast:  ;
+	--tw-grayscale:  ;
+	--tw-hue-rotate:  ;
+	--tw-invert:  ;
+	--tw-saturate:  ;
+	--tw-sepia:  ;
+	--tw-drop-shadow:  ;
+	--tw-backdrop-blur:  ;
+	--tw-backdrop-brightness:  ;
+	--tw-backdrop-contrast:  ;
+	--tw-backdrop-grayscale:  ;
+	--tw-backdrop-hue-rotate:  ;
+	--tw-backdrop-invert:  ;
+	--tw-backdrop-opacity:  ;
+	--tw-backdrop-saturate:  ;
+	--tw-backdrop-sepia:  ;
 }
 
 ::backdrop {
@@ -488,16 +504,16 @@ video {
 	--tw-skew-y: 0;
 	--tw-scale-x: 1;
 	--tw-scale-y: 1;
-	--tw-pan-x: ;
-	--tw-pan-y: ;
-	--tw-pinch-zoom: ;
+	--tw-pan-x:  ;
+	--tw-pan-y:  ;
+	--tw-pinch-zoom:  ;
 	--tw-scroll-snap-strictness: proximity;
-	--tw-ordinal: ;
-	--tw-slashed-zero: ;
-	--tw-numeric-figure: ;
-	--tw-numeric-spacing: ;
-	--tw-numeric-fraction: ;
-	--tw-ring-inset: ;
+	--tw-ordinal:  ;
+	--tw-slashed-zero:  ;
+	--tw-numeric-figure:  ;
+	--tw-numeric-spacing:  ;
+	--tw-numeric-fraction:  ;
+	--tw-ring-inset:  ;
 	--tw-ring-offset-width: 0px;
 	--tw-ring-offset-color: #fff;
 	--tw-ring-color: rgb(59 130 246 / 0.5);
@@ -505,24 +521,24 @@ video {
 	--tw-ring-shadow: 0 0 #0000;
 	--tw-shadow: 0 0 #0000;
 	--tw-shadow-colored: 0 0 #0000;
-	--tw-blur: ;
-	--tw-brightness: ;
-	--tw-contrast: ;
-	--tw-grayscale: ;
-	--tw-hue-rotate: ;
-	--tw-invert: ;
-	--tw-saturate: ;
-	--tw-sepia: ;
-	--tw-drop-shadow: ;
-	--tw-backdrop-blur: ;
-	--tw-backdrop-brightness: ;
-	--tw-backdrop-contrast: ;
-	--tw-backdrop-grayscale: ;
-	--tw-backdrop-hue-rotate: ;
-	--tw-backdrop-invert: ;
-	--tw-backdrop-opacity: ;
-	--tw-backdrop-saturate: ;
-	--tw-backdrop-sepia: ;
+	--tw-blur:  ;
+	--tw-brightness:  ;
+	--tw-contrast:  ;
+	--tw-grayscale:  ;
+	--tw-hue-rotate:  ;
+	--tw-invert:  ;
+	--tw-saturate:  ;
+	--tw-sepia:  ;
+	--tw-drop-shadow:  ;
+	--tw-backdrop-blur:  ;
+	--tw-backdrop-brightness:  ;
+	--tw-backdrop-contrast:  ;
+	--tw-backdrop-grayscale:  ;
+	--tw-backdrop-hue-rotate:  ;
+	--tw-backdrop-invert:  ;
+	--tw-backdrop-opacity:  ;
+	--tw-backdrop-saturate:  ;
+	--tw-backdrop-sepia:  ;
 }
 
 .fixed {
@@ -998,6 +1014,133 @@ video {
 	transition-duration: 200ms;
 }
 
+.toggle-switch span span {
+	display: none;
+}
+
+.toggle-switch {
+	display: inline-block;
+	position: relative;
+	overflow: visible;
+	padding: 0;
+	cursor: pointer;
+	width: 200px;
+	border: 1px solid #ccc;
+	border-radius: 5px;
+	height: 34px;
+}
+
+.toggle-switch * {
+	box-sizing: border-box;
+}
+
+.toggle-switch label,
+.toggle-switch > span {
+	line-height: 20px;
+	height: 20px;
+	vertical-align: middle;
+}
+
+.toggle-switch input:focus ~ a,
+.toggle-switch input:focus + label {
+	outline: none;
+}
+
+.toggle-switch label {
+	position: relative;
+	z-index: 3;
+	display: block;
+	width: 100%;
+}
+
+.toggle-switch input {
+	position: absolute;
+	opacity: 0;
+	z-index: 5;
+}
+
+.toggle-switch > span {
+	position: absolute;
+	left: 0;
+	width: calc(100% - 6px);
+	margin: 0;
+	text-align: left;
+	white-space: nowrap;
+	margin: 0 3px;
+}
+
+.toggle-switch > span span {
+	position: absolute;
+	top: 0;
+	z-index: 5;
+	display: block;
+	margin-left: 50px;
+	text-align: left;
+	font-size: 0.9em;
+	width: auto;
+	left: 0;
+	top: -1px;
+	opacity: 1;
+	width: 40%;
+	text-align: center;
+	line-height: 34px;
+}
+
+.toggle-switch a {
+	position: absolute;
+	right: 50%;
+	z-index: 4;
+	display: block;
+	top: 3px;
+	bottom: 3px;
+	padding: 0;
+	left: 3px;
+	width: 50%;
+	background-color: #666;
+	border-radius: 4px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.toggle-switch > span span:first-of-type {
+	color: #fff;
+	opacity: 1;
+	left: 0;
+	margin: 0;
+	width: 50%;
+}
+
+.toggle-switch > span span:last-of-type {
+	left: auto;
+	right: 0;
+	color: #999;
+	margin: 0;
+	width: 50%;
+}
+
+.toggle-switch > span:before {
+	content: '';
+	display: block;
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	left: 0;
+	top: -2px;
+	border-radius: 30px;
+}
+
+.toggle-switch input:checked ~ a {
+	left: calc(50% - 3px);
+}
+
+.toggle-switch input:checked ~ span span:first-of-type {
+	left: 0;
+	color: #999;
+}
+
+.toggle-switch input:checked ~ span span:last-of-type {
+	color: #fff;
+}
+
 .placeholder\:text-gray-600::-moz-placeholder {
 	--tw-text-opacity: 1;
 	color: rgb(75 85 99 / var(--tw-text-opacity));
@@ -1084,122 +1227,4 @@ video {
 	.md\:pt-24 {
 		padding-top: 6rem;
 	}
-}
-
-.toggleSwitch span span {
-	display: none;
-}
-
-.toggleSwitch {
-	display: inline-block;
-	height: 18px;
-	position: relative;
-	overflow: visible;
-	padding: 0;
-	cursor: pointer;
-	width: 200px;
-	border: 1px solid #ccc;
-	border-radius:5px;
-	height:34px;
-}
-.toggleSwitch * {
-	-webkit-box-sizing: border-box;
-	-moz-box-sizing: border-box;
-	box-sizing: border-box;
-}
-.toggleSwitch label,
-.toggleSwitch > span {
-	line-height: 20px;
-	height: 20px;
-	vertical-align: middle;
-}
-.toggleSwitch input:focus ~ a,
-.toggleSwitch input:focus + label {
-	outline: none;
-}
-.toggleSwitch label {
-	position: relative;
-	z-index: 3;
-	display: block;
-	width: 100%;
-}
-.toggleSwitch input {
-	position: absolute;
-	opacity: 0;
-	z-index: 5;
-}
-.toggleSwitch > span {
-	position: absolute;
-	left: 0;
-	width: calc(100% - 6px);
-	margin: 0;
-	text-align: left;
-	white-space: nowrap;
-	margin:0 3px;
-}
-.toggleSwitch > span span {
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 5;
-	display: block;
-	width: 50%;
-	margin-left: 50px;
-	text-align: left;
-	font-size: 0.9em;
-	width: auto;
-	left: 0;
-	top: -1px;
-	opacity: 1;
-	width:40%;
-	text-align: center;
-	line-height:34px;
-}
-.toggleSwitch a {
-	position: absolute;
-	right: 50%;
-	z-index: 4;
-	display: block;
-	top: 3px;
-	bottom: 3px;
-	padding: 0;
-	left: 3px;
-	width: 50%;
-	background-color: #666;
-	border-radius: 4px;
-	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.toggleSwitch > span span:first-of-type {
-	color: #FFF;
-	opacity: 1;
-	left: 0;
-	margin: 0;
-	width: 50%;
-}
-.toggleSwitch > span span:last-of-type {
-	left: auto;
-	right: 0;
-	color: #999;
-	margin: 0;
-	width: 50%;
-}
-.toggleSwitch > span:before {
-	content: '';
-	display: block;
-	width: 100%;
-	height: 100%;
-	position: absolute;
-	left: 0;
-	top: -2px;
-	border-radius: 30px;
-}
-.toggleSwitch input:checked ~ a {
-	left: calc(50% - 3px);
-}
-.toggleSwitch input:checked ~ span span:first-of-type {
-	left: 0;
-	color: #999;
-}
-.toggleSwitch input:checked ~ span span:last-of-type {
-	color: #FFF;
 }
