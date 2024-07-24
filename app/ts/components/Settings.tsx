@@ -1,9 +1,12 @@
-import { batch, Signal, useComputed, useSignal } from '@preact/signals'
+import { batch, ReadonlySignal, Signal, useComputed, useSignal } from '@preact/signals'
 import { formatUnits, parseUnits } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
-import { MAINNET } from '../constants.js'
-import { AppSettings } from '../types/types.js'
+import { DEFAULT_NETWORKS } from '../constants.js'
 import { Button } from './Button.js'
+import { SingleNotice } from './Warns.js'
+import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
+import { fetchSettingsFromStorage } from '../stores.js'
+import { useEffect } from 'preact/hooks'
 
 export const SettingsIcon = () => {
 	return (
@@ -26,12 +29,21 @@ export const SettingsIcon = () => {
 	)
 }
 
-export const SettingsModal = ({ display, appSettings }: { display: Signal<boolean>, appSettings: Signal<AppSettings> }) => {
-	const simulationRelayEndpointInput = useSignal({ value: appSettings.peek().simulationRelayEndpoint, valid: true })
-	const submissionRelayEndpointInput = useSignal({ value: appSettings.peek().submissionRelayEndpoint, valid: true })
-	const priorityFeeInput = useSignal({ value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true })
-	const blocksInFutureInput = useSignal({ value: appSettings.peek().blocksInFuture.toString(10), valid: true })
-
+export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { display: Signal<boolean>, bouquetNetwork: ReadonlySignal<BouquetNetwork>, bouquetSettings: Signal<BouquetSettings>}) => {
+	const chainId = useSignal({ value: bouquetNetwork.peek().chainId, valid: true })
+	const rpcUrl = useSignal({ value: bouquetNetwork.peek().rpcUrl, valid: true })
+	const simulationRelayEndpointInput = useSignal({ value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true })
+	const submissionRelayEndpointInput = useSignal({ value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true })
+	const priorityFeeInput = useSignal({ value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true })
+	const blocksInFutureInput = useSignal({ value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true })
+	const mempoolSubmitRpcEndpoint = useSignal({ value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true })
+	const relayMode = useSignal({ value: bouquetNetwork.peek().relayMode, valid: true })
+	const loaded = useSignal(false)
+	
+	useEffect(() => {
+		bringSettingsValues()
+		loaded.value = display.value
+	}, [display.value])
 	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
 
 	// https://urlregex.com/
@@ -45,7 +57,10 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		'(\\#[-a-z\\d_]*)?$' // fragment locator
 	)
 	function validateSimulationRelayEndpointInput(value: string) {
-		simulationRelayEndpointInput.value = { value, valid: uriMatcher.test(value)  }
+		simulationRelayEndpointInput.value = { value, valid: uriMatcher.test(value) }
+	}
+	function validateMempoolSubmitRpcEndpoint(value: string) {
+		mempoolSubmitRpcEndpoint.value = { value, valid: uriMatcher.test(value) }
 	}
 	function validateAndSetSubmissionRelayEndpointInput(value: string) {
 		submissionRelayEndpointInput.value = { value, valid: uriMatcher.test(value) }
@@ -70,61 +85,93 @@ export const SettingsModal = ({ display, appSettings }: { display: Signal<boolea
 		}
 	}
 	function saveSettings() {
-		if (allValidInputs.value) {
-			const newSettings: AppSettings = { submissionRelayEndpoint: submissionRelayEndpointInput.value.value, simulationRelayEndpoint: simulationRelayEndpointInput.value.value, priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'), blocksInFuture: BigInt(blocksInFutureInput.value.value) }
-			appSettings.value = newSettings
-			localStorage.setItem('bouquetSettings', JSON.stringify({
-				priorityFee: newSettings.priorityFee.toString(),
-				blocksInFuture: newSettings.blocksInFuture.toString(),
-				simulationRelayEndpoint: newSettings.simulationRelayEndpoint,
-				submissionRelayEndpoint: newSettings.submissionRelayEndpoint,
-			}))
-			close()
+		if (!allValidInputs.value) return
+		const newSettings = {
+			rpcUrl: rpcUrl.value.value,
+			submissionRelayEndpoint: submissionRelayEndpointInput.value.value,
+			simulationRelayEndpoint: simulationRelayEndpointInput.value.value,
+			priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'),
+			blocksInFuture: BigInt(blocksInFutureInput.value.value),
+			mempoolSubmitRpcEndpoint: mempoolSubmitRpcEndpoint.value.value,
+			relayMode: relayMode.value.value,
 		}
+		const oldSettings = fetchSettingsFromStorage()
+		const index = oldSettings.findIndex((item) => item.chainId === chainId.value.value)
+		if (index >= 0) {
+			localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(oldSettings.map((oldSetting) => {
+				if (oldSetting.chainId !== chainId.value.value) return oldSetting
+				return { ...oldSetting, ...newSettings }
+			}))))
+		} else {
+			localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize([
+				...oldSettings,
+				{
+					...newSettings,
+					chainId: chainId.value.value,
+					networkName: `ChainId: ${ chainId }`,
+					blockExplorerApi: '',
+					blockExplorer: '',
+				}
+			])))
+		}
+		display.value = false
+		bouquetSettings.value = fetchSettingsFromStorage()
 	}
-	function resetSettings() {
+
+	function bringSettingsValues() {
 		batch(() => {
-			appSettings.value = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: MAINNET.simulationRelay, submissionRelayEndpoint: MAINNET.submissionRelay };
-			localStorage.setItem('bouquetSettings', JSON.stringify({
-				priorityFee: appSettings.value.priorityFee.toString(),
-				blocksInFuture: appSettings.value.blocksInFuture.toString(),
-				simulationRelayEndpoint: appSettings.value.simulationRelayEndpoint,
-				submissionRelayEndpoint: appSettings.value.submissionRelayEndpoint,
-			}))
-			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
-			submissionRelayEndpointInput.value = { value: appSettings.peek().submissionRelayEndpoint, valid: true }
-			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
-			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
+			simulationRelayEndpointInput.value = { value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true }
+			submissionRelayEndpointInput.value = { value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true }
+			priorityFeeInput.value = { value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true }
+			blocksInFutureInput.value = { value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true }
+			mempoolSubmitRpcEndpoint.value = { value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true }
+			relayMode.value = { value: bouquetNetwork.peek().relayMode, valid: true }
 		})
+	}
+
+	function resetSettings() {
+		localStorage.setItem('bouquetSettings', JSON.stringify(BouquetSettings.serialize(DEFAULT_NETWORKS)))
+		bouquetSettings.value = fetchSettingsFromStorage()
+		bringSettingsValues()
 	}
 	function close() {
-		batch(() => {
-			simulationRelayEndpointInput.value = { value: appSettings.peek().simulationRelayEndpoint, valid: true }
-			submissionRelayEndpointInput.value = { value: appSettings.peek().submissionRelayEndpoint, valid: true }
-			priorityFeeInput.value = { value: formatUnits(appSettings.peek().priorityFee, 'gwei'), valid: true }
-			blocksInFutureInput.value = { value: appSettings.peek().blocksInFuture.toString(10), valid: true }
-			display.value = false
-		})
+		display.value = false
 	}
-	return display.value ? (
+	return display.value && loaded.value ? (
 		<div onClick={close} className='bg-white/10 w-full h-full inset-0 fixed p-4 flex flex-col items-center md:pt-24'>
 			<div class='h-max px-8 py-4 w-full max-w-xl flex flex-col gap-4 bg-black' onClick={(e) => e.stopPropagation()}>
 				<h2 className='text-xl font-semibold'>App Settings</h2>
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-					<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
-				</div>
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-					<span className='text-sm text-gray-500'>Bundle Submission Relay URL</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetSubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
-				</div>
+				<label class = 'toggle-switch'>
+					<input type = 'checkbox' checked = { relayMode.value.value === 'relay' ? false : true } onChange = { (e: JSX.TargetedEvent<HTMLInputElement>) => { relayMode.value = { value: e.currentTarget.checked ? 'mempool' : 'relay', valid: true } } }/>
+					<a></a>
+					<span>
+						<span class = 'left-span'>Relay</span>
+						<span class = 'right-span'>Mempool</span>
+					</span>
+				</label>
+				{ relayMode.value.value === 'mempool' ? <>
+					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled. The transactions are sent as individual transactions to the below RPC URL. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Mempool Submit RPC URL</span>
+						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSubmitRpcEndpoint(e.currentTarget.value)} value={mempoolSubmitRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					</div>
+				</> : <>	
+					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
+						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					</div>
+					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Bundle Submission Relay URL</span>
+						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetSubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					</div>
+					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
+						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
+					</div>
+				</> }
 				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!priorityFeeInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 					<span className='text-sm text-gray-500'>Priority Fee (GWEI)</span>
 					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetPriorityFeeInput(e.currentTarget.value)} value={priorityFeeInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='0.1' />
-				</div>
-				<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-					<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
-					<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 				</div>
 				<div className='flex gap-2'>
 					<Button onClick={saveSettings} disabled={!allValidInputs.value} variant='primary'>Save</Button>

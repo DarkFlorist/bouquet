@@ -1,17 +1,17 @@
 import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
 import { EtherSymbol, formatEther, getAddress, Interface, parseEther, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { AppSettings, BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
-import { MAINNET, findNetworkBySimulationRelayEndpoint } from '../constants.js'
+import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
-import { TransactionList } from '../types/bouquetTypes.js'
+import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
 import { importFromInterceptor } from './Import.js'
 import { EtherscanGetABIResult, EtherscanSourceCodeResult } from '../types/apiTypes.js'
+import { getNetwork } from '../constants.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -29,14 +29,14 @@ export const Transactions = ({
 	provider,
 	bundle,
 	blockInfo,
-	appSettings,
-	signers
+	bouquetSettings,
+	signers,
 }: {
 	provider: Signal<ProviderStore | undefined>
 	bundle: Signal<Bundle | undefined>
 	blockInfo: Signal<BlockInfo>
 	signers: Signal<Signers>
-	appSettings: Signal<AppSettings>
+	bouquetSettings: Signal<BouquetSettings>
 	fundingAmountMin: ReadonlySignal<bigint>
 }) => {
 	const interfaces = useSignal<{ [address: string]: Interface }>({})
@@ -56,7 +56,8 @@ export const Transactions = ({
 		try {
 			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? addressString(tx.to) : null ).filter(addr => addr))] as string[]
 			const abis: (string | undefined)[] = []
-			const network = findNetworkBySimulationRelayEndpoint(appSettings.peek().simulationRelayEndpoint) ?? MAINNET
+			
+			const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
 					fetch(
@@ -169,7 +170,7 @@ export const Transactions = ({
 				</>
 				</Button>
 			</div>
-			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
+			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{bundle.value?.transactions.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>

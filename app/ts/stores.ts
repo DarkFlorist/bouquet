@@ -1,11 +1,11 @@
 import { useComputed, useSignal } from '@preact/signals'
 import { Wallet } from 'ethers'
-import { MAINNET } from './constants.js'
+import { DEFAULT_NETWORKS, getNetwork } from './constants.js'
 import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
 import { EthereumAddress } from './types/ethereumTypes.js'
 import { ProviderStore } from './library/provider.js'
-import { AppSettings, BlockInfo, Bundle, Signers } from './types/types.js'
-import { TransactionList } from './types/bouquetTypes.js'
+import { BlockInfo, Bundle, Signers } from './types/types.js'
+import { BouquetSettings, TransactionList } from './types/bouquetTypes.js'
 import { addressString } from './library/utils.js'
 
 function fetchBurnerWalletFromStorage(): Wallet {
@@ -37,28 +37,16 @@ function fetchBundleFromStorage(): Bundle | undefined {
 	return { transactions: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
 }
 
-function fetchSettingsFromStorage() {
-	const defaultNetwork = MAINNET
-	const defaultValues: AppSettings = { blocksInFuture: 3n, priorityFee: 10n ** 9n * 3n, simulationRelayEndpoint: defaultNetwork.simulationRelay, submissionRelayEndpoint: defaultNetwork.submissionRelay };
-	const custom = localStorage.getItem('bouquetSettings')
-	if (!custom) {
-		return defaultValues
-	} else {
-		try {
-			const parsed = JSON.parse(custom)
-			if ('simulationRelayEndpoint' in parsed) defaultValues.simulationRelayEndpoint = parsed.simulationRelayEndpoint
-			if ('submissionRelayEndpoint' in parsed) defaultValues.submissionRelayEndpoint = parsed.submissionRelayEndpoint
-			if ('priorityFee' in parsed) defaultValues.priorityFee = BigInt(parsed.priorityFee)
-			if ('blocksInFuture' in parsed) defaultValues.blocksInFuture = BigInt(parsed.blocksInFuture)
-			return defaultValues
-		} catch {
-			return defaultValues
-		}
-	}
+export function fetchSettingsFromStorage() {
+	const nonParsed = localStorage.getItem('bouquetSettings')
+	if (nonParsed === null) return DEFAULT_NETWORKS
+	const settings = BouquetSettings.safeParse(JSON.parse(nonParsed))
+	if (!settings.success) return DEFAULT_NETWORKS
+	return settings.value
 }
 
 export function createGlobalState() {
-	const appSettings = useSignal<AppSettings>(fetchSettingsFromStorage())
+	const bouquetSettings = useSignal<BouquetSettings>(fetchSettingsFromStorage())
 	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
 	const signers = useSignal<Signers>({ burner: fetchBurnerWalletFromStorage(), burnerBalance: 0n, bundleSigners: {} })
@@ -69,13 +57,14 @@ export function createGlobalState() {
 		if (burner) localStorage.setItem('wallet', burner.privateKey)
 		else localStorage.removeItem('wallet')
 	})
-
+	
 	const fundingAmountMin = useComputed(() => {
 		if (!bundle.value) return 0n
 		if (!bundle.value.containsFundingTx) return 0n
-		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, appSettings.value.blocksInFuture)
+		const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
+		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture)
 		return bundle.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + bundle.value.inputValue
 	})
 
-	return { provider, blockInfo, bundle, appSettings, signers, fundingAmountMin }
+	return { provider, blockInfo, bundle, bouquetSettings, signers, fundingAmountMin }
 }

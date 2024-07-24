@@ -4,9 +4,9 @@ import { parseEther } from 'ethers'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
-import { AppSettings, Bundle, serialize, Signers } from '../types/types.js'
+import { Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
-import { TransactionList } from '../types/bouquetTypes.js'
+import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
 import { addressString } from '../library/utils.js'
@@ -19,11 +19,11 @@ export async function importFromInterceptor(
 		baseFee: bigint
 		priorityFee: bigint
 	}>,
-	appSettings: Signal<AppSettings>,
 	signers: Signal<Signers> | undefined,
+	bouquetSettings: Signal<BouquetSettings>
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('No Ethereum wallet detected')
-	connectBrowserProvider(provider, blockInfo, signers, appSettings)
+	connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
 
 	const { payload } = await window.ethereum
 		.request({
@@ -104,7 +104,7 @@ export const Import = ({
 	provider,
 	blockInfo,
 	signers,
-	appSettings,
+	bouquetSettings,
 }: {
 	bundle: Signal<Bundle | undefined>
 	provider: Signal<ProviderStore | undefined>
@@ -114,7 +114,7 @@ export const Import = ({
 		priorityFee: bigint
 	}>
 	signers: Signal<Signers>
-	appSettings: Signal<AppSettings>
+	bouquetSettings: Signal<BouquetSettings>
 }) => {
 	const showImportModal = useSignal<boolean>(false)
 	const [error, setError] = useState<string | undefined>(undefined)
@@ -137,7 +137,7 @@ export const Import = ({
 			<div className='flex flex-col w-full gap-6'>
 				<div className='flex flex-col sm:flex-row gap-4'>
 					<Button
-						onClick={() => importFromInterceptor(bundle, provider, blockInfo, appSettings, signers).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
+						onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings).then(() => setError(undefined)).catch((err: Error) => setError(err.message))}
 					>
 						Import Payload from The Interceptor
 					</Button>

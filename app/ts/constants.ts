@@ -1,35 +1,63 @@
-type Network = { networkName: string, simulationRelay: string, submissionRelay: string, blockExplorer: string, rpcUrl: string, chainId: string, blockExplorerApi: string }
+import { BouquetNetwork, BouquetSettings } from './types/bouquetTypes.js'
 
 export const MAINNET = {
 	networkName: 'Mainnet',
-	simulationRelay: 'https://flashbots-cors-proxy.dark-florist.workers.dev/',
-	submissionRelay: 'https://rpc.titanbuilder.xyz',
+	simulationRelayEndpoint: 'https://flashbots-cors-proxy.dark-florist.workers.dev/',
+	submissionRelayEndpoint: 'https://rpc.titanbuilder.xyz',
 	blockExplorer: 'https://etherscan.io/',
 	rpcUrl: 'https://rpc.dark.florist/flipcardtrustone',
-	chainId: `0x${1n.toString(16)}`,
-	blockExplorerApi: 'https://api.etherscan.io'
-}
+	chainId: 1n,
+	blockExplorerApi: 'https://api.etherscan.io',
+	relayMode: 'relay',
+	mempoolSubmitRpcEndpoint: '', // don't set default for Mainnet as its not advisable to use it
+	blocksInFuture: 3n,
+	priorityFee: 10n ** 9n * 3n,
+} as const
 
-export const NETWORKS = new Map<bigint, Network>([
-	[1n, MAINNET],
-	[11155111n, {
+export const DEFAULT_NETWORKS: BouquetNetwork[] = [
+	MAINNET,
+	{
 		networkName: 'Sepolia',
-		simulationRelay: 'https://flashbots-sepolia-cors-proxy.dark-florist.workers.dev/',
-		submissionRelay: 'https://flashbots-sepolia-cors-proxy.dark-florist.workers.dev/',
-		blockExplorer: 'https://sepolia-etherscan.io/',
+		simulationRelayEndpoint: 'https://flashbots-sepolia-cors-proxy.dark-florist.workers.dev/',
+		submissionRelayEndpoint: 'https://flashbots-sepolia-cors-proxy.dark-florist.workers.dev/',
+		blockExplorer: 'https://sepolia.etherscan.io/',
 		rpcUrl: 'https://rpc-sepolia.dark.florist/flipcardtrustone',
-		chainId: `0x${11155111n.toString(16)}`,
-		blockExplorerApi: 'https://sepolia-api.etherscan.io',
-	}]
-])
-
-export const findNetworkBySimulationRelayEndpoint = (simulationRelayEndpoint: string) => {
-	for (const [_chainId, network] of NETWORKS) {
-		if (network.simulationRelay === simulationRelayEndpoint) return network
+		chainId: 11155111n,
+		blockExplorerApi: 'https://sepolia.api.etherscan.io',
+		relayMode: 'relay',
+		mempoolSubmitRpcEndpoint: '', // don't set default for Sepolia as its not advisable to use it
+		blocksInFuture: 3n,
+		priorityFee: 10n ** 9n * 3n,
+	},
+	{
+		networkName: 'Holesky',
+		simulationRelayEndpoint: '',
+		submissionRelayEndpoint: '',
+		blockExplorer: 'https://holesky.etherscan.io/',
+		rpcUrl: 'https://holesky.dark.florist',
+		chainId: 17000n,
+		blockExplorerApi: 'https://holesky.api.etherscan.io',
+		relayMode: 'mempool',
+		mempoolSubmitRpcEndpoint: 'https://holesky.dark.florist',
+		blocksInFuture: 3n,
+		priorityFee: 10n ** 9n * 3n,
 	}
-	return undefined
-}
+]
 
-export const getSupportedNetworksNamesAndIds = () => {
-	return Array.from(NETWORKS, ([chainid, network]) => ({ chainid, networkName: network.networkName }))
+export const getNetwork = (networks: BouquetSettings, chainId: bigint): BouquetNetwork => {
+	const network = networks.find((network) => network.chainId === chainId)
+	if (network !== undefined) return network
+	return {
+		networkName: `Custom ChainId: ${ chainId }`,
+		simulationRelayEndpoint: '',
+		submissionRelayEndpoint: '',
+		blockExplorer: '',
+		rpcUrl: '',
+		chainId: chainId,
+		blockExplorerApi: '',
+		relayMode: 'mempool',
+		mempoolSubmitRpcEndpoint: '',
+		blocksInFuture: 3n,
+		priorityFee: 10n ** 9n * 3n,
+	}
 }
