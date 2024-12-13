@@ -70,7 +70,7 @@ export async function simulateBundle(
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
 	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin)
 	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, blockInfo, maxBaseFee)
-	
+
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
 
 	switch(network.relayMode) {
@@ -130,7 +130,7 @@ export async function simulateBundle(
 				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
 			)
 			const response = await request.json()
-		
+
 			if (response.error !== undefined && response.error !== null) {
 				return {
 					error: {
@@ -139,7 +139,7 @@ export async function simulateBundle(
 					},
 				}
 			}
-		
+
 			const callResult = response.result
 			return {
 				bundleGasPrice: BigInt(callResult.bundleGasPrice),
@@ -166,7 +166,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 		blockInfo,
 		maxBaseFee,
 	)).map((x) => x.rawTransaction)
-	
+
 	switch(network.relayMode) {
 		case 'mempool': {
 			const payloads = transactions.map((transaction, index) => JSON.stringify({
@@ -184,7 +184,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 					throw new Error(response.error.message)
 				}
 			}
-		
+
 			const bundleTransactions = transactions.map((signedTransaction) => {
 				const transactionDetails = Transaction.from(signedTransaction)
 				return {
@@ -194,7 +194,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 					nonce: BigInt(transactionDetails.nonce),
 				}
 			})
-		
+
 			return { bundleTransactions, bundleIdentifier: ethers.keccak256(toUtf8Bytes(payloads.join('|'))) }
 		}
 		case 'relay': {
@@ -202,23 +202,23 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				jsonrpc: '2.0',
 				method: 'eth_sendBundle',
 				id: bundleId++,
-				params: [{ transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
+				params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
 			})
 			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
-			
+
 			if (network.submissionRelayEndpoint === undefined) throw new Error('submissionRelayEndpoint is not defined')
 			const request = await fetch(network.submissionRelayEndpoint,
 				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
 			)
 			const response = await request.json()
-		
+
 			if (response.error !== undefined && response.error !== null) {
 				throw {
 					message: response.error.message,
 					code: response.error.code,
 				}
 			}
-		
+
 			const bundleTransactions = transactions.map((signedTransaction) => {
 				const transactionDetails = Transaction.from(signedTransaction)
 				return {
@@ -228,7 +228,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 					nonce: BigInt(transactionDetails.nonce),
 				}
 			})
-		
+
 			return { bundleTransactions, bundleIdentifier: response.result.bundleHash }
 		}
 	}
