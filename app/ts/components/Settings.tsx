@@ -39,7 +39,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 	const mempoolSubmitRpcEndpoint = useSignal({ value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true })
 	const relayMode = useSignal({ value: bouquetNetwork.peek().relayMode, valid: true })
 	const loaded = useSignal(false)
-	
+
 	useEffect(() => {
 		bringSettingsValues()
 		loaded.value = display.value
@@ -108,7 +108,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 				{
 					...newSettings,
 					chainId: chainId.value.value,
-					networkName: `ChainId: ${ chainId }`,
+					networkName: `ChainId: ${ chainId.value.value }`,
 					blockExplorerApi: '',
 					blockExplorer: '',
 				}
@@ -120,6 +120,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 
 	function bringSettingsValues() {
 		batch(() => {
+			chainId.value = { value: bouquetNetwork.peek().chainId, valid: true }
 			simulationRelayEndpointInput.value = { value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true }
 			submissionRelayEndpointInput.value = { value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true }
@@ -155,7 +156,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 						<span className='text-sm text-gray-500'>Mempool Submit RPC URL</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSubmitRpcEndpoint(e.currentTarget.value)} value={mempoolSubmitRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
-				</> : <>	
+				</> : <>
 					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />

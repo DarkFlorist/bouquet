@@ -47,6 +47,7 @@ export const Navbar = ({
 									className='px-2 py-1 bg-black'
 								>
 									{bouquetSettings.value.map((network) => <option value={network.chainId.toString()}>{ network.networkName }</option>)}
+									{bouquetSettings.value.find((network) => network.chainId === provider.value?.chainId) === undefined ? <option value={provider.value?.chainId.toString()}>{`ChainId: ${provider.value.chainId}`}</option> : <></>}
 								</select>
 							</span>
 						</div >
