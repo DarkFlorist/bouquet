@@ -124,7 +124,7 @@ export async function simulateBundle(
 		}
 		case 'relay': {
 			if (network.simulationRelayEndpoint === undefined) throw new Error('simulationRelayEndpoint is not defined')
-			const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_callBundle', params: [{ ...txs.map((x) => x.rawTransaction), blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
+			const payload = JSON.stringify({ jsonrpc: '2.0', method: 'eth_callBundle', params: [{ txs: txs.map((x) => x.rawTransaction), blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
 			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 			const request = await fetch(network.simulationRelayEndpoint,
 				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
