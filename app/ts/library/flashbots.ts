@@ -175,9 +175,11 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				id: index,
 				params: [transaction]
 			}))
-			const requests = await Promise.all(payloads.map(async (payload) => await fetch(network.mempoolSubmitRpcEndpoint,
-				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } }
-			)))
+			if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
+			const requests = await Promise.all(payloads.map(async (payload) => {
+				if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
+				return await fetch(network.mempoolSubmitRpcEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } })
+			}))
 			for (const request of requests) {
 				const response = await request.json()
 				if (response.error !== undefined && response.error !== null) {
