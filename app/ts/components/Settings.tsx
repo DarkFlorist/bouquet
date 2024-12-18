@@ -31,12 +31,12 @@ export const SettingsIcon = () => {
 
 export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { display: Signal<boolean>, bouquetNetwork: ReadonlySignal<BouquetNetwork>, bouquetSettings: Signal<BouquetSettings>}) => {
 	const chainId = useSignal({ value: bouquetNetwork.peek().chainId, valid: true })
-	const rpcUrl = useSignal({ value: bouquetNetwork.peek().rpcUrl, valid: true })
 	const simulationRelayEndpointInput = useSignal({ value: bouquetNetwork.peek().simulationRelayEndpoint, valid: true })
 	const submissionRelayEndpointInput = useSignal({ value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true })
 	const priorityFeeInput = useSignal({ value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true })
 	const blocksInFutureInput = useSignal({ value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true })
 	const mempoolSubmitRpcEndpoint = useSignal({ value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true })
+	const mempoolSimulationRpcEndpoint = useSignal({ value: bouquetNetwork.peek().mempoolSimulationRpcEndpoint, valid: true })
 	const relayMode = useSignal({ value: bouquetNetwork.peek().relayMode, valid: true })
 	const loaded = useSignal(false)
 
@@ -44,7 +44,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 		bringSettingsValues()
 		loaded.value = display.value
 	}, [display.value])
-	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid)
+	const allValidInputs = useComputed(() => submissionRelayEndpointInput.value.valid && simulationRelayEndpointInput.value.valid && priorityFeeInput.value.valid && blocksInFutureInput.value.valid && mempoolSimulationRpcEndpoint.value.valid && mempoolSubmitRpcEndpoint.value.valid && mempoolSubmitRpcEndpoint.value.valid)
 
 	// https://urlregex.com/
 	const uriMatcher = new RegExp(
@@ -61,6 +61,9 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 	}
 	function validateMempoolSubmitRpcEndpoint(value: string) {
 		mempoolSubmitRpcEndpoint.value = { value, valid: uriMatcher.test(value) }
+	}
+	function validateMempoolSimulationRpcEndpointInput(value: string) {
+		mempoolSimulationRpcEndpoint.value = { value, valid: uriMatcher.test(value) }
 	}
 	function validateAndSetSubmissionRelayEndpointInput(value: string) {
 		submissionRelayEndpointInput.value = { value, valid: uriMatcher.test(value) }
@@ -87,12 +90,12 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 	function saveSettings() {
 		if (!allValidInputs.value) return
 		const newSettings = {
-			rpcUrl: rpcUrl.value.value,
 			submissionRelayEndpoint: submissionRelayEndpointInput.value.value,
 			simulationRelayEndpoint: simulationRelayEndpointInput.value.value,
 			priorityFee: parseUnits(String(Number(priorityFeeInput.value.value)), 'gwei'),
 			blocksInFuture: BigInt(blocksInFutureInput.value.value),
 			mempoolSubmitRpcEndpoint: mempoolSubmitRpcEndpoint.value.value,
+			mempoolSimulationRpcEndpoint: mempoolSimulationRpcEndpoint.value.value,
 			relayMode: relayMode.value.value,
 		}
 		const oldSettings = fetchSettingsFromStorage()
@@ -125,6 +128,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 			submissionRelayEndpointInput.value = { value: bouquetNetwork.peek().submissionRelayEndpoint, valid: true }
 			priorityFeeInput.value = { value: formatUnits(bouquetNetwork.peek().priorityFee, 'gwei'), valid: true }
 			blocksInFutureInput.value = { value: bouquetNetwork.peek().blocksInFuture.toString(10), valid: true }
+			mempoolSimulationRpcEndpoint.value = { value: bouquetNetwork.peek().mempoolSimulationRpcEndpoint, valid: true }
 			mempoolSubmitRpcEndpoint.value = { value: bouquetNetwork.peek().mempoolSubmitRpcEndpoint, valid: true }
 			relayMode.value = { value: bouquetNetwork.peek().relayMode, valid: true }
 		})
@@ -152,6 +156,10 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 				</label>
 				{ relayMode.value.value === 'mempool' ? <>
 					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled. The transactions are sent as individual transactions to the below RPC URL. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSimulationRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Simulation RPC URL</span>
+						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSimulationRpcEndpointInput(e.currentTarget.value)} value={mempoolSimulationRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
+					</div>
 					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Mempool Submit RPC URL</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSubmitRpcEndpoint(e.currentTarget.value)} value={mempoolSubmitRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />

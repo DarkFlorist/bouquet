@@ -141,7 +141,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 
 	// Default check if we know the network, can also switch to true if sending to known RPC fails
 	const useBrowserProvider = useSignal<boolean>(false)
-	useSignalEffect(() => { useBrowserProvider.value = Boolean(provider.value && bouquetNetwork.value.rpcUrl) })
+	useSignalEffect(() => { useBrowserProvider.value = Boolean(provider.value && bouquetNetwork.value.mempoolSubmitRpcEndpoint === undefined) })
 
 	function withdraw() {
 		waitFor(async () => {
@@ -150,7 +150,6 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 			if (!provider.value) throw 'User not connected'
 			if (!recipientAddress.value.address) throw 'No recipient provided'
 
-			// Worst case scenario, attempt to send via browser wallet if no NETWORK config for chainId or previous error sending to known RPC
 			if (useBrowserProvider.value === true) {
 				try {
 					const burnerWithBrowserProvider = signers.value.burner.connect(provider.value.provider)
@@ -162,14 +161,14 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 					throw error
 				}
 			}
-			if (bouquetNetwork.value.rpcUrl === undefined) throw new Error('No RPC URL set and not connected to wallet')
-			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(bouquetNetwork.value.rpcUrl))
+			if (bouquetNetwork.value.mempoolSubmitRpcEndpoint === undefined) throw new Error('No RPC URL set and not connected to wallet')
+			const fundingWithProvider = signers.value.burner.connect(new JsonRpcProvider(bouquetNetwork.value.mempoolSubmitRpcEndpoint))
 			try {
 				const tx = await fundingWithProvider.sendTransaction({ chainId: provider.value.chainId, from: signers.value.burner.address, to: addressString(recipientAddress.value.address), gasLimit: 21000, type: 2, value: withdrawAmount.value.amount, maxFeePerGas: withdrawAmount.value.maxFeePerGas })
 				fundingWithProvider.provider?.destroy()
 				return tx.hash
 			} catch (error) {
-				console.warn('Error sending burner withdraw tx to known RPC:', error)
+				console.warn('Error sending burner withdraw tx to known RPC:', bouquetNetwork.value.mempoolSubmitRpcEndpoint, ' error:', error)
 				fundingWithProvider.provider?.destroy()
 				useBrowserProvider.value = true
 				throw 'Unknown network! If you have Interceptor installed and simulation mode on please switch to signing mode and try again.'

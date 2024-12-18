@@ -75,7 +75,7 @@ export async function simulateBundle(
 
 	switch(network.relayMode) {
 		case 'mempool': {
-			if (network.rpcUrl === undefined) throw new Error('simulationRelayEndpoint is not defined')
+			if (network.mempoolSimulationRpcEndpoint === undefined) throw new Error('mempoolSimulationRpcEndpoint is not defined')
 			const data: EthSimulateV1Params = {
 				method: 'eth_simulateV1',
 				params: [ { 'blockStateCalls': [ { calls: txs.map((tx) => ({
@@ -94,7 +94,7 @@ export async function simulateBundle(
 				})) } ], traceTransfers: false, validation: true }, 'latest' ]
 			} as const
 			const serialized = serialize(EthSimulateV1Params, data)
-			const request = await fetch(network.rpcUrl, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 0, ...serialized }), headers: { 'Content-Type': 'application/json' } })
+			const request = await fetch(network.mempoolSimulationRpcEndpoint, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 0, ...serialized }), headers: { 'Content-Type': 'application/json' } })
 			const response = JsonRpcResponse.parse(await request.json())
 			if ('error' in response) {
 				console.log(response)
@@ -175,9 +175,11 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				id: index,
 				params: [transaction]
 			}))
-			const requests = await Promise.all(payloads.map(async (payload) => await fetch(network.mempoolSubmitRpcEndpoint,
-				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } }
-			)))
+			if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
+			const requests = await Promise.all(payloads.map(async (payload) => {
+				if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
+				return await fetch(network.mempoolSubmitRpcEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } })
+			}))
 			for (const request of requests) {
 				const response = await request.json()
 				if (response.error !== undefined && response.error !== null) {

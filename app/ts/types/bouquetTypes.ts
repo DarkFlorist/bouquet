@@ -29,12 +29,12 @@ export const BouquetNetwork = funtypes.Object({
 	chainId: EthereumQuantity,
 	networkName: funtypes.String,
 	relayMode: funtypes.Union(funtypes.Literal('relay'), funtypes.Literal('mempool')),
-	mempoolSubmitRpcEndpoint: funtypes.String,
+	mempoolSubmitRpcEndpoint: funtypes.Union(funtypes.String, funtypes.Undefined),
+	mempoolSimulationRpcEndpoint: funtypes.Union(funtypes.String, funtypes.Undefined),
 	blocksInFuture: EthereumQuantity,
 	priorityFee: EthereumQuantity,
 	blockExplorerApi: funtypes.Union(funtypes.String, funtypes.Undefined),
 	blockExplorer: funtypes.Union(funtypes.String, funtypes.Undefined),
-	rpcUrl: funtypes.Union(funtypes.String, funtypes.Undefined),
 	simulationRelayEndpoint: funtypes.Union(funtypes.String, funtypes.Undefined),
 	submissionRelayEndpoint: funtypes.Union(funtypes.String, funtypes.Undefined)
 })
