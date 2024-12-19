@@ -156,24 +156,24 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 				</label>
 				{ relayMode.value.value === 'mempool' ? <>
 					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled. The transactions are sent as individual transactions to the below RPC URL. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
-					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSimulationRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-						<span className='text-sm text-gray-500'>Simulation RPC URL</span>
+					<div key = {'mempoolSimulationRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSimulationRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Mempool Simulation RPC URL (a RPC with eth_simulateV1 support)</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSimulationRpcEndpointInput(e.currentTarget.value)} value={mempoolSimulationRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
-					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-						<span className='text-sm text-gray-500'>Mempool Submit RPC URL</span>
+					<div key = {'mempoolSubmitRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+						<span className='text-sm text-gray-500'>Mempool Submit RPC URL (a sequencer or similar)</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSubmitRpcEndpoint(e.currentTarget.value)} value={mempoolSubmitRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
 				</> : <>
-					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+					<div key = {'simulationRelayEndpointInput'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!simulationRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Bundle Simulation Relay URL</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateSimulationRelayEndpointInput(e.currentTarget.value)} value={simulationRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
-					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+					<div key = {'submissionRelayEndpointInput'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!submissionRelayEndpointInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Bundle Submission Relay URL</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetSubmissionRelayEndpointInput(e.currentTarget.value)} value={submissionRelayEndpointInput.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
-					<div className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
+					<div key = {'blocksInFutureInput'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!blocksInFutureInput.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Target Blocks In Future For Bundle Confirmation</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateAndSetBlocksInFutureInput(e.currentTarget.value)} value={blocksInFutureInput.value.value} type='number' className='bg-transparent outline-none placeholder:text-gray-600' />
 					</div>
