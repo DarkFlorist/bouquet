@@ -157,7 +157,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 				{ relayMode.value.value === 'mempool' ? <>
 					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled. The transactions are sent as individual transactions to the below RPC URL. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
 					<div key = {'mempoolSimulationRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSimulationRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-						<span className='text-sm text-gray-500'>Mempool Simulation RPC URL (a node with an eth_simulateV1 support)</span>
+						<span className='text-sm text-gray-500'>Mempool Simulation RPC URL (a RPC with an eth_simulateV1 support)</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSimulationRpcEndpointInput(e.currentTarget.value)} value={mempoolSimulationRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
 					<div key = {'mempoolSubmitRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
