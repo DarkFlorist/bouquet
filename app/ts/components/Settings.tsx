@@ -161,7 +161,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSimulationRpcEndpointInput(e.currentTarget.value)} value={mempoolSimulationRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
 					<div key = {'mempoolSubmitRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSubmitRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
-						<span className='text-sm text-gray-500'>Mempool Submit RPC URL (a sequencer RPC or similar)</span>
+						<span className='text-sm text-gray-500'>Mempool Submit RPC URL (a sequencer or similar)</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSubmitRpcEndpoint(e.currentTarget.value)} value={mempoolSubmitRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
 					</div>
 				</> : <>
