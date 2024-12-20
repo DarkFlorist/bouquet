@@ -55,14 +55,14 @@ export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: Flashb
 	return transactions
 }
 
-export const createBundleTransactions = async (
+export const createBundleTransactions = (
 	bundle: Bundle,
 	signers: Signers,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
-): Promise<FlashbotsBundleTransaction[]> => {
-	return await Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId }) => {
+): FlashbotsBundleTransaction[] => {
+	return bundle.transactions.map(({ from, to, gasLimit, value, input, chainId }) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: 2,
@@ -99,5 +99,5 @@ export const createBundleTransactions = async (
 					...gasOpts,
 				},
 			}
-	}))
+	})
 }

@@ -56,7 +56,7 @@ export const Transactions = ({
 		try {
 			const uniqueAddresses = [...new Set(bundle.value.transactions.map((tx) => tx.to ? addressString(tx.to) : null ).filter(addr => addr))] as string[]
 			const abis: (string | undefined)[] = []
-			
+
 			const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
 			const requests = await Promise.all(
 				uniqueAddresses.map((address) =>
@@ -93,7 +93,6 @@ export const Transactions = ({
 	useSignalEffect(() => {
 		if (interfaces.value && bundle.value) {
 			parseTransactions()
-			compareWithInterceptor()
 		}
 		if (provider.value && provider.value.isInterceptor && !interceptorComparison.value.intervalId) createCompareInterval()
 	})
@@ -141,9 +140,10 @@ export const Transactions = ({
 	}
 
 	async function createCompareInterval() {
-		if (!provider.value || !provider.value.isInterceptor) return;
+		if (!provider.value || !provider.value.isInterceptor) return
 		const different = await compare()
-		interceptorComparison.value = { different, intervalId: setInterval(compareWithInterceptor, 20000)}
+		clearInterval(interceptorComparison.value.intervalId)
+		interceptorComparison.value = { different, intervalId: setInterval(compareWithInterceptor, 10000)}
 	}
 
 	return (
