@@ -143,7 +143,7 @@ export const Transactions = ({
 		if (!provider.value || !provider.value.isInterceptor) return
 		const different = await compare()
 		clearInterval(interceptorComparison.value.intervalId)
-		interceptorComparison.value = { different, intervalId: setInterval(compareWithInterceptor, 10000)}
+		interceptorComparison.value = { different, intervalId: setInterval(compareWithInterceptor, 10000) }
 	}
 
 	return (
