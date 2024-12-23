@@ -279,6 +279,7 @@ export const Submit = ({
 								</div>
 								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
+								<p><span className='font-bold'>Transaction Simulation RPC:</span> { bouquetNetwork.value.mempoolSimulationRpcEndpoint }</p>
 							</> : <>
 								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Relays:</span> simulation:{bouquetNetwork.value.simulationRelayEndpoint}, submit:{bouquetNetwork.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>

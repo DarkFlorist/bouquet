@@ -68,7 +68,7 @@ export async function simulateBundle(
 ): Promise<SimulationResponse> {
 	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
-	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin)
+	const bundleTransactions = createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin)
 	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, blockInfo, maxBaseFee)
 
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
@@ -94,32 +94,37 @@ export async function simulateBundle(
 				})) } ], traceTransfers: false, validation: true }, 'latest' ]
 			} as const
 			const serialized = serialize(EthSimulateV1Params, data)
-			const request = await fetch(network.mempoolSimulationRpcEndpoint, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 0, ...serialized }), headers: { 'Content-Type': 'application/json' } })
-			const response = JsonRpcResponse.parse(await request.json())
-			if ('error' in response) {
-				console.log(response)
-				throw new Error(response.error.message)
-			}
-			const parsed = EthSimulateV1Result.parse(response.result)
-			const calls = parsed[0].calls
+			try {
+				const request = await fetch(network.mempoolSimulationRpcEndpoint, { method: 'POST', body: JSON.stringify({ jsonrpc: '2.0', id: 0, ...serialized }), headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(60000) })
+				const response = JsonRpcResponse.parse(await request.json())
+				if ('error' in response) {
+					console.log(response)
+					throw new Error(response.error.message)
+				}
+				const parsed = EthSimulateV1Result.parse(response.result)
+				const calls = parsed[0].calls
 
-			return {
-				totalGasUsed: calls.reduce((a, b) => a + b.gasUsed, 0n),
-				firstRevert: calls.map((call, index) => {
-					const to = bigIntify(txs[index].transaction.to)
-					if (to === undefined) throw new Error('to is undefined')
-					const from = bigIntify(txs[index].transaction.from)
-					return {
-						...call,
-						toAddress: addressString(to),
-						fromAddress: from !== undefined ? addressString(from) : undefined,
-					}
-				}).find((txSim) => txSim.status === 'failure'),
-				results: calls,
-				gasFees: txs.reduce((totalFee, tx, currentIndex) => {
-					if (tx.transaction.gasPrice) return totalFee + BigInt(tx.transaction.gasPrice) * calls[currentIndex].gasUsed
-					return totalFee + min(parsed[0].baseFeePerGas + BigInt(tx.transaction.maxPriorityFeePerGas || 0n), BigInt(tx.transaction.maxFeePerGas || 0n))
-				}, 0n),
+				return {
+					totalGasUsed: calls.reduce((a, b) => a + b.gasUsed, 0n),
+					firstRevert: calls.map((call, index) => {
+						const to = bigIntify(txs[index].transaction.to)
+						if (to === undefined) throw new Error('to is undefined')
+						const from = bigIntify(txs[index].transaction.from)
+						return {
+							...call,
+							toAddress: addressString(to),
+							fromAddress: from !== undefined ? addressString(from) : undefined,
+						}
+					}).find((txSim) => txSim.status === 'failure'),
+					results: calls,
+					gasFees: txs.reduce((totalFee, tx, currentIndex) => {
+						if (tx.transaction.gasPrice) return totalFee + BigInt(tx.transaction.gasPrice) * calls[currentIndex].gasUsed
+						return totalFee + min(parsed[0].baseFeePerGas + BigInt(tx.transaction.maxPriorityFeePerGas || 0n), BigInt(tx.transaction.maxFeePerGas || 0n))
+					}, 0n),
+				}
+			} catch (error) {
+				if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error(`Simulation timed out to RPC: ${network.mempoolSimulationRpcEndpoint}`)
+				throw error
 			}
 		}
 		case 'relay': {
@@ -161,7 +166,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
 	const transactions = (await getRawTransactionsAndCalculateFeesAndNonces(
-		await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin),
+		createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin),
 		provider.provider,
 		blockInfo,
 		maxBaseFee,
