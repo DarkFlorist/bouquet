@@ -60,7 +60,7 @@ const SimulationResult = ({
 						</div>
 						<div class='flex gap-2 items-center'>
 							<span class='w-16 text-right'>Error</span>
-							<span class='bg-black px-2 py-1 font-mono font-medium'>{'error' in state.value.value.firstRevert ? String(state.value.value.firstRevert.error) : 'Unknown'}</span>
+							<span class='bg-black px-2 py-1 font-mono font-medium'>{'error' in state.value.value.firstRevert ? JSON.stringify(state.value.value.firstRevert.error) : 'Unknown'}</span>
 						</div>
 					</div>
 				</div>
