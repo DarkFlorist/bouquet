@@ -84,7 +84,6 @@ export async function simulateBundle(
 					from: bigIntify(tx.transaction.from),
 					nonce: bigIntify(tx.transaction.nonce),
 					gas: bigIntify(tx.transaction.gasLimit),
-					gasPrice: tx.transaction.gasPrice,
 					maxPriorityFeePerGas: bigIntify(tx.transaction.maxPriorityFeePerGas),
 					maxFeePerGas: bigIntify(tx.transaction.maxFeePerGas),
 					input: tx.transaction.data === null || tx.transaction.data === undefined ? new Uint8Array() : hexStringToUint8Array(tx.transaction.data),
@@ -180,18 +179,21 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				id: index,
 				params: [transaction]
 			}))
-			if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
-			const requests = await Promise.all(payloads.map(async (payload) => {
-				if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit Rpc Endpoint is not set')
-				return await fetch(network.mempoolSubmitRpcEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } })
-			}))
-			for (const request of requests) {
-				const response = await request.json()
-				if (response.error !== undefined && response.error !== null) {
-					throw new Error(response.error.message)
+			if (network.mempoolSubmitRpcEndpoint === undefined) throw new Error('MemPool Submit RPC Endpoint is not set')
+			for (const payload of payloads) {
+				const MAX_ATTEMPTS = 40
+				for (var attempt = 0; attempt < MAX_ATTEMPTS; attempt++ ) {
+					const request = await fetch(network.mempoolSubmitRpcEndpoint, { method: 'POST', body: payload, headers: { 'Content-Type': 'application/json' } })
+					const response = await request.json()
+					console.log(response)
+					if (response.error !== undefined) {
+						if (attempt >= MAX_ATTEMPTS - 1) throw new Error(response.error.message)
+						await new Promise(r => setTimeout(r, 250))
+					} else {
+						break
+					}
 				}
 			}
-
 			const bundleTransactions = transactions.map((signedTransaction) => {
 				const transactionDetails = Transaction.from(signedTransaction)
 				return {
