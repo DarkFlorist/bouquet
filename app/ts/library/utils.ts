@@ -18,7 +18,7 @@ function bigintToUint8Array(value: bigint, numberOfBytes: number) {
 	return result
 }
 
-export function stringToUint8Array(data: string) {
+export function hexStringToUint8Array(data: string) {
 	const dataLength = (data.length - 2) / 2
 	if (dataLength === 0) return new Uint8Array()
 	return bigintToUint8Array(BigInt(data), dataLength)

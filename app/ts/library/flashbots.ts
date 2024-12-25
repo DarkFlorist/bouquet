@@ -5,7 +5,7 @@ import { ProviderStore } from './provider.js'
 import { BouquetNetwork } from '../types/bouquetTypes.js'
 import { EthSimulateV1CallResult, EthSimulateV1CallResults, EthSimulateV1Params, EthSimulateV1Result, JsonRpcResponse, TransactionType } from '../types/ethSimulateTypes.js'
 import { serialize } from '../types/ethereumTypes.js'
-import { addressString, min, stringToUint8Array } from './utils.js'
+import { addressString, min, hexStringToUint8Array } from './utils.js'
 
 interface TransactionSimulationBase {
 	txHash: string
@@ -87,7 +87,7 @@ export async function simulateBundle(
 					gasPrice: tx.transaction.gasPrice,
 					maxPriorityFeePerGas: bigIntify(tx.transaction.maxPriorityFeePerGas),
 					maxFeePerGas: bigIntify(tx.transaction.maxFeePerGas),
-					input: tx.transaction.data === null || tx.transaction.data === undefined ? new Uint8Array() : stringToUint8Array(tx.transaction.data),
+					input: tx.transaction.data === null || tx.transaction.data === undefined ? new Uint8Array() : hexStringToUint8Array(tx.transaction.data),
 					value: bigIntify(tx.transaction.value),
 					chainId: bigIntify(tx.transaction.chainId),
 					accessList: [],
