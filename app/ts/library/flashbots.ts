@@ -188,7 +188,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 					console.log(response)
 					if (response.error !== undefined) {
 						if (attempt >= MAX_ATTEMPTS - 1) throw new Error(response.error.message)
-						await new Promise(r => setTimeout(r, 250))
+						await new Promise(r => setTimeout(r, 50 + attempt * 50))
 					} else {
 						break
 					}
