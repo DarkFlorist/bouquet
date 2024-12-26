@@ -155,7 +155,7 @@ export const SettingsModal = ({ display, bouquetNetwork, bouquetSettings }: { di
 					</span>
 				</label>
 				{ relayMode.value.value === 'mempool' ? <>
-					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled. The transactions are sent as individual transactions to the below RPC URL. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+					<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `When mempool mode is enabled, transactions are sent individually to the RPC URL specified below. As a result, some transactions may not make it onto the blockchain. This mode should only be used if a private relay is unavailable for the network. Additionally, if a sweeper is active on your account there is a high risk that rescue attempts may fail, allowing the sweeper to steal your gas funds and other assets. Use this mode only as a last resort when no other options are available.`} />
 					<div key = {'mempoolSimulationRpcEndpoint'} className={`flex flex-col justify-center border h-16 outline-none px-4 focus-within:bg-white/5 bg-transparent ${!mempoolSimulationRpcEndpoint.value.valid ? 'border-red-400' : 'border-white/50 focus-within:border-white/80'}`}>
 						<span className='text-sm text-gray-500'>Mempool Simulation RPC URL (an RPC with eth_simulateV1 support)</span>
 						<input onInput={(e: JSX.TargetedEvent<HTMLInputElement>) => validateMempoolSimulationRpcEndpointInput(e.currentTarget.value)} value={mempoolSimulationRpcEndpoint.value.value} type='text' className='bg-transparent outline-none placeholder:text-gray-600' placeholder='https://' />
