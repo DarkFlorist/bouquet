@@ -275,7 +275,7 @@ export const Submit = ({
 					<div>
 						{ bouquetNetwork.value.relayMode === 'mempool' ? <>
 								<div style = 'padding-bottom: 10px;'>
-									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. When mempool mode is enabled. The transactions are sent as individual transactions. This means it's possible that only one of the transactions might end up on the chain. Use this mode only if a relay is not available for the network.`} />
+									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. Transactions are sent individually, as a result, some transactions may not make it onto the blockchain. This mode should only be used if a relay is unavailable for the network. Additionally, if a sweeper is active on your account, there is a high risk that rescue attempts may fail, allowing the sweeper to steal your gas funds and other assets. Use this mode only as a last resort when no other options are available.`} />
 								</div>
 								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
@@ -292,7 +292,7 @@ export const Submit = ({
 					<div className='flex flex-row gap-6'>
 						<Button onClick={() => waitForSimulation(simulateCallback)} disabled={simulationPromise.value.state === 'pending'} variant='secondary'>Simulate</Button>
 						<Button onClick={toggleSubmission}>
-							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : `Submit to ${ bouquetNetwork.value.relayMode }`}</Button>
+							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : (bouquetNetwork.value.relayMode === 'mempool' ? `Accept the Risks and Submit`: `Submit to ${ bouquetNetwork.value.relayMode }`)}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
 					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>
