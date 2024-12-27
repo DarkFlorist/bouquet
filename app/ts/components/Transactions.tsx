@@ -5,12 +5,12 @@ import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
-import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
+import { BouquetNetwork, BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
 import { importFromInterceptor } from './Import.js'
-import { EtherscanGetABIResult, EtherscanSourceCodeResult } from '../types/apiTypes.js'
+import { EtherscanGetABIResult, EtherscanSourceCodeResult, SourcifyMetadataResult } from '../types/apiTypes.js'
 import { getNetwork } from '../constants.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
@@ -24,6 +24,7 @@ function formatTransactionDescription(tx: TransactionDescription) {
 		</>
 	)
 }
+const etherScanAbiKey = 'PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8'
 
 export const Transactions = ({
 	provider,
@@ -51,6 +52,32 @@ export const Transactions = ({
 
 	const fetchingAbis = useAsyncState()
 
+	async function fetchAbi(network: BouquetNetwork, address: string) {
+		const normalizedAddressString = getAddress(address.toLowerCase())
+		try {
+			try {
+				if (network.blockExplorerApi !== undefined && network.blockExplorerApi.length > 0) {
+					const result = await fetch(`${ network.blockExplorerApi }/api?module=contract&action=getsourcecode&address=${ normalizedAddressString }&apiKey=${ etherScanAbiKey }`)
+					return EtherscanSourceCodeResult.safeParse(await result.json())
+				}
+			} catch(error: unknown) {
+				console.error(error)
+			}
+			const result = await fetch(`https://repo.sourcify.dev/contracts/full_match/${ network.chainId.toString(10) }/${ normalizedAddressString }/metadata.json`)
+			const parsed = SourcifyMetadataResult.safeParse(await result.json())
+			if (parsed.success) {
+				return { success: true, value: { status: '1', result: [{
+					ABI: JSON.stringify(parsed.value.output.abi),
+					Proxy: '0' //sourcify does not identify this
+				}] } } as const
+			}
+		} catch(error: unknown) {
+			console.error(error)
+			return { success: false, value: { status: '0' } } as const
+		}
+		return { success: false, value: { status: '0' } } as const
+	}
+
 	async function fetchAbis() {
 		if (!bundle.value || !bundle.value.transactions) return
 		try {
@@ -58,28 +85,20 @@ export const Transactions = ({
 			const abis: (string | undefined)[] = []
 
 			const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
-			const requests = await Promise.all(
-				uniqueAddresses.map((address) =>
-					fetch(
-						`${ network.blockExplorerApi }/api?module=contract&action=getsourcecode&address=${getAddress(address.toLowerCase())}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`,
-					),
-				),
-			)
-			const sourcecodeResults = await Promise.all(requests.map((request) => request.json()))
-			const parsedSourceCode = sourcecodeResults.map(x => EtherscanSourceCodeResult.safeParse(x))
-
+			const parsedSourceCode = await Promise.all(uniqueAddresses.map(async (address) => await fetchAbi(network, address)))
 			// Extract ABI from getSourceCode request if not proxy, otherwise attempt to fetch ABI of implementation
 			for (const contract of parsedSourceCode) {
-				if (contract.success == false || contract.value.status !== '1') abis.push(undefined)
+				if (contract.success === false || contract.value.status !== '1') abis.push(undefined)
 				else {
 					if (contract.value.result[0].Proxy === '1' && contract.value.result[0].Implementation !== '') {
-						const implReq = await fetch(`${ network.blockExplorerApi }/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=PSW8C433Q667DVEX5BCRMGNAH9FSGFZ7Q8`)
+						const implReq = await fetch(`${ network.blockExplorerApi }/api?module=contract&action=getabi&address=${addressString(contract.value.result[0].Implementation)}&apiKey=${ etherScanAbiKey }`)
 						const implResult = EtherscanGetABIResult.safeParse(await implReq.json())
 						abis.push(implResult.success && implResult.value.status === '1' ? implResult.value.result : undefined)
-					} else abis.push(contract.value.result[0].ABI && contract.value.result[0].ABI !== 'Contract source code not verified' ? contract.value.result[0].ABI : undefined)
+					} else {
+						abis.push(contract.value.result[0].ABI && contract.value.result[0].ABI !== 'Contract source code not verified' ? contract.value.result[0].ABI : undefined)
+					}
 				}
 			}
-
 			interfaces.value = abis.reduce((acc, curr, index) => {
 				if (curr) return { ...acc, [`${uniqueAddresses[index]}`]: new Interface(curr) }
 				else return acc
@@ -150,7 +169,7 @@ export const Transactions = ({
 		<>
 			<h2 className='font-bold text-2xl'>Your Transactions</h2>
 			<div className='flex flex-row gap-4'>
-				<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(fetchAbis)}>Decode Transactions From Etherscan</Button>
+				<Button variant='secondary' disabled={fetchingAbis.value.value.state === 'pending'} onClick={() => fetchingAbis.waitFor(fetchAbis)}>Decode Transactions From Etherscan & Sourcify</Button>
 				<Button variant='secondary' onClick={copyTransactions}><>Copy Transaction List
 					<svg
 						className='h-8 inline-block'
