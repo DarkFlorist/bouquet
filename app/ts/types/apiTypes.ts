@@ -22,3 +22,14 @@ export const EtherscanGetABIResult = t.Object({
 	result: t.String
 }).asReadonly()
 
+export type SourcifyMetadataResult = t.Static<typeof SourcifyMetadataResult>
+export const SourcifyMetadataResult = t.Object({
+	compiler: t.Unknown,
+	language: t.Unknown,
+	output: t.Object({
+		abi: t.Array(t.Unknown)
+	}),
+	settings: t.Unknown,
+	sources: t.Unknown,
+	version: t.Unknown,
+}).asReadonly()
