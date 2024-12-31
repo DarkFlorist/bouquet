@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>bouquet</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="icon" href="./favicon.webp" />
+		<link rel="stylesheet" href="./css/index.css" />
+	</head>
+
+	<body class="w-full bg-black flex justify-center">
+		<script type="importmap">
+			{
+				"imports": {
+					"preact": "./vendor/preact/preact.module.js",
+					"preact/jsx-runtime": "./vendor/preact/jsx-runtime/jsxRuntime.module.js",
+					"preact/hooks": "./vendor/preact/hooks/hooks.module.js",
+					"ethers": "./vendor/ethers/ethers.js",
+					"@preact/signals-core": "./vendor/@preact/signals-core/signals-core.module.js",
+					"@preact/signals": "./vendor/@preact/signals/signals.module.js",
+					"funtypes": "./vendor/funtypes/index.mjs"
+				}
+			}
+		</script>
+
+		<main></main>
+
+		<!-- a workaround for bug: https://bugzilla.mozilla.org/show_bug.cgi?id=1803984 -->
+		<script async type='module'>import './js/index.js'</script>
+	</body>
+</html>
