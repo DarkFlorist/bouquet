@@ -20,6 +20,18 @@ npm run styles
 npm run build
 ```
 
+## EIP-7702 rescue bundles
+
+Bouquet can import EIP-7702 transactions from The Interceptor's simulation-stack protocol version 1.0.1. When an authorization clears a delegation by targeting the zero address, Bouquet enters rescue mode and orders the atomic bundle as follows:
+
+1. Sponsored delegation-clearing transaction
+2. Funding transaction
+3. Asset sweep transactions
+
+Rescue bundles are restricted to relay mode so funding is never broadcast separately through the public mempool. Imported authorization signatures are preserved; when an authorization is unsigned, Bouquet requests the authority's private key and signs it locally.
+
+Run `npm test` to compile the app and execute the rescue ordering, protocol import, signature, and nonce tests.
+
 ## Dev
 
 Run `watch` to live rebuilds the Preact app.

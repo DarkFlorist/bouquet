@@ -6,6 +6,7 @@
 	"license": "Unlicense",
 	"type": "module",
 	"scripts": {
+		"test": "npm run build && node --test test/*.test.mjs",
 		"setup": "npm ci --ignore-scripts && tsc && npm run vendor",
 		"build": "tsc",
 		"watch": "tsc --watch",
@@ -20,7 +21,7 @@
 	},
 	"dependencies": {
 		"@preact/signals": "1.1.1",
-		"ethers": "6.13.1",
+		"ethers": "6.17.0",
 		"funtypes": "5.0.3",
 		"preact": "10.8.1"
 	}

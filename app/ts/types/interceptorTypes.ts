@@ -1,5 +1,5 @@
 import * as t from 'funtypes'
-import { EthereumAddress, EthereumQuantity, EthereumData, EthereumBytes32, LiteralConverterParserFactory, EthereumInput, BytesParser } from './ethereumTypes.js'
+import { EthereumAddress, EthereumQuantity, EthereumData, EthereumBytes32, EthereumSignatureParity, LiteralConverterParserFactory, EthereumInput, BytesParser } from './ethereumTypes.js'
 
 const EthereumAccessList = t.ReadonlyArray(
 	t
@@ -67,8 +67,42 @@ const EthereumUnsignedTransaction1559 = t.Intersect(
 		accessList: EthereumAccessList,
 	})
 )
+
+const EthereumEip7702Authorization = t.Intersect(
+	t.Object({
+		chainId: EthereumQuantity,
+		address: EthereumAddress,
+		nonce: EthereumQuantity,
+	}).asReadonly(),
+	t.Partial({
+		authority: EthereumAddress,
+		r: EthereumQuantity,
+		s: EthereumQuantity,
+		yParity: EthereumSignatureParity,
+	}).asReadonly(),
+)
+
+type EthereumUnsignedTransaction7702 = t.Static<typeof EthereumUnsignedTransaction7702>
+const EthereumUnsignedTransaction7702 = t.Intersect(
+	t.Object({
+		type: t.Literal('0x4').withParser(LiteralConverterParserFactory('0x4', '7702' as const)),
+		from: EthereumAddress,
+		nonce: EthereumQuantity,
+		maxFeePerGas: EthereumQuantity,
+		maxPriorityFeePerGas: EthereumQuantity,
+		gas: EthereumQuantity,
+		to: t.Union(EthereumAddress, t.Null),
+		value: EthereumQuantity,
+		input: EthereumInput,
+		chainId: EthereumQuantity,
+		authorizationList: t.ReadonlyArray(EthereumEip7702Authorization),
+	}).asReadonly(),
+	t.Partial({
+		accessList: EthereumAccessList,
+	})
+)
 type EthereumUnsignedTransaction = t.Static<typeof EthereumUnsignedTransaction>
-const EthereumUnsignedTransaction = t.Union(EthereumUnsignedTransactionLegacy, EthereumUnsignedTransaction2930, EthereumUnsignedTransaction1559)
+const EthereumUnsignedTransaction = t.Union(EthereumUnsignedTransactionLegacy, EthereumUnsignedTransaction2930, EthereumUnsignedTransaction1559, EthereumUnsignedTransaction7702)
 
 const RevertErrorParser: t.ParsedValue<t.String, string>['config'] = {
 	parse: (value) => {

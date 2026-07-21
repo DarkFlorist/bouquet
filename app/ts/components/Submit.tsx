@@ -10,6 +10,7 @@ import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, S
 import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
+import { validateBundle } from '../library/rescue.js'
 
 type PendingBundle = {
 	bundles: {
@@ -130,7 +131,10 @@ export const Submit = ({
 
 	const missingRequirements = useComputed(() => {
 		if (!bundle.value) return 'No transactions imported yet.'
-		const missingSigners = bundle.value.uniqueSigners.length !== Object.keys(signers.value.bundleSigners).length
+		const validationError = validateBundle(bundle.value)
+		if (validationError !== undefined) return validationError
+		if (bundle.value.rescueMode && bouquetNetwork.value.relayMode !== 'relay') return 'EIP-7702 rescue bundles require a private relay network.'
+		const missingSigners = bundle.value.uniqueSigners.some((address) => signers.value.bundleSigners[address] === undefined)
 		const insufficientBalance = signers.value.burnerBalance < fundingAmountMin.value
 		if (missingSigners && insufficientBalance) return 'Missing private keys for signing accounts and funding wallet has insufficent balance.'
 		if (missingSigners) return 'Missing private keys for signing accounts.'

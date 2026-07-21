@@ -113,7 +113,7 @@ export const connectBrowserProvider = async (
 		provider.removeListener('block', blockCallback)
 	}
 
-	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.0'] })])
+	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.1'] })])
 	const isInterceptor = getSimulationStack.status === 'fulfilled'
 
 	addProvider(store, provider, clearEvents, isInterceptor)

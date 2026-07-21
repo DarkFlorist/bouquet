@@ -1,4 +1,4 @@
-import { BrowserProvider, getAddress, Signer, TransactionRequest } from 'ethers'
+import { Authorization, BrowserProvider, getAddress, getNumber, Signature, Signer, TransactionRequest, verifyAuthorization } from 'ethers'
 import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumData } from '../types/ethereumTypes.js'
 import { addressString } from './utils.js'
@@ -17,12 +17,11 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 	try {
 		const { payload } = await provider.send(
 			'interceptor_getSimulationStack',
-			['1.0.0']
+			['1.0.1']
 		)
-		const result = payload.reduce((acc: { [address: string]: number }, curr: { from: string }) => {
-			curr.from = getAddress(curr.from)
-			if (curr.from in acc) acc[curr.from] += 1
-			else acc[curr.from] = 1
+		const result = payload.reduce((acc: { [address: string]: number }, curr: { from: string, authorizationList?: { authority?: string }[] }) => {
+			const affectedAddresses = [curr.from, ...(curr.authorizationList ?? []).flatMap((authorization) => authorization.authority === undefined ? [] : [authorization.authority])].map(getAddress)
+			for (const address of affectedAddresses) acc[address] = (acc[address] ?? 0) + 1
 			return acc
 		}, {})
 		return result
@@ -42,30 +41,34 @@ export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: Flashb
 		if (!tx.transaction.from) throw new Error('BundleTransaction missing from address')
 		if (!tx.transaction.chainId) throw new Error('BundleTransaction missing chainId')
 		// Fetch and increment nonces from network, reduce the fetch amount by amount of transactions made on the simulation stack
-		if (tx.transaction.from.toString() in accNonces) {
-			accNonces[tx.transaction.from.toString()] += 1
-		} else {
-			accNonces[tx.transaction.from.toString()] = await provider.getTransactionCount(tx.transaction.from, 'latest')
-			if (tx.transaction.from.toString() in inSimulation) accNonces[tx.transaction.from.toString()] -= inSimulation[tx.transaction.from.toString()]
+		const sender = getAddress(tx.transaction.from.toString())
+		if (!(sender in accNonces)) {
+			accNonces[sender] = await provider.getTransactionCount(sender, 'latest') - (inSimulation[sender] ?? 0)
 		}
-		tx.transaction.nonce = accNonces[tx.transaction.from.toString()]
+		tx.transaction.nonce = accNonces[sender]
+		accNonces[sender] += 1
+		for (const authorization of tx.transaction.authorizationList ?? []) {
+			const authority = getAddress(verifyAuthorization({ address: authorization.address, chainId: authorization.chainId, nonce: BigInt(authorization.nonce.toString()) }, authorization.signature))
+			const nextAuthorityNonce = getNumber(authorization.nonce) + 1
+			accNonces[authority] = Math.max(accNonces[authority] ?? nextAuthorityNonce, nextAuthorityNonce)
+		}
 		const rawTransaction = await tx.signer.signTransaction({ ...tx.transaction })
 		transactions.push({ rawTransaction, transaction: tx.transaction })
 	}
 	return transactions
 }
 
-export const createBundleTransactions = (
+export const createBundleTransactions = async (
 	bundle: Bundle,
 	signers: Signers,
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
-): FlashbotsBundleTransaction[] => {
-	return bundle.transactions.map(({ from, to, gasLimit, value, input, chainId }) => {
+): Promise<FlashbotsBundleTransaction[]> => {
+	return Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId, type, accessList, authorizationList }) => {
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
-			type: 2,
+			type: type === '7702' ? 4 : 2,
 			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
 		}
 		if (from === 'FUNDING') {
@@ -74,9 +77,9 @@ export const createBundleTransactions = (
 				signer: signers.burner,
 				transaction: {
 					from: signers.burner.address,
-					...(bundle && bundle.transactions[0].to
+					...(to
 						? {
-							to: addressString(bundle.transactions[0].to),
+							to: addressString(to),
 						}
 						: {}),
 					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
@@ -86,9 +89,35 @@ export const createBundleTransactions = (
 					...gasOpts,
 				},
 			}
-		} else
+		} else {
+			const signer = signers.bundleSigners[addressString(from)]
+			if (!signer) throw new Error(`No signer provided for ${addressString(from)}`)
+			const resolvedAuthorizations: Authorization[] = []
+			for (const authorization of authorizationList ?? []) {
+				if (authorization.r !== undefined && authorization.s !== undefined && authorization.yParity !== undefined) {
+					resolvedAuthorizations.push({
+						address: addressString(authorization.address),
+						chainId: authorization.chainId,
+						nonce: authorization.nonce,
+						signature: Signature.from({
+							r: `0x${authorization.r.toString(16).padStart(64, '0')}`,
+							s: `0x${authorization.s.toString(16).padStart(64, '0')}`,
+							yParity: authorization.yParity === 'odd' ? 1 : 0,
+						}),
+					})
+					continue
+				}
+				if (authorization.authority === undefined) throw new Error('Unsigned authorization is missing its authority')
+				const authoritySigner = signers.bundleSigners[addressString(authorization.authority)]
+				if (!authoritySigner) throw new Error(`No signer provided for authorization authority ${addressString(authorization.authority)}`)
+				resolvedAuthorizations.push(await authoritySigner.authorize({
+					address: addressString(authorization.address),
+					chainId: authorization.chainId,
+					nonce: authorization.nonce,
+				}))
+			}
 			return {
-				signer: signers.bundleSigners[addressString(from)],
+				signer,
 				transaction: {
 					from: addressString(from),
 					...(to ? { to: addressString(to) } : {}),
@@ -96,8 +125,11 @@ export const createBundleTransactions = (
 					data: serialize(EthereumData, input),
 					value,
 					chainId: Number(chainId),
+					accessList: (accessList ?? []).map((entry) => ({ address: addressString(entry.address), storageKeys: entry.storageKeys.map((key) => `0x${key.toString(16).padStart(64, '0')}`) })),
+					...(type === '7702' ? { authorizationList: resolvedAuthorizations } : {}),
 					...gasOpts,
 				},
 			}
-	})
+		}
+	}))
 }
