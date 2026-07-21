@@ -9,6 +9,7 @@ import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
 import { createBundle } from '../library/rescue.js'
+import { CreateClearDelegation } from './CreateClearDelegation.js'
 
 export function convertInterceptorTransactions(transactions: GetSimulationStackReply): TransactionList {
 	return transactions.map((transaction) => {
@@ -189,6 +190,7 @@ export const Import = ({
 				) : (
 					''
 				)}
+				<CreateClearDelegation bundle={bundle} provider={provider} signers={signers} />
 			</div>
 		</>
 	)

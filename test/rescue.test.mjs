@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Transaction, Wallet, verifyAuthorization } from 'ethers'
-import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces } from '../app/js/library/bundleUtils.js'
-import { createBundle, isClearDelegationTransaction, validateBundle } from '../app/js/library/rescue.js'
+import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
+import { createBundle, createClearDelegationTransaction, isClearDelegationTransaction, validateBundle } from '../app/js/library/rescue.js'
 import { convertInterceptorTransactions, markSyntheticFunding } from '../app/js/components/Import.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
@@ -55,6 +55,48 @@ test('orders delegation clearing before funding and sweeps', () => {
 	assert.equal(bundle.transactions[1].from, 'FUNDING')
 	assert.deepEqual(bundle.uniqueSigners.sort(), [sponsor.address, authority.address].sort())
 	assert.equal(validateBundle(bundle), undefined)
+})
+
+test('creates a safe unsigned delegation-clearing transaction for later signing', async () => {
+	const transaction = createClearDelegationTransaction({
+		sponsor: sponsor.address,
+		authority: authority.address,
+		chainId,
+		authorizationNonce: 3n,
+	})
+	assert.equal(transaction.type, '7702')
+	assert.equal(transaction.from, asAddress(sponsor.address))
+	assert.equal(transaction.to, asAddress(sponsor.address))
+	assert.equal(transaction.authorizationList[0].authority, asAddress(authority.address))
+	assert.equal(transaction.authorizationList[0].address, 0n)
+	assert.equal(transaction.authorizationList[0].nonce, 3n)
+	const createdBundle = createBundle([funding, sweep, transaction])
+	assert.equal(validateBundle(createdBundle), undefined)
+	const [signedClear] = await createBundleTransactions(createdBundle, {
+		burner,
+		burnerBalance: 100000000000000000n,
+		bundleSigners: { [sponsor.address]: sponsor, [authority.address]: authority },
+	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 10000000000000000n)
+	assert.equal(verifyAuthorization(signedClear.transaction.authorizationList[0], signedClear.transaction.authorizationList[0].signature), authority.address)
+	assert.equal(signedClear.transaction.authorizationList[0].address, '0x0000000000000000000000000000000000000000')
+	assert.throws(() => createClearDelegationTransaction({
+		sponsor: authority.address,
+		authority: authority.address,
+		chainId,
+		authorizationNonce: 3n,
+	}), /sponsor must be different/)
+})
+
+test('loads the authorization nonce from before the Interceptor simulation stack', async () => {
+	const provider = {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async () => 4,
+	}
+	assert.equal(await getTransactionCountBeforeSimulation(provider, authority.address), 3)
+	await assert.rejects(
+		getTransactionCountBeforeSimulation({ ...provider, send: async () => { throw new Error('stack denied') } }, authority.address),
+		/stack denied/,
+	)
 })
 
 test('detects simulated funding when the next transaction is sponsored by a different account', () => {

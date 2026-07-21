@@ -13,22 +13,33 @@ export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigi
 	return [...Array(blocksInFuture)].reduce((accumulator, _currentValue) => (accumulator * 1125n) / 1000n, baseFee) + 1n
 }
 
+async function requestSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{ [address: string]: number }> {
+	const { payload } = await provider.send(
+		'interceptor_getSimulationStack',
+		['1.0.1']
+	)
+	return payload.reduce((acc: { [address: string]: number }, curr: { from: string, authorizationList?: { authority?: string }[] }) => {
+		const affectedAddresses = [curr.from, ...(curr.authorizationList ?? []).flatMap((authorization) => authorization.authority === undefined ? [] : [authorization.authority])].map(getAddress)
+		for (const address of affectedAddresses) acc[address] = (acc[address] ?? 0) + 1
+		return acc
+	}, {})
+}
+
 async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{ [address: string]: number }> {
 	try {
-		const { payload } = await provider.send(
-			'interceptor_getSimulationStack',
-			['1.0.1']
-		)
-		const result = payload.reduce((acc: { [address: string]: number }, curr: { from: string, authorizationList?: { authority?: string }[] }) => {
-			const affectedAddresses = [curr.from, ...(curr.authorizationList ?? []).flatMap((authorization) => authorization.authority === undefined ? [] : [authorization.authority])].map(getAddress)
-			for (const address of affectedAddresses) acc[address] = (acc[address] ?? 0) + 1
-			return acc
-		}, {})
-		return result
+		return await requestSimulatedCountsOnNetwork(provider)
 	} catch (error) {
 		console.error('getSimulatedCountsOnNetwork error: ', error)
 		return {}
 	}
+}
+
+export async function getTransactionCountBeforeSimulation(provider: BrowserProvider, address: string): Promise<number> {
+	const normalizedAddress = getAddress(address)
+	const simulatedCounts = await requestSimulatedCountsOnNetwork(provider)
+	const transactionCount = await provider.getTransactionCount(normalizedAddress, 'latest') - (simulatedCounts[normalizedAddress] ?? 0)
+	if (transactionCount < 0) throw new Error('Interceptor returned an invalid authorization nonce for this simulation stack.')
+	return transactionCount
 }
 
 export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {

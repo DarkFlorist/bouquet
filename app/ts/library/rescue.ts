@@ -3,11 +3,42 @@ import { Eip7702Authorization, TransactionList } from '../types/bouquetTypes.js'
 import { Bundle } from '../types/types.js'
 import { addressString } from './utils.js'
 
+export type ClearDelegationTransactionInput = {
+	sponsor: string
+	authority: string
+	chainId: bigint
+	authorizationNonce: bigint
+}
+
 const hasCompleteSignature = (authorization: Eip7702Authorization) =>
 	authorization.r !== undefined && authorization.s !== undefined && authorization.yParity !== undefined
 
 export const isClearDelegationTransaction = (transaction: TransactionList[number]) =>
 	transaction.type === '7702' && (transaction.authorizationList ?? []).some((authorization) => authorization.address === 0n)
+
+export const createClearDelegationTransaction = ({ sponsor, authority, chainId, authorizationNonce }: ClearDelegationTransactionInput): TransactionList[number] => {
+	const sponsorAddress = getAddress(sponsor)
+	const authorityAddress = getAddress(authority)
+	if (sponsorAddress === authorityAddress) throw new Error('The clean sponsor must be different from the compromised account.')
+	if (chainId <= 0n) throw new Error('The rescue transaction needs a valid chain ID.')
+	if (authorizationNonce < 0n) throw new Error('The authorization nonce cannot be negative.')
+	return {
+		from: BigInt(sponsorAddress),
+		to: BigInt(sponsorAddress),
+		value: 0n,
+		input: new Uint8Array(),
+		chainId,
+		gasLimit: 100_000n,
+		type: '7702',
+		accessList: [],
+		authorizationList: [{
+			chainId,
+			address: 0n,
+			nonce: authorizationNonce,
+			authority: BigInt(authorityAddress),
+		}],
+	}
+}
 
 export const orderRescueTransactions = (transactions: TransactionList): TransactionList => [
 	...transactions.filter(isClearDelegationTransaction),
