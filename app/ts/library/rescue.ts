@@ -1,7 +1,8 @@
 import { getAddress } from 'ethers'
-import { Eip7702Authorization, TransactionList } from '../types/bouquetTypes.js'
+import { TransactionList } from '../types/bouquetTypes.js'
 import { Bundle } from '../types/types.js'
 import { addressString } from './utils.js'
+import { createBundle, isClearDelegationTransaction } from './bundle.js'
 
 export type ClearDelegationTransactionInput = {
 	sponsor: string
@@ -10,11 +11,7 @@ export type ClearDelegationTransactionInput = {
 	authorizationNonce: bigint
 }
 
-const hasCompleteSignature = (authorization: Eip7702Authorization) =>
-	authorization.r !== undefined && authorization.s !== undefined && authorization.yParity !== undefined
-
-export const isClearDelegationTransaction = (transaction: TransactionList[number]) =>
-	transaction.type === '7702' && (transaction.authorizationList ?? []).some((authorization) => authorization.address === 0n)
+export { isClearDelegationTransaction } from './bundle.js'
 
 export const createClearDelegationTransaction = ({ sponsor, authority, chainId, authorizationNonce }: ClearDelegationTransactionInput): TransactionList[number] => {
 	const sponsorAddress = getAddress(sponsor)
@@ -46,27 +43,7 @@ export const orderRescueTransactions = (transactions: TransactionList): Transact
 	...transactions.filter((transaction) => transaction.from !== 'FUNDING' && !isClearDelegationTransaction(transaction)),
 ]
 
-export const createBundle = (transactions: TransactionList): Bundle => {
-	const orderedTransactions = orderRescueTransactions(transactions)
-	const signerAddresses = new Set<string>()
-	for (const transaction of orderedTransactions) {
-		if (transaction.from !== 'FUNDING') signerAddresses.add(addressString(transaction.from))
-		if (transaction.type !== '7702') continue
-		for (const authorization of transaction.authorizationList ?? []) {
-			if (!hasCompleteSignature(authorization) && authorization.authority !== undefined) {
-				signerAddresses.add(addressString(authorization.authority))
-			}
-		}
-	}
-	return {
-		transactions: orderedTransactions,
-		containsFundingTx: orderedTransactions.some((transaction) => transaction.from === 'FUNDING'),
-		rescueMode: orderedTransactions.some(isClearDelegationTransaction),
-		totalGas: orderedTransactions.reduce((sum, transaction) => sum + transaction.gasLimit, 0n),
-		inputValue: orderedTransactions.reduce((sum, transaction) => transaction.from === 'FUNDING' ? sum + transaction.value : sum, 0n),
-		uniqueSigners: [...signerAddresses],
-	}
-}
+export const createRescueBundle = (transactions: TransactionList): Bundle => createBundle(orderRescueTransactions(transactions))
 
 export const validateBundle = (bundle: Bundle): string | undefined => {
 	if (bundle.rescueMode && !isClearDelegationTransaction(bundle.transactions[0])) return 'The delegation-clearing transaction must be first.'

@@ -9,7 +9,8 @@ import { BouquetNetwork, BouquetSettings, TransactionList } from '../types/bouqu
 import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
-import { convertInterceptorTransactions, importFromInterceptor, markSyntheticFunding } from './Import.js'
+import { importFromInterceptor } from './Import.js'
+import { convertInterceptorTransactions, markSyntheticFunding } from '../library/interceptorImport.js'
 import { EtherscanGetABIResult, EtherscanSourceCodeResult, SourcifyMetadataResult } from '../types/apiTypes.js'
 import { getNetwork } from '../constants.js'
 

@@ -2,8 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
-import { createBundle, createClearDelegationTransaction, isClearDelegationTransaction, validateBundle } from '../app/js/library/rescue.js'
-import { convertInterceptorTransactions, markSyntheticFunding } from '../app/js/components/Import.js'
+import { createBundle } from '../app/js/library/bundle.js'
+import { createClearDelegationTransaction, createRescueBundle, isClearDelegationTransaction, validateBundle } from '../app/js/library/rescue.js'
+import { convertInterceptorTransactions, markSyntheticFunding } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
 const chainId = 11155111n
@@ -49,7 +50,7 @@ const sweep = {
 }
 
 test('orders delegation clearing before funding and sweeps', () => {
-	const bundle = createBundle([funding, sweep, clearDelegation])
+	const bundle = createRescueBundle([funding, sweep, clearDelegation])
 	assert.equal(bundle.rescueMode, true)
 	assert.equal(isClearDelegationTransaction(bundle.transactions[0]), true)
 	assert.equal(bundle.transactions[1].from, 'FUNDING')
@@ -70,7 +71,7 @@ test('creates a safe unsigned delegation-clearing transaction for later signing'
 	assert.equal(transaction.authorizationList[0].authority, asAddress(authority.address))
 	assert.equal(transaction.authorizationList[0].address, 0n)
 	assert.equal(transaction.authorizationList[0].nonce, 3n)
-	const createdBundle = createBundle([funding, sweep, transaction])
+	const createdBundle = createRescueBundle([funding, sweep, transaction])
 	assert.equal(validateBundle(createdBundle), undefined)
 	const [signedClear] = await createBundleTransactions(createdBundle, {
 		burner,
@@ -142,14 +143,14 @@ test('imports the Interceptor 1.0.1 type-4 wire payload without losing authoriza
 })
 
 test('rejects unsafe or malformed rescue authorizations', () => {
-	const bundle = createBundle([clearDelegation, funding, sweep])
+	const bundle = createRescueBundle([clearDelegation, funding, sweep])
 	assert.equal(validateBundle({ ...bundle, transactions: [funding, clearDelegation, sweep] }), 'The delegation-clearing transaction must be first.')
 	const malformed = createBundle([{ ...clearDelegation, authorizationList: [{ ...clearDelegation.authorizationList[0], r: 1n }] }])
 	assert.equal(validateBundle(malformed), 'An EIP-7702 authorization has an incomplete signature.')
 })
 
 test('signs a sponsored type-4 clear and advances the authority nonce before its sweep', async () => {
-	const bundle = createBundle([funding, sweep, clearDelegation])
+	const bundle = createRescueBundle([funding, sweep, clearDelegation])
 	const signers = {
 		burner,
 		burnerBalance: 100000000000000000n,

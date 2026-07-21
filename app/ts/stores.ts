@@ -5,7 +5,7 @@ import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
 import { ProviderStore } from './library/provider.js'
 import { BlockInfo, Bundle, Signers } from './types/types.js'
 import { BouquetSettings, TransactionList } from './types/bouquetTypes.js'
-import { createBundle } from './library/rescue.js'
+import { createBundle } from './library/bundle.js'
 
 function fetchBurnerWalletFromStorage(): Wallet {
 	const burnerPrivateKey = localStorage.getItem('wallet')

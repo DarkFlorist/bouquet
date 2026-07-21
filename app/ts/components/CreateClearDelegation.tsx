@@ -3,7 +3,7 @@ import { getAddress } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { getTransactionCountBeforeSimulation } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
-import { createBundle, createClearDelegationTransaction } from '../library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle } from '../library/rescue.js'
 import { addressString } from '../library/utils.js'
 import { Bundle, Signers } from '../types/types.js'
 import { TransactionList } from '../types/bouquetTypes.js'
@@ -84,7 +84,7 @@ export const CreateClearDelegation = ({ bundle, provider, signers }: {
 				chainId: getSingleChainId(currentBundle),
 				authorizationNonce: nonce,
 			})
-			const nextBundle = createBundle([...currentBundle.transactions, transaction])
+			const nextBundle = createRescueBundle([...currentBundle.transactions, transaction])
 			localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(nextBundle.transactions)))
 			bundle.value = nextBundle
 			signers.value = { ...signers.peek(), bundleSigners: {} }

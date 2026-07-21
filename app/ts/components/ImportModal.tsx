@@ -1,6 +1,6 @@
 import { Signal, useComputed, useSignal } from '@preact/signals'
 import { JSX } from 'preact/jsx-runtime'
-import { createBundle } from '../library/rescue.js'
+import { createBundle } from '../library/bundle.js'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { Bundle } from '../types/types.js'
 import { Button } from './Button.js'
