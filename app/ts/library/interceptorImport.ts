@@ -2,6 +2,14 @@ import { parseEther } from 'ethers'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 
+export async function requestInterceptorStackAfterConnection<T>(
+	connectProvider: () => Promise<unknown>,
+	requestStack: () => Promise<T>,
+): Promise<T> {
+	await connectProvider()
+	return requestStack()
+}
+
 export function convertInterceptorTransactions(transactions: GetSimulationStackReply): TransactionList {
 	return transactions.map((transaction) => {
 		if (transaction.chainId === undefined) throw new Error('Transaction is missing its chain ID')

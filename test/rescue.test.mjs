@@ -4,7 +4,7 @@ import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
 import { createBundle } from '../app/js/library/bundle.js'
 import { createClearDelegationTransaction, createRescueBundle, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
-import { convertInterceptorTransactions, markSyntheticFunding } from '../app/js/library/interceptorImport.js'
+import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
 const chainId = 11155111n
@@ -13,6 +13,25 @@ const authority = Wallet.createRandom()
 const recipient = Wallet.createRandom()
 const burner = Wallet.createRandom()
 const asAddress = (address) => BigInt(address)
+
+test('waits for the wallet connection before requesting the Interceptor simulation stack', async () => {
+	let finishConnection
+	let stackRequestCount = 0
+	const connectionReady = new Promise((resolve) => { finishConnection = resolve })
+	const importRequest = requestInterceptorStackAfterConnection(
+		() => connectionReady,
+		async () => {
+			stackRequestCount += 1
+			return 'simulation stack'
+		},
+	)
+
+	await Promise.resolve()
+	assert.equal(stackRequestCount, 0)
+	finishConnection()
+	assert.equal(await importRequest, 'simulation stack')
+	assert.equal(stackRequestCount, 1)
+})
 
 const clearDelegation = {
 	from: asAddress(sponsor.address),

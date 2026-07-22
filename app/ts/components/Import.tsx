@@ -8,7 +8,7 @@ import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
 import { createBundle } from '../library/bundle.js'
-import { convertInterceptorTransactions, markSyntheticFunding } from '../library/interceptorImport.js'
+import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection } from '../library/interceptorImport.js'
 import { CreateClearDelegation } from './CreateClearDelegation.js'
 
 export async function importFromInterceptor(
@@ -23,20 +23,25 @@ export async function importFromInterceptor(
 	bouquetSettings: Signal<BouquetSettings>
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('No Ethereum wallet detected')
-	connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
+	const ethereum = window.ethereum
 
-	const { payload } = await window.ethereum
-		.request({
-			method: 'interceptor_getSimulationStack',
-			params: ['1.0.1'],
-		})
-		.catch((err: { code: number }) => {
-			if (err?.code === -32601) {
-				throw new Error('Wallet does not support returning simulations')
-			} else {
-				throw new Error(`Unknown Error: ${JSON.stringify(err)}`)
-			}
-		})
+	const { payload } = await requestInterceptorStackAfterConnection(
+		async () => {
+			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
+		},
+		() => ethereum
+			.request({
+				method: 'interceptor_getSimulationStack',
+				params: ['1.0.1'],
+			})
+			.catch((err: { code: number }) => {
+				if (err?.code === -32601) {
+					throw new Error('Wallet does not support returning simulations')
+				} else {
+					throw new Error(`Unknown Error: ${JSON.stringify(err)}`)
+				}
+			}),
+	)
 
 	const tryParse = GetSimulationStackReply.safeParse(payload)
 	if (!tryParse.success) throw new Error('Wallet does not support returning simulations')
