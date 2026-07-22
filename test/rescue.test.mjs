@@ -3,9 +3,11 @@ import test from 'node:test'
 import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
 import { createBundle } from '../app/js/library/bundle.js'
-import { createClearDelegationTransaction, createRescueBundle, ensureRescueFundingTransaction, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle, ensureDelegationClearFunding, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
 import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
+import { fetchBundleFromStorage } from '../app/js/stores.js'
+import { TransactionList } from '../app/js/types/bouquetTypes.js'
 
 const chainId = 11155111n
 const sponsor = Wallet.createRandom()
@@ -88,18 +90,38 @@ test('orders delegation clearing before funding and sweeps', () => {
 })
 
 test('adds funding for the compromised account when the imported stack has none', () => {
-	const transactions = ensureRescueFundingTransaction([sweep], authority.address, chainId)
-	assert.equal(transactions.length, 2)
-	assert.equal(transactions[1].from, 'FUNDING')
-	assert.equal(transactions[1].to, asAddress(authority.address))
-	assert.equal(transactions[1].value, 0n)
-	assert.equal(transactions[1].gasLimit, 21_000n)
+	const automaticClear = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const transactions = ensureDelegationClearFunding([automaticClear, sweep])
+	assert.equal(transactions.length, 3)
+	assert.equal(transactions[2].from, 'FUNDING')
+	assert.equal(transactions[2].to, asAddress(authority.address))
+	assert.equal(transactions[2].value, 0n)
+	assert.equal(transactions[2].gasLimit, 21_000n)
 })
 
 test('keeps an existing funding transaction instead of adding a duplicate', () => {
-	const transactions = ensureRescueFundingTransaction([funding, sweep], authority.address, chainId)
-	assert.equal(transactions.length, 2)
-	assert.equal(transactions[0], funding)
+	const automaticClear = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const transactions = ensureDelegationClearFunding([automaticClear, funding, sweep])
+	assert.equal(transactions.length, 3)
+	assert.equal(transactions[1], funding)
+})
+
+test('migrates a stored clear-and-sweep payload by inserting funding in the correct order', () => {
+	const automaticClear = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const storage = new Map([['payload', JSON.stringify(TransactionList.serialize([automaticClear, sweep]))]])
+	globalThis.localStorage = {
+		getItem: (key) => storage.get(key) ?? null,
+		setItem: (key, value) => storage.set(key, value),
+		removeItem: (key) => storage.delete(key),
+	}
+
+	const migratedBundle = fetchBundleFromStorage()
+	assert.equal(migratedBundle.transactions.length, 3)
+	assert.equal(isClearDelegationTransaction(migratedBundle.transactions[0]), true)
+	assert.equal(migratedBundle.transactions[1].from, 'FUNDING')
+	assert.equal(migratedBundle.transactions[1].to, asAddress(authority.address))
+	assert.equal(migratedBundle.transactions[2].from, asAddress(authority.address))
+	assert.equal(TransactionList.parse(JSON.parse(storage.get('payload'))).length, 3)
 })
 
 test('creates a safe unsigned delegation-clearing transaction for later signing', async () => {
@@ -174,8 +196,7 @@ test('keeps enough ETH in the shared funding wallet for clearing and funding gas
 
 test('signs the complete rescue sequence with the funding wallet as clear sponsor', async () => {
 	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
-	const transactionsWithFunding = ensureRescueFundingTransaction([sweep], authority.address, chainId)
-	const bundle = createRescueBundle([...transactionsWithFunding, transaction])
+	const bundle = createRescueBundle(ensureDelegationClearFunding([transaction, sweep]))
 	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
 	const fundingAmount = bundle.totalGas * 3n + bundle.inputValue
 	const provider = {

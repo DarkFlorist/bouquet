@@ -6,6 +6,7 @@ import { ProviderStore } from './library/provider.js'
 import { BlockInfo, Bundle, Signers } from './types/types.js'
 import { BouquetSettings, TransactionList } from './types/bouquetTypes.js'
 import { createBundle } from './library/bundle.js'
+import { createRescueBundle, ensureDelegationClearFunding } from './library/rescue.js'
 
 function fetchBurnerWalletFromStorage(): Wallet {
 	const burnerPrivateKey = localStorage.getItem('wallet')
@@ -16,7 +17,7 @@ function fetchBurnerWalletFromStorage(): Wallet {
 	}
 }
 
-function fetchBundleFromStorage(): Bundle | undefined {
+export function fetchBundleFromStorage(): Bundle | undefined {
 	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 	if (!payload) return undefined
 	const tryParse = TransactionList.safeParse(payload)
@@ -24,7 +25,11 @@ function fetchBundleFromStorage(): Bundle | undefined {
 		localStorage.removeItem('payload')
 		return undefined
 	}
-	return createBundle(tryParse.value)
+	const transactionsWithFunding = ensureDelegationClearFunding(tryParse.value)
+	if (transactionsWithFunding === tryParse.value) return createBundle(tryParse.value)
+	const migratedBundle = createRescueBundle(transactionsWithFunding)
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(migratedBundle.transactions)))
+	return migratedBundle
 }
 
 export function fetchSettingsFromStorage() {

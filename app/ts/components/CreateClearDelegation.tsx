@@ -1,6 +1,6 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { ProviderStore } from '../library/provider.js'
-import { createClearDelegationTransaction, createRescueBundle, ensureRescueFundingTransaction, getActiveEip7702DelegationTarget } from '../library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle, ensureDelegationClearFunding, getActiveEip7702DelegationTarget } from '../library/rescue.js'
 import { addressString } from '../library/utils.js'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { TransactionList } from '../types/bouquetTypes.js'
@@ -121,8 +121,7 @@ export const CreateClearDelegation = ({ bundle, provider, signers, blockInfo }: 
 				authority: authority.peek(),
 				chainId,
 			})
-			const transactionsWithFunding = ensureRescueFundingTransaction(currentBundle.transactions, authority.peek(), chainId)
-			const nextBundle = createRescueBundle([...transactionsWithFunding, transaction])
+			const nextBundle = createRescueBundle(ensureDelegationClearFunding([...currentBundle.transactions, transaction]))
 			localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(nextBundle.transactions)))
 			bundle.value = nextBundle
 			signers.value = { ...signers.peek(), bundleSigners: {} }
