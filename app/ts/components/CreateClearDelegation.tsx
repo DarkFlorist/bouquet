@@ -1,6 +1,6 @@
 import { Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
 import { ProviderStore } from '../library/provider.js'
-import { createClearDelegationTransaction, createRescueBundle, getActiveEip7702DelegationTarget } from '../library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle, ensureRescueFundingTransaction, getActiveEip7702DelegationTarget } from '../library/rescue.js'
 import { addressString } from '../library/utils.js'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { TransactionList } from '../types/bouquetTypes.js'
@@ -11,14 +11,6 @@ const getSingleChainId = (bundle: Bundle) => {
 	const chainIds = [...new Set(bundle.transactions.map((transaction) => transaction.chainId))]
 	if (chainIds.length !== 1 || chainIds[0] === undefined) throw new Error('All rescue transactions must use one chain before adding the delegation-clearing transaction.')
 	return chainIds[0]
-}
-
-const getChainIdLabel = (bundle: Bundle) => {
-	try {
-		return getSingleChainId(bundle).toString()
-	} catch {
-		return 'multiple chains detected'
-	}
 }
 
 const getSuggestedAuthority = (bundle: Bundle) => {
@@ -124,11 +116,13 @@ export const CreateClearDelegation = ({ bundle, provider, signers, blockInfo }: 
 			const fundingWallet = signers.peek().burner
 			if (fundingWallet === undefined) throw new Error('Bouquet could not create its temporary funding wallet.')
 			if (fundingWallet.address === authority.peek()) throw new Error('The temporary funding wallet must be different from the compromised account.')
+			const chainId = getSingleChainId(currentBundle)
 			const transaction = createClearDelegationTransaction({
 				authority: authority.peek(),
-				chainId: getSingleChainId(currentBundle),
+				chainId,
 			})
-			const nextBundle = createRescueBundle([...currentBundle.transactions, transaction])
+			const transactionsWithFunding = ensureRescueFundingTransaction(currentBundle.transactions, authority.peek(), chainId)
+			const nextBundle = createRescueBundle([...transactionsWithFunding, transaction])
 			localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(nextBundle.transactions)))
 			bundle.value = nextBundle
 			signers.value = { ...signers.peek(), bundleSigners: {} }
@@ -147,16 +141,11 @@ export const CreateClearDelegation = ({ bundle, provider, signers, blockInfo }: 
 			<Button onClick={open} disabled={currentDelegation?.state !== 'delegated'} variant='secondary'>Add EIP-7702 Delegation Clear</Button>
 			{isOpen.value ? <div className='border border-orange-400/50 bg-orange-400/10 p-4 flex flex-col gap-4'>
 				<h3 className='text-xl font-semibold'>Create Delegation-Clearing Transaction</h3>
-				<p className='text-sm text-white/75'>Bouquet will use its temporary funding account to sponsor a type-4 transaction whose authorization target is the zero address. It will be ordered before funding and sweep transactions.</p>
+				<p className='text-sm text-white/75'>The delegation clear will run before funding and sweep transactions.</p>
 				<label className='flex flex-col gap-1'>
 					<span className='text-sm text-gray-400'>Compromised account</span>
 					<input aria-label='Compromised account' value={authority.value} readOnly className='h-12 border border-white/50 bg-transparent px-4 outline-none text-white/75' placeholder='0x…' />
 				</label>
-				<label className='flex flex-col gap-1'>
-					<span className='text-sm text-gray-400'>Temporary funding account sponsor</span>
-					<input aria-label='Temporary funding account sponsor' value={signers.value.burner?.address ?? ''} readOnly className='h-12 border border-white/50 bg-transparent px-4 outline-none text-white/75' />
-				</label>
-				<p className='text-sm text-white/75'>Chain ID: {getChainIdLabel(activeBundle.value)}. Bouquet refreshes the authorization nonce immediately before every simulation and submission. Bouquet manages the funding-account key; enter the compromised-account key in Configure.</p>
 				{error.value === undefined ? null : <SingleNotice variant='error' title='Could Not Add Delegation Clear' description={error.value} />}
 				<div className='flex gap-2'>
 					<Button onClick={addTransaction}>Add Delegation Clear</Button>

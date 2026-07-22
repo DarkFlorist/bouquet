@@ -45,6 +45,18 @@ export const createClearDelegationTransaction = ({ authority, chainId }: ClearDe
 	}
 }
 
+export const ensureRescueFundingTransaction = (transactions: TransactionList, authority: string, chainId: bigint): TransactionList => {
+	if (transactions.some((transaction) => transaction.from === 'FUNDING' && !isClearDelegationTransaction(transaction))) return transactions
+	return [...transactions, {
+		from: 'FUNDING',
+		to: BigInt(getAddress(authority)),
+		value: 0n,
+		input: new Uint8Array(),
+		chainId,
+		gasLimit: 21_000n,
+	}]
+}
+
 export const orderRescueTransactions = (transactions: TransactionList): TransactionList => [
 	...transactions.filter(isClearDelegationTransaction),
 	...transactions.filter((transaction) => transaction.from === 'FUNDING' && !isClearDelegationTransaction(transaction)),

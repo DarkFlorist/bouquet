@@ -3,7 +3,7 @@ import test from 'node:test'
 import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
 import { createBundle } from '../app/js/library/bundle.js'
-import { createClearDelegationTransaction, createRescueBundle, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle, ensureRescueFundingTransaction, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
 import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
@@ -87,6 +87,21 @@ test('orders delegation clearing before funding and sweeps', () => {
 	assert.equal(validateBundle(bundle), undefined)
 })
 
+test('adds funding for the compromised account when the imported stack has none', () => {
+	const transactions = ensureRescueFundingTransaction([sweep], authority.address, chainId)
+	assert.equal(transactions.length, 2)
+	assert.equal(transactions[1].from, 'FUNDING')
+	assert.equal(transactions[1].to, asAddress(authority.address))
+	assert.equal(transactions[1].value, 0n)
+	assert.equal(transactions[1].gasLimit, 21_000n)
+})
+
+test('keeps an existing funding transaction instead of adding a duplicate', () => {
+	const transactions = ensureRescueFundingTransaction([funding, sweep], authority.address, chainId)
+	assert.equal(transactions.length, 2)
+	assert.equal(transactions[0], funding)
+})
+
 test('creates a safe unsigned delegation-clearing transaction for later signing', async () => {
 	const transaction = createClearDelegationTransaction({
 		authority: authority.address,
@@ -159,8 +174,10 @@ test('keeps enough ETH in the shared funding wallet for clearing and funding gas
 
 test('signs the complete rescue sequence with the funding wallet as clear sponsor', async () => {
 	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
-	const bundle = createRescueBundle([funding, sweep, transaction])
+	const transactionsWithFunding = ensureRescueFundingTransaction([sweep], authority.address, chainId)
+	const bundle = createRescueBundle([...transactionsWithFunding, transaction])
 	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
+	const fundingAmount = bundle.totalGas * 3n + bundle.inputValue
 	const provider = {
 		send: async () => ({ payload: [{ from: authority.address }] }),
 		getTransactionCount: async (address) => {
@@ -171,9 +188,9 @@ test('signs the complete rescue sequence with the funding wallet as clear sponso
 	}
 	const transactions = await createBundleTransactions(bundle, {
 		burner,
-		burnerBalance: 100000000000000000n,
+		burnerBalance: fundingAmount,
 		bundleSigners: { [authority.address]: authority },
-	}, blockInfo, 1n, 10000000000000000n, provider)
+	}, blockInfo, 1n, fundingAmount, provider)
 	const signed = await getRawTransactionsAndCalculateFeesAndNonces(transactions, provider, blockInfo, 2n)
 	const clear = Transaction.from(signed[0].rawTransaction)
 
@@ -182,6 +199,7 @@ test('signs the complete rescue sequence with the funding wallet as clear sponso
 	assert.equal(clear.authorizationList[0].nonce, 3n)
 	assert.equal(verifyAuthorization(clear.authorizationList[0], clear.authorizationList[0].signature), authority.address)
 	assert.equal(signed[1].transaction.nonce, 3)
+	assert.equal(signed[1].transaction.value, sweep.gasLimit * 3n)
 	assert.equal(signed[2].transaction.nonce, 4)
 })
 
