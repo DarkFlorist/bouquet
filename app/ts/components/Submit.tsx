@@ -332,6 +332,7 @@ export const Submit = ({
 			) : (
 				<div className='flex flex-col w-full gap-4'>
 					<div>
+						<p><span className='font-bold'>Current block:</span> {blockInfo.value.blockNumber.toString()}</p>
 						{ bouquetNetwork.value.relayMode === 'mempool' ? <>
 								<div style = 'padding-bottom: 10px;'>
 									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. Transactions are sent individually so some transactions may not make it onto the blockchain. This mode should only be used if a priate relay is unavailable for the network. Additionally, if a sweeper is active on your account there is a high risk that rescue attempts may fail, allowing the sweeper to steal your gas funds and other assets. Use this mode only as a last resort when no other options are available.`} />
@@ -341,7 +342,7 @@ export const Submit = ({
 								<p><span className='font-bold'>Transaction Simulation RPC:</span> { bouquetNetwork.value.mempoolSimulationRpcEndpoint }</p>
 							</> : <>
 								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
-								<p><span className='font-bold'>Relays:</span> simulation:{bouquetNetwork.value.simulationRelayEndpoint}, submit:{bouquetNetwork.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
+								<p><span className='font-bold'>Relays:</span> simulation:{bouquetNetwork.value.simulationRelayEndpoint}, submit:{bouquetNetwork.value.submissionRelayEndpoint}</p>
 								<p>Transactions will be attempt to be included in the block {bouquetNetwork.value.blocksInFuture.toString()} blocks from now.</p>
 							</>
 						}
