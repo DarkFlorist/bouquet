@@ -58,23 +58,11 @@ export type SimulationResponseSuccess = {
 
 export type SimulationResponse = SimulationResponseSuccess | RelayResponseError
 
-export type BundleStats = {
-	isSimulated: boolean
-	consideredByBuilders: number
-	sealedByBuilders: number
-}
-
-export type BundleStatsResult =
-	| { status: 'available', stats: BundleStats }
-	| { status: 'unavailable' }
-
 type RelayTargetSubmission =
 	| { status: 'accepted', targetBlock: bigint, bundleIdentifier: string }
 	| { status: 'rejected', error: unknown }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
-
-const getArrayLength = (value: unknown) => Array.isArray(value) ? value.length : 0
 
 export const createRelaySimulationPayload = (transactions: readonly string[], targetBlock: bigint) => JSON.stringify({
 	jsonrpc: '2.0',
@@ -82,14 +70,6 @@ export const createRelaySimulationPayload = (transactions: readonly string[], ta
 	method: 'eth_callBundle',
 	params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, stateBlockNumber: 'latest' }],
 })
-
-export const describeBundleStats = (result: BundleStatsResult): string => {
-	if (result.status === 'unavailable') return 'The relay accepted it, but does not provide detailed bundle statistics.'
-	if (result.stats.sealedByBuilders > 0) return `The relay accepted and simulated it, and ${result.stats.sealedByBuilders.toString()} builder${result.stats.sealedByBuilders === 1 ? '' : 's'} sealed a block containing it, but the proposer selected a different block.`
-	if (result.stats.consideredByBuilders > 0) return `The relay accepted and simulated it, and ${result.stats.consideredByBuilders.toString()} builder${result.stats.consideredByBuilders === 1 ? '' : 's'} considered it, but none sealed a block containing it.`
-	if (result.stats.isSimulated) return 'The relay accepted and simulated it, but no builder reported considering it.'
-	return 'The relay accepted it, but did not report a successful simulation.'
-}
 
 export async function simulateBundle(
 	bundle: Bundle,
@@ -294,37 +274,6 @@ export async function sendBundle(bundle: Bundle, targetBlocks: readonly bigint[]
 
 			return { bundleTransactions, submissions }
 		}
-	}
-}
-
-export async function getBundleStats(bundleHash: string, targetBlock: bigint, provider: ProviderStore, network: BouquetNetwork): Promise<BundleStatsResult> {
-	if (network.submissionRelayEndpoint === undefined) return { status: 'unavailable' }
-	try {
-		const payload = JSON.stringify({
-			jsonrpc: '2.0',
-			method: 'flashbots_getBundleStatsV2',
-			id: bundleId++,
-			params: [{ bundleHash, blockNumber: `0x${targetBlock.toString(16)}` }],
-		})
-		const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
-		const request = await fetch(network.submissionRelayEndpoint, {
-			method: 'POST',
-			body: payload,
-			headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig },
-			signal: AbortSignal.timeout(5_000),
-		})
-		const response: unknown = await request.json()
-		if (!isRecord(response) || !isRecord(response.result)) return { status: 'unavailable' }
-		return {
-			status: 'available',
-			stats: {
-				isSimulated: response.result.isSimulated === true,
-				consideredByBuilders: getArrayLength(response.result.consideredByBuildersAt),
-				sealedByBuilders: getArrayLength(response.result.sealedByBuildersAt),
-			},
-		}
-	} catch {
-		return { status: 'unavailable' }
 	}
 }
 

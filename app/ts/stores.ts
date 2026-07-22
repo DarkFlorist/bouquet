@@ -25,8 +25,14 @@ export function fetchBundleFromStorage(): Bundle | undefined {
 		localStorage.removeItem('payload')
 		return undefined
 	}
-	const transactionsWithFunding = ensureDelegationClearFunding(tryParse.value)
-	if (transactionsWithFunding === tryParse.value) return createBundle(tryParse.value)
+	return createBundle(tryParse.value)
+}
+
+export function initializeBundleFromStorage(): Bundle | undefined {
+	const storedBundle = fetchBundleFromStorage()
+	if (storedBundle === undefined) return undefined
+	const transactionsWithFunding = ensureDelegationClearFunding(storedBundle.transactions)
+	if (transactionsWithFunding === storedBundle.transactions) return storedBundle
 	const migratedBundle = createRescueBundle(transactionsWithFunding)
 	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(migratedBundle.transactions)))
 	return migratedBundle
@@ -45,7 +51,7 @@ export function createGlobalState() {
 	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
 	const signers = useSignal<Signers>({ burner: fetchBurnerWalletFromStorage(), burnerBalance: 0n, bundleSigners: {} })
-	const bundle = useSignal<Bundle | undefined>(fetchBundleFromStorage())
+	const bundle = useSignal<Bundle | undefined>(initializeBundleFromStorage())
 
 	// Sync burnerWallet to localStorage
 	signers.subscribe(({ burner }) => {

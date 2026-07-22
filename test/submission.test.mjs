@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { describeBundleTarget, getBundleTargetBlocks, hasTargetBlockBeenMined, latestBundleTarget, shouldSubmitForBlock } from '../app/js/library/submission.js'
 import { getMaxBaseFeeInFutureBlock, withPriorityFee } from '../app/js/library/bundleUtils.js'
-import { createRelaySimulationPayload, describeBundleStats } from '../app/js/library/flashbots.js'
+import { createRelaySimulationPayload } from '../app/js/library/flashbots.js'
 
 test('polling submits only a newer block while submission is active and idle', () => {
 	assert.equal(shouldSubmitForBlock({ active: true, inProgress: false, lastBlock: 100n, currentBlock: 101n }), true)
@@ -53,10 +53,4 @@ test('relay simulation uses the actual future target block', () => {
 	const payload = JSON.parse(createRelaySimulationPayload(['0x1234'], 103n))
 	assert.equal(payload.params[0].blockNumber, '0x67')
 	assert.equal(payload.params[0].stateBlockNumber, 'latest')
-})
-
-test('missed bundle diagnostics explain the furthest relay stage reached', () => {
-	assert.equal(describeBundleStats({ status: 'unavailable' }), 'The relay accepted it, but does not provide detailed bundle statistics.')
-	assert.match(describeBundleStats({ status: 'available', stats: { isSimulated: true, consideredByBuilders: 2, sealedByBuilders: 0 } }), /2 builders considered/)
-	assert.match(describeBundleStats({ status: 'available', stats: { isSimulated: true, consideredByBuilders: 2, sealedByBuilders: 1 } }), /proposer selected a different block/)
 })

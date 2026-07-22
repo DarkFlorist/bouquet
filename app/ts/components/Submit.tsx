@@ -6,7 +6,7 @@ import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
-import { simulateBundle, sendBundle, checkBundleInclusion, describeBundleStats, getBundleStats, SimulationResponseSuccess } from '../library/flashbots.js'
+import { simulateBundle, sendBundle, checkBundleInclusion, SimulationResponseSuccess } from '../library/flashbots.js'
 import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
@@ -275,7 +275,7 @@ export const Submit = ({
 			for (const expiredBundle of expiredBundles) {
 				missedTargets.set(expiredBundle.targetBlock, {
 					targetBlock: expiredBundle.targetBlock,
-					diagnostic: bouquetNetwork.peek().relayMode === 'relay' ? 'The relay accepted it; checking detailed relay statistics.' : '',
+					diagnostic: bouquetNetwork.peek().relayMode === 'relay' ? 'The relay accepted the bundle submission.' : '',
 				})
 			}
 			outstandingBundles.value = {
@@ -297,23 +297,6 @@ export const Submit = ({
 						return obj
 					}, {})
 			}
-			if (bouquetNetwork.peek().relayMode === 'relay' && expiredBundles.length > 0) {
-				const latestExpiredBundleByTarget = new Map(expiredBundles.map((expiredBundle) => [expiredBundle.targetBlock, expiredBundle]))
-				void Promise.all([...latestExpiredBundleByTarget.values()].map(async (expiredBundle) => ({
-					targetBlock: expiredBundle.targetBlock,
-					diagnostic: describeBundleStats(await getBundleStats(expiredBundle.bundleHash, expiredBundle.targetBlock, providerStore, bouquetNetwork.peek())),
-				}))).then((diagnostics) => {
-					const updatedMissedTargets = new Map(outstandingBundles.peek().missedTargets.map((missedTarget) => [missedTarget.targetBlock, missedTarget]))
-					for (const diagnostic of diagnostics) {
-						if (updatedMissedTargets.has(diagnostic.targetBlock)) updatedMissedTargets.set(diagnostic.targetBlock, diagnostic)
-					}
-					outstandingBundles.value = {
-						...outstandingBundles.peek(),
-						missedTargets: [...updatedMissedTargets.values()].sort((left, right) => left.targetBlock < right.targetBlock ? -1 : left.targetBlock > right.targetBlock ? 1 : 0).slice(-10),
-					}
-				})
-			}
-
 			// Try Submit
 			if (submissionStatus.value.active && !outstandingBundles.value.success) {
 				submissionStatus.value = { ...submissionStatus.peek(), timesSubmited: submissionStatus.peek().timesSubmited + 1 }

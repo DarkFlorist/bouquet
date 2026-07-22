@@ -6,7 +6,7 @@ import { createBundle } from '../app/js/library/bundle.js'
 import { createClearDelegationTransaction, createRescueBundle, ensureDelegationClearFunding, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
 import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
-import { fetchBundleFromStorage } from '../app/js/stores.js'
+import { fetchBundleFromStorage, initializeBundleFromStorage } from '../app/js/stores.js'
 import { TransactionList } from '../app/js/types/bouquetTypes.js'
 
 const chainId = 11155111n
@@ -115,7 +115,11 @@ test('migrates a stored clear-and-sweep payload by inserting funding in the corr
 		removeItem: (key) => storage.delete(key),
 	}
 
-	const migratedBundle = fetchBundleFromStorage()
+	const storedBundle = fetchBundleFromStorage()
+	assert.equal(storedBundle.transactions.length, 2)
+	assert.equal(TransactionList.parse(JSON.parse(storage.get('payload'))).length, 2)
+
+	const migratedBundle = initializeBundleFromStorage()
 	assert.equal(migratedBundle.transactions.length, 3)
 	assert.equal(isClearDelegationTransaction(migratedBundle.transactions[0]), true)
 	assert.equal(migratedBundle.transactions[1].from, 'FUNDING')
