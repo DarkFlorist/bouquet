@@ -163,7 +163,7 @@ export const Import = ({
 				) : (
 					''
 				)}
-				<CreateClearDelegation bundle={bundle} provider={provider} signers={signers} />
+				<CreateClearDelegation bundle={bundle} provider={provider} signers={signers} blockInfo={blockInfo} />
 			</div>
 		</>
 	)

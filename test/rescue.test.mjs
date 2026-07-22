@@ -3,7 +3,7 @@ import test from 'node:test'
 import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
 import { createBundle } from '../app/js/library/bundle.js'
-import { createClearDelegationTransaction, createRescueBundle, isClearDelegationTransaction, validateBundle } from '../app/js/library/rescue.js'
+import { createClearDelegationTransaction, createRescueBundle, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
 import { convertInterceptorTransactions, markSyntheticFunding } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
@@ -86,6 +86,16 @@ test('creates a safe unsigned delegation-clearing transaction for later signing'
 		chainId,
 		authorizationNonce: 3n,
 	}), /sponsor must be different/)
+})
+
+test('detects active EIP-7702 delegation bytecode and rejects ordinary code', async () => {
+	const target = Wallet.createRandom().address
+	const delegationCode = `0xef0100${target.slice(2).toLowerCase()}`
+	assert.equal(parseEip7702DelegationTarget(delegationCode), target)
+	assert.equal(parseEip7702DelegationTarget('0x'), undefined)
+	assert.equal(parseEip7702DelegationTarget('0x60006000'), undefined)
+	assert.equal(await getActiveEip7702DelegationTarget({ getCode: async () => delegationCode }, authority.address), target)
+	assert.equal(await getActiveEip7702DelegationTarget({ getCode: async () => '0x' }, authority.address), undefined)
 })
 
 test('loads the authorization nonce from before the Interceptor simulation stack', async () => {

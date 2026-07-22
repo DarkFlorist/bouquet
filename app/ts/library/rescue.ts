@@ -1,4 +1,4 @@
-import { getAddress } from 'ethers'
+import { getAddress, type Provider } from 'ethers'
 import { TransactionList } from '../types/bouquetTypes.js'
 import { Bundle } from '../types/types.js'
 import { addressString } from './utils.js'
@@ -9,6 +9,18 @@ export type ClearDelegationTransactionInput = {
 	authority: string
 	chainId: bigint
 	authorizationNonce: bigint
+}
+
+const EIP_7702_DELEGATION_PREFIX = '0xef0100'
+
+export const parseEip7702DelegationTarget = (code: string): string | undefined => {
+	if (!/^0xef0100[0-9a-f]{40}$/i.test(code)) return undefined
+	return getAddress(`0x${code.slice(EIP_7702_DELEGATION_PREFIX.length)}`)
+}
+
+export const getActiveEip7702DelegationTarget = async (provider: Pick<Provider, 'getCode'>, authority: string): Promise<string | undefined> => {
+	const code = await provider.getCode(getAddress(authority), 'latest')
+	return parseEip7702DelegationTarget(code)
 }
 
 export { isClearDelegationTransaction } from './bundle.js'
