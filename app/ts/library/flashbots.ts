@@ -69,7 +69,7 @@ export async function simulateBundle(
 	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
 	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
-	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin)
+	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin, provider.provider)
 	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, blockInfo, maxBaseFee)
 
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
@@ -167,7 +167,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
 	const transactions = (await getRawTransactionsAndCalculateFeesAndNonces(
-		await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin),
+		await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin, provider.provider),
 		provider.provider,
 		blockInfo,
 		maxBaseFee,

@@ -2,6 +2,7 @@ import { Authorization, BrowserProvider, getAddress, getNumber, Signature, Signe
 import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
 import { EthereumData } from '../types/ethereumTypes.js'
 import { addressString } from './utils.js'
+import { isClearDelegationTransaction } from './bundle.js'
 
 export interface FlashbotsBundleTransaction {
 	transaction: TransactionRequest
@@ -13,7 +14,7 @@ export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigi
 	return [...Array(blocksInFuture)].reduce((accumulator, _currentValue) => (accumulator * 1125n) / 1000n, baseFee) + 1n
 }
 
-async function requestSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{ [address: string]: number }> {
+async function requestSimulatedCountsOnNetwork(provider: Pick<BrowserProvider, 'send'>): Promise<{ [address: string]: number }> {
 	const { payload } = await provider.send(
 		'interceptor_getSimulationStack',
 		['1.0.1']
@@ -34,7 +35,7 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 	}
 }
 
-export async function getTransactionCountBeforeSimulation(provider: BrowserProvider, address: string): Promise<number> {
+export async function getTransactionCountBeforeSimulation(provider: Pick<BrowserProvider, 'getTransactionCount' | 'send'>, address: string): Promise<number> {
 	const normalizedAddress = getAddress(address)
 	const simulatedCounts = await requestSimulatedCountsOnNetwork(provider)
 	const transactionCount = await provider.getTransactionCount(normalizedAddress, 'latest') - (simulatedCounts[normalizedAddress] ?? 0)
@@ -75,15 +76,22 @@ export const createBundleTransactions = async (
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
+	provider: Pick<BrowserProvider, 'getTransactionCount' | 'send'>,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	return Promise.all(bundle.transactions.map(async ({ from, to, gasLimit, value, input, chainId, type, accessList, authorizationList }) => {
+	const gasPrice = blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
+	const fundingWalletGas = bundle.transactions.reduce((total, transaction) => transaction.from === 'FUNDING' ? total + transaction.gasLimit : total, 0n)
+	return Promise.all(bundle.transactions.map(async (bundleTransaction) => {
+		const { from, to, gasLimit, value, input, chainId, type, accessList, authorizationList } = bundleTransaction
+		const isDelegationClear = isClearDelegationTransaction(bundleTransaction)
 		const gasOpts = {
 			maxPriorityFeePerGas: blockInfo.priorityFee,
 			type: type === '7702' ? 4 : 2,
-			maxFeePerGas: blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture),
+			maxFeePerGas: gasPrice,
 		}
-		if (from === 'FUNDING') {
+		if (from === 'FUNDING' && !isDelegationClear) {
 			if (!signers.burner) throw new Error('No burner wallet provided')
+			const fundingValue = fundingAmountMin - fundingWalletGas * gasPrice
+			if (fundingValue < 0n) throw new Error('Funding wallet balance requirement is smaller than its transaction fees')
 			return {
 				signer: signers.burner,
 				transaction: {
@@ -93,7 +101,7 @@ export const createBundleTransactions = async (
 							to: addressString(to),
 						}
 						: {}),
-					value: fundingAmountMin - 21000n * (getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture) + blockInfo.priorityFee),
+					value: fundingValue,
 					data: '0x',
 					gasLimit: 21000n,
 					chainId: Number(chainId),
@@ -101,8 +109,8 @@ export const createBundleTransactions = async (
 				},
 			}
 		} else {
-			const signer = signers.bundleSigners[addressString(from)]
-			if (!signer) throw new Error(`No signer provided for ${addressString(from)}`)
+			const signer = from === 'FUNDING' ? signers.burner : signers.bundleSigners[addressString(from)]
+			if (!signer) throw new Error(from === 'FUNDING' ? 'No burner wallet provided' : `No signer provided for ${addressString(from)}`)
 			const resolvedAuthorizations: Authorization[] = []
 			for (const authorization of authorizationList ?? []) {
 				if (authorization.r !== undefined && authorization.s !== undefined && authorization.yParity !== undefined) {
@@ -119,19 +127,24 @@ export const createBundleTransactions = async (
 					continue
 				}
 				if (authorization.authority === undefined) throw new Error('Unsigned authorization is missing its authority')
-				const authoritySigner = signers.bundleSigners[addressString(authorization.authority)]
+				const authorityAddress = addressString(authorization.authority)
+				if (isDelegationClear && authorityAddress === signer.address) throw new Error('The funding wallet must be different from the compromised account')
+				const authoritySigner = signers.bundleSigners[authorityAddress]
 				if (!authoritySigner) throw new Error(`No signer provided for authorization authority ${addressString(authorization.authority)}`)
+				const authorizationNonce = isDelegationClear
+					? BigInt(await getTransactionCountBeforeSimulation(provider, authorityAddress))
+					: authorization.nonce
 				resolvedAuthorizations.push(await authoritySigner.authorize({
 					address: addressString(authorization.address),
 					chainId: authorization.chainId,
-					nonce: authorization.nonce,
+					nonce: authorizationNonce,
 				}))
 			}
 			return {
 				signer,
 				transaction: {
-					from: addressString(from),
-					...(to ? { to: addressString(to) } : {}),
+					from: signer.address,
+					...(isDelegationClear && from === 'FUNDING' ? { to: signer.address } : to ? { to: addressString(to) } : {}),
 					gasLimit,
 					data: serialize(EthereumData, input),
 					value,

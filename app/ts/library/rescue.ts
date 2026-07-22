@@ -5,10 +5,8 @@ import { addressString } from './utils.js'
 import { createBundle, isClearDelegationTransaction } from './bundle.js'
 
 export type ClearDelegationTransactionInput = {
-	sponsor: string
 	authority: string
 	chainId: bigint
-	authorizationNonce: bigint
 }
 
 const EIP_7702_DELEGATION_PREFIX = '0xef0100'
@@ -25,15 +23,12 @@ export const getActiveEip7702DelegationTarget = async (provider: Pick<Provider, 
 
 export { isClearDelegationTransaction } from './bundle.js'
 
-export const createClearDelegationTransaction = ({ sponsor, authority, chainId, authorizationNonce }: ClearDelegationTransactionInput): TransactionList[number] => {
-	const sponsorAddress = getAddress(sponsor)
+export const createClearDelegationTransaction = ({ authority, chainId }: ClearDelegationTransactionInput): TransactionList[number] => {
 	const authorityAddress = getAddress(authority)
-	if (sponsorAddress === authorityAddress) throw new Error('The clean sponsor must be different from the compromised account.')
 	if (chainId <= 0n) throw new Error('The rescue transaction needs a valid chain ID.')
-	if (authorizationNonce < 0n) throw new Error('The authorization nonce cannot be negative.')
 	return {
-		from: BigInt(sponsorAddress),
-		to: BigInt(sponsorAddress),
+		from: 'FUNDING',
+		to: null,
 		value: 0n,
 		input: new Uint8Array(),
 		chainId,
@@ -43,7 +38,8 @@ export const createClearDelegationTransaction = ({ sponsor, authority, chainId, 
 		authorizationList: [{
 			chainId,
 			address: 0n,
-			nonce: authorizationNonce,
+			// This placeholder is refreshed from the connected provider immediately before every simulation and submission.
+			nonce: 0n,
 			authority: BigInt(authorityAddress),
 		}],
 	}
@@ -51,7 +47,7 @@ export const createClearDelegationTransaction = ({ sponsor, authority, chainId, 
 
 export const orderRescueTransactions = (transactions: TransactionList): TransactionList => [
 	...transactions.filter(isClearDelegationTransaction),
-	...transactions.filter((transaction) => transaction.from === 'FUNDING'),
+	...transactions.filter((transaction) => transaction.from === 'FUNDING' && !isClearDelegationTransaction(transaction)),
 	...transactions.filter((transaction) => transaction.from !== 'FUNDING' && !isClearDelegationTransaction(transaction)),
 ]
 

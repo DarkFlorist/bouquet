@@ -89,32 +89,113 @@ test('orders delegation clearing before funding and sweeps', () => {
 
 test('creates a safe unsigned delegation-clearing transaction for later signing', async () => {
 	const transaction = createClearDelegationTransaction({
-		sponsor: sponsor.address,
 		authority: authority.address,
 		chainId,
-		authorizationNonce: 3n,
 	})
 	assert.equal(transaction.type, '7702')
-	assert.equal(transaction.from, asAddress(sponsor.address))
-	assert.equal(transaction.to, asAddress(sponsor.address))
+	assert.equal(transaction.from, 'FUNDING')
+	assert.equal(transaction.to, null)
 	assert.equal(transaction.authorizationList[0].authority, asAddress(authority.address))
 	assert.equal(transaction.authorizationList[0].address, 0n)
-	assert.equal(transaction.authorizationList[0].nonce, 3n)
+	assert.equal(transaction.authorizationList[0].nonce, 0n)
 	const createdBundle = createRescueBundle([funding, sweep, transaction])
 	assert.equal(validateBundle(createdBundle), undefined)
 	const [signedClear] = await createBundleTransactions(createdBundle, {
 		burner,
 		burnerBalance: 100000000000000000n,
-		bundleSigners: { [sponsor.address]: sponsor, [authority.address]: authority },
-	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 10000000000000000n)
+		bundleSigners: { [authority.address]: authority },
+	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 10000000000000000n, {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async () => 4,
+	})
+	assert.equal(signedClear.signer.address, burner.address)
+	assert.equal(signedClear.transaction.from, burner.address)
+	assert.equal(signedClear.transaction.to, burner.address)
 	assert.equal(verifyAuthorization(signedClear.transaction.authorizationList[0], signedClear.transaction.authorizationList[0].signature), authority.address)
+	assert.equal(signedClear.transaction.authorizationList[0].nonce, 3n)
 	assert.equal(signedClear.transaction.authorizationList[0].address, '0x0000000000000000000000000000000000000000')
-	assert.throws(() => createClearDelegationTransaction({
-		sponsor: authority.address,
-		authority: authority.address,
-		chainId,
-		authorizationNonce: 3n,
-	}), /sponsor must be different/)
+})
+
+test('refreshes the delegation authorization nonce before each signing attempt', async () => {
+	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const bundle = createRescueBundle([funding, sweep, transaction])
+	let transactionCount = 4
+	const provider = {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async () => transactionCount,
+	}
+	const signers = {
+		burner,
+		burnerBalance: 100000000000000000n,
+		bundleSigners: { [authority.address]: authority },
+	}
+	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
+
+	const [firstAttempt] = await createBundleTransactions(bundle, signers, blockInfo, 1n, 10000000000000000n, provider)
+	transactionCount = 5
+	const [secondAttempt] = await createBundleTransactions(bundle, signers, blockInfo, 1n, 10000000000000000n, provider)
+
+	assert.equal(firstAttempt.transaction.authorizationList[0].nonce, 3n)
+	assert.equal(secondAttempt.transaction.authorizationList[0].nonce, 4n)
+})
+
+test('keeps enough ETH in the shared funding wallet for clearing and funding gas', async () => {
+	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const bundle = createRescueBundle([funding, sweep, transaction])
+	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
+	const fundingAmount = bundle.totalGas * 3n + bundle.inputValue
+	const transactions = await createBundleTransactions(bundle, {
+		burner,
+		burnerBalance: fundingAmount,
+		bundleSigners: { [authority.address]: authority },
+	}, blockInfo, 1n, fundingAmount, {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async () => 4,
+	})
+
+	assert.equal(transactions[1].signer.address, burner.address)
+	assert.equal(transactions[1].transaction.value, fundingAmount - (transaction.gasLimit + funding.gasLimit) * 3n)
+})
+
+test('signs the complete rescue sequence with the funding wallet as clear sponsor', async () => {
+	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const bundle = createRescueBundle([funding, sweep, transaction])
+	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
+	const provider = {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async (address) => {
+			if (address === burner.address) return 2
+			if (address === authority.address) return 4
+			throw new Error(`Unexpected account ${address}`)
+		},
+	}
+	const transactions = await createBundleTransactions(bundle, {
+		burner,
+		burnerBalance: 100000000000000000n,
+		bundleSigners: { [authority.address]: authority },
+	}, blockInfo, 1n, 10000000000000000n, provider)
+	const signed = await getRawTransactionsAndCalculateFeesAndNonces(transactions, provider, blockInfo, 2n)
+	const clear = Transaction.from(signed[0].rawTransaction)
+
+	assert.equal(clear.from, burner.address)
+	assert.equal(clear.nonce, 2)
+	assert.equal(clear.authorizationList[0].nonce, 3n)
+	assert.equal(verifyAuthorization(clear.authorizationList[0], clear.authorizationList[0].signature), authority.address)
+	assert.equal(signed[1].transaction.nonce, 3)
+	assert.equal(signed[2].transaction.nonce, 4)
+})
+
+test('rejects using the compromised account as its own funding sponsor', async () => {
+	const transaction = createClearDelegationTransaction({ authority: authority.address, chainId })
+	const bundle = createRescueBundle([funding, sweep, transaction])
+	await assert.rejects(createBundleTransactions(bundle, {
+		burner: authority,
+		burnerBalance: 100000000000000000n,
+		bundleSigners: { [authority.address]: authority },
+	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 10000000000000000n, {
+		send: async () => ({ payload: [{ from: authority.address }] }),
+		getTransactionCount: async () => 4,
+	}), /funding wallet must be different/)
 })
 
 test('detects active EIP-7702 delegation bytecode and rejects ordinary code', async () => {
@@ -199,7 +280,6 @@ test('signs a sponsored type-4 clear and advances the authority nonce before its
 		},
 	}
 	const blockInfo = { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }
-	const transactions = await createBundleTransactions(bundle, signers, blockInfo, 1n, 10000000000000000n)
 	const provider = {
 		send: async () => ({ payload: [] }),
 		getTransactionCount: async (address) => {
@@ -209,6 +289,7 @@ test('signs a sponsored type-4 clear and advances the authority nonce before its
 			throw new Error(`Unexpected account ${address}`)
 		},
 	}
+	const transactions = await createBundleTransactions(bundle, signers, blockInfo, 1n, 10000000000000000n, provider)
 	const signed = await getRawTransactionsAndCalculateFeesAndNonces(transactions, provider, blockInfo, 2n)
 	const clear = Transaction.from(signed[0].rawTransaction)
 	assert.equal(clear.type, 4)
@@ -237,6 +318,9 @@ test('preserves imported authorization signatures without requiring the authorit
 		burner: undefined,
 		burnerBalance: 0n,
 		bundleSigners: { [sponsor.address]: sponsor },
-	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 0n)
+	}, { blockNumber: 1n, baseFee: 1n, priorityFee: 1n }, 1n, 0n, {
+		send: async () => ({ payload: [] }),
+		getTransactionCount: async () => 0,
+	})
 	assert.equal(verifyAuthorization(transaction.transaction.authorizationList[0], transaction.transaction.authorizationList[0].signature), authority.address)
 })
