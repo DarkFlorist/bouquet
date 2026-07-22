@@ -11,6 +11,8 @@ import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
 import { validateBundle } from '../library/rescue.js'
+import { MAX_RELAY_SUBMISSION_ATTEMPTS, relayNonInclusionError, shouldSubmitForBlock } from '../library/submission.js'
+import { useEffect } from 'preact/hooks'
 
 type PendingBundle = {
 	bundles: {
@@ -162,13 +164,31 @@ export const Submit = ({
 
 	// Submissions
 	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint, timesSubmited: number }>({ active: false, lastBlock: 0n, timesSubmited: 0 })
+	const submissionInProgress = useSignal(false)
 	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
 
 	useSignalEffect(() => {
 		const blockNumber = blockInfo.value.blockNumber
-		if (provider.value === undefined || bundle.value === undefined || blockNumber <= submissionStatus.value.lastBlock) return
-		void bundleSubmission(blockNumber).catch(setSubmissionError)
+		if (provider.value === undefined || bundle.value === undefined) return
+		void runBundleSubmission(blockNumber)
 	})
+
+	useEffect(() => {
+		const timer = globalThis.setInterval(() => {
+			const providerStore = provider.peek()
+			if (!submissionStatus.peek().active || providerStore === undefined) return
+			void providerStore.provider.getBlock('latest')
+				.then((latestBlock) => {
+					if (latestBlock === null) throw new Error('Could not retrieve the latest block while submitting the bundle.')
+					blockInfo.value = { ...blockInfo.peek(), blockNumber: BigInt(latestBlock.number), baseFee: latestBlock.baseFeePerGas ?? 0n }
+					return runBundleSubmission(BigInt(latestBlock.number))
+				})
+				.catch((error) => {
+					if (submissionStatus.peek().active) setSubmissionError(error)
+				})
+		}, 3_000)
+		return () => globalThis.clearInterval(timer)
+	}, [])
 
 	function setSubmissionError(error: unknown) {
 		const submissionError = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
@@ -178,6 +198,23 @@ export const Submit = ({
 			submissionStatus.value = { ...submissionStatus.peek(), active: false }
 			outstandingBundles.value = { ...outstandingBundles.peek(), error: submissionError }
 		})
+	}
+
+	async function runBundleSubmission(blockNumber: bigint) {
+		if (!shouldSubmitForBlock({
+			active: submissionStatus.peek().active,
+			inProgress: submissionInProgress.peek(),
+			lastBlock: submissionStatus.peek().lastBlock,
+			currentBlock: blockNumber,
+		})) return
+		submissionInProgress.value = true
+		try {
+			await bundleSubmission(blockNumber)
+		} catch (error) {
+			setSubmissionError(error)
+		} finally {
+			submissionInProgress.value = false
+		}
 	}
 
 	async function bundleSubmission(blockNumber: bigint) {
@@ -218,6 +255,7 @@ export const Submit = ({
 			})
 		} else {
 			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
+			if (bouquetNetwork.peek().relayMode === 'relay' && submissionStatus.peek().timesSubmited >= MAX_RELAY_SUBMISSION_ATTEMPTS) throw relayNonInclusionError(bouquetNetwork.peek().networkName)
 			// Remove old submissions
 			outstandingBundles.value = {
 				error: outstandingBundles.peek().error,
@@ -266,12 +304,13 @@ export const Submit = ({
 	}
 
 	async function toggleSubmission() {
+		const activate = !submissionStatus.peek().active
 		batch(() => {
 			simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
-			outstandingBundles.value = { bundles: !outstandingBundles.peek().success ? outstandingBundles.peek().bundles : {}, error: undefined, success: submissionStatus.peek().active ? outstandingBundles.peek().success : undefined }
-			submissionStatus.value = { ...submissionStatus.peek(), active: !submissionStatus.peek().active }
+			outstandingBundles.value = { bundles: {}, error: undefined, success: activate ? undefined : outstandingBundles.peek().success }
+			submissionStatus.value = { active: activate, lastBlock: activate ? 0n : submissionStatus.peek().lastBlock, timesSubmited: 0 }
 		})
-		bundleSubmission(blockInfo.peek().blockNumber)
+		if (activate) void runBundleSubmission(blockInfo.peek().blockNumber)
 	}
 
 	return (
