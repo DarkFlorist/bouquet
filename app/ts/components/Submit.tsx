@@ -11,7 +11,7 @@ import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
 import { validateBundle } from '../library/rescue.js'
-import { describeBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
+import { describeBundleTarget, latestBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
 import { useEffect } from 'preact/hooks'
 
 type PendingBundle = {
@@ -23,6 +23,7 @@ type PendingBundle = {
 			included: boolean
 		}
 	}
+	missedTargets: bigint[]
 	error?: Error,
 	success?: {
 		targetBlock: bigint,
@@ -88,9 +89,10 @@ export const Bundles = ({
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
 	const blockExplorerBaseUrl = bouquetNetwork.value !== undefined ? bouquetNetwork.value.blockExplorer : undefined
+	const latestPendingBundle = latestBundleTarget(Object.values(outstandingBundles.value.bundles))
 
 	return (
-		<div class='flex flex-col-reverse gap-4'>
+		<div class='flex flex-col gap-3'>
 			{outstandingBundles.value.success
 				? <SingleNotice variant='success' title= { bouquetNetwork.value.relayMode === 'mempool' ? 'Transactions included!' : 'Bundle Included!' } description={<div>
 						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> { `transactions were included in block${ outstandingBundles.value.success.includedInBlocks.length > 1 ? 's' : '' }` } <b>{ outstandingBundles.value.success.includedInBlocks.join(',') }</b></h3>
@@ -101,14 +103,17 @@ export const Bundles = ({
 							)}
 						</div>
 					</div>} />
-				: Object.values(outstandingBundles.value.bundles).map((bundle) => <div class='flex items-center gap-2 text-white'>
+				: <>
+					{outstandingBundles.value.missedTargets.slice(-5).map((targetBlock) => <p key={targetBlock.toString()} class='text-sm text-white/60'>Bundle for block {targetBlock.toString()} was not included. Continued with a newer target.</p>)}
+					{latestPendingBundle === undefined ? null : <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>{describeBundleTarget(blockInfo.value.blockNumber, bundle.targetBlock)} Max fee: {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas.</p>
-					</div>
-			)}
+						<p>{describeBundleTarget(blockInfo.value.blockNumber, latestPendingBundle.targetBlock)} Max fee: {Number(formatUnits(latestPendingBundle.gas.baseFee + latestPendingBundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas.</p>
+					</div>}
+				</>
+			}
 		</div>
 	)
 }
@@ -167,7 +172,7 @@ export const Submit = ({
 	// Submissions
 	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint, timesSubmited: number }>({ active: false, lastBlock: 0n, timesSubmited: 0 })
 	const submissionInProgress = useSignal(false)
-	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
+	const outstandingBundles = useSignal<PendingBundle>({ bundles: {}, missedTargets: [] })
 
 	useSignalEffect(() => {
 		const blockNumber = blockInfo.value.blockNumber
@@ -247,10 +252,11 @@ export const Submit = ({
 					}
 					return checked
 				}, {})
-				outstandingBundles.value = {
-					error: outstandingBundles.peek().error,
-					bundles: checkedBundles,
-					success: Object.values(checkedBundles).find(x => x.included)
+					outstandingBundles.value = {
+						error: outstandingBundles.peek().error,
+						bundles: checkedBundles,
+						missedTargets: outstandingBundles.peek().missedTargets,
+						success: Object.values(checkedBundles).find(x => x.included)
 				}
 				submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: 0 }
 				simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
@@ -258,11 +264,14 @@ export const Submit = ({
 		} else {
 			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
 			// Remove old submissions
+			const currentOutstandingBundles = outstandingBundles.peek()
+			const expiredBundles = Object.values(currentOutstandingBundles.bundles).filter((pendingBundle) => pendingBundle.targetBlock < blockNumber)
 			outstandingBundles.value = {
-				error: outstandingBundles.peek().error,
-				success: outstandingBundles.peek().success,
-				bundles: Object.keys(outstandingBundles.peek().bundles)
-					.filter(tx => outstandingBundles.peek().bundles[tx].targetBlock + 1n > blockNumber)
+				error: currentOutstandingBundles.error,
+				success: currentOutstandingBundles.success,
+				missedTargets: [...new Set([...currentOutstandingBundles.missedTargets, ...expiredBundles.map((pendingBundle) => pendingBundle.targetBlock)])].slice(-10),
+				bundles: Object.keys(currentOutstandingBundles.bundles)
+					.filter(tx => currentOutstandingBundles.bundles[tx].targetBlock >= blockNumber)
 					.reduce((obj: {
 						[bundleHash: string]: {
 							targetBlock: bigint,
@@ -271,7 +280,7 @@ export const Submit = ({
 							included: boolean
 						}
 					}, bundleHash) => {
-						obj[bundleHash] = outstandingBundles.peek().bundles[bundleHash]
+							obj[bundleHash] = currentOutstandingBundles.bundles[bundleHash]
 						return obj
 					}, {})
 			}
@@ -281,8 +290,7 @@ export const Submit = ({
 				submissionStatus.value = { ...submissionStatus.peek(), timesSubmited: submissionStatus.peek().timesSubmited + 1 }
 				try {
 					const targetBlock = blockNumber + bouquetNetwork.peek().blocksInFuture
-					const gas = blockInfo.peek()
-					gas.priorityFee = bouquetNetwork.value.priorityFee
+					const gas = { ...blockInfo.peek(), priorityFee: bouquetNetwork.value.priorityFee }
 					const bundleRequest = await sendBundle(
 						bundle.value,
 						targetBlock,
@@ -293,8 +301,9 @@ export const Submit = ({
 						bouquetNetwork.peek()
 					)
 
-					if (!(bundleRequest.bundleIdentifier in outstandingBundles.peek().bundles)) {
-						outstandingBundles.value = { ...outstandingBundles.peek(),  bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleIdentifier]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
+					const attemptIdentifier = `${bundleRequest.bundleIdentifier}:${targetBlock.toString()}`
+					if (!(attemptIdentifier in outstandingBundles.peek().bundles)) {
+						outstandingBundles.value = { ...outstandingBundles.peek(), bundles: {...outstandingBundles.peek().bundles, [attemptIdentifier]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
 					}
 				} catch (err) {
 					console.error('SendBundle error', err)
@@ -308,7 +317,7 @@ export const Submit = ({
 		const activate = !submissionStatus.peek().active
 		batch(() => {
 			simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
-			outstandingBundles.value = { bundles: {}, error: undefined, success: activate ? undefined : outstandingBundles.peek().success }
+			outstandingBundles.value = { bundles: {}, missedTargets: [], error: undefined, success: activate ? undefined : outstandingBundles.peek().success }
 			submissionStatus.value = { active: activate, lastBlock: activate ? 0n : submissionStatus.peek().lastBlock, timesSubmited: 0 }
 		})
 		if (activate) void runBundleSubmission(blockInfo.peek().blockNumber)
