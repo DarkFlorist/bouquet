@@ -15,3 +15,10 @@ export const describeBundleTarget = (currentBlock: bigint, targetBlock: bigint) 
 export const latestBundleTarget = <T extends { targetBlock: bigint }>(bundles: readonly T[]): T | undefined => bundles.reduce<T | undefined>((latest, bundle) => latest === undefined || bundle.targetBlock > latest.targetBlock ? bundle : latest, undefined)
 
 export const hasTargetBlockBeenMined = (currentBlock: bigint, targetBlock: bigint) => targetBlock <= currentBlock
+
+export const getBundleTargetBlocks = (currentBlock: bigint, blocksInFuture: bigint): bigint[] => {
+	if (blocksInFuture <= 0n) throw new Error('blocksInFuture needs to be positive')
+	const targets: bigint[] = []
+	for (let offset = 1n; offset <= blocksInFuture; offset++) targets.push(currentBlock + offset)
+	return targets
+}

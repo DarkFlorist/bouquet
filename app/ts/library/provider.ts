@@ -1,14 +1,15 @@
 import { batch, Signal } from '@preact/signals'
-import { Block, BrowserProvider, getAddress, HDNodeWallet, Wallet } from 'ethers'
+import { Block, BrowserProvider, getAddress, Wallet } from 'ethers'
 import { AddressParser, EthereumAddress } from '../types/ethereumTypes.js'
 import { BlockInfo, Signers } from '../types/types.js'
 import { fetchSettingsFromStorage } from '../stores.js'
 import { BouquetSettings } from '../types/bouquetTypes.js'
+import { getOrCreateRelayAuthSigner } from './relayAuth.js'
 
 export type ProviderStore = {
 	provider: BrowserProvider
 	_clearEvents: () => unknown
-	authSigner: HDNodeWallet,
+	authSigner: Wallet,
 	walletAddress: EthereumAddress
 	chainId: bigint,
 	isInterceptor: boolean
@@ -29,7 +30,7 @@ const addProvider = async (
 
 	store.value = {
 		provider,
-		authSigner: Wallet.createRandom(),
+		authSigner: getOrCreateRelayAuthSigner(localStorage),
 		walletAddress: parsedAddress.value,
 		chainId: network.chainId,
 		_clearEvents: clearEvents,

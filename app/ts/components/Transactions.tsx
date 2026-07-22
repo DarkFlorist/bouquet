@@ -13,6 +13,7 @@ import { importFromInterceptor } from './Import.js'
 import { convertInterceptorTransactions, markSyntheticFunding } from '../library/interceptorImport.js'
 import { EtherscanGetABIResult, EtherscanSourceCodeResult, SourcifyMetadataResult } from '../types/apiTypes.js'
 import { getNetwork } from '../constants.js'
+import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -44,6 +45,8 @@ export const Transactions = ({
 	const interfaces = useSignal<{ [address: string]: Interface }>({})
 	const decodedTransactions = useSignal<(JSXInternal.Element | null)[]>([])
 	const interceptorComparison = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
+	const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
+	const maxGasPrice = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture) + network.priorityFee
 
 	function copyTransactions() {
 		if (!bundle.value) return
@@ -209,7 +212,7 @@ export const Transactions = ({
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value + (tx.from === 'FUNDING' && bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * (blockInfo.value.baseFee + blockInfo.value.priorityFee): 0n))} + {EtherSymbol}{formatEther(tx.gasLimit * (blockInfo.value.baseFee + blockInfo.value.priorityFee))} Gas Fee</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value + (tx.from === 'FUNDING' && bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * maxGasPrice: 0n))} + {EtherSymbol}{formatEther(tx.gasLimit * maxGasPrice)} Gas Fee</span>
 							</div>
 							{decodedTransactions.value[index] ? (
 								<div class='flex gap-2 items-center'>

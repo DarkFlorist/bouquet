@@ -1,6 +1,6 @@
 import { AddressLike, ethers, id, keccak256, toUtf8Bytes, Transaction } from 'ethers'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
-import { createBundleTransactions, getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces } from './bundleUtils.js'
+import { createBundleTransactions, getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces, withPriorityFee } from './bundleUtils.js'
 import { ProviderStore } from './provider.js'
 import { BouquetNetwork } from '../types/bouquetTypes.js'
 import { EthSimulateV1CallResult, EthSimulateV1CallResults, EthSimulateV1Params, EthSimulateV1Result, JsonRpcResponse, TransactionType } from '../types/ethSimulateTypes.js'
@@ -58,19 +58,55 @@ export type SimulationResponseSuccess = {
 
 export type SimulationResponse = SimulationResponseSuccess | RelayResponseError
 
+export type BundleStats = {
+	isSimulated: boolean
+	consideredByBuilders: number
+	sealedByBuilders: number
+}
+
+export type BundleStatsResult =
+	| { status: 'available', stats: BundleStats }
+	| { status: 'unavailable' }
+
+type RelayTargetSubmission =
+	| { status: 'accepted', targetBlock: bigint, bundleIdentifier: string }
+	| { status: 'rejected', error: unknown }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+const getArrayLength = (value: unknown) => Array.isArray(value) ? value.length : 0
+
+export const createRelaySimulationPayload = (transactions: readonly string[], targetBlock: bigint) => JSON.stringify({
+	jsonrpc: '2.0',
+	id: 0,
+	method: 'eth_callBundle',
+	params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, stateBlockNumber: 'latest' }],
+})
+
+export const describeBundleStats = (result: BundleStatsResult): string => {
+	if (result.status === 'unavailable') return 'The relay accepted it, but does not provide detailed bundle statistics.'
+	if (result.stats.sealedByBuilders > 0) return `The relay accepted and simulated it, and ${result.stats.sealedByBuilders.toString()} builder${result.stats.sealedByBuilders === 1 ? '' : 's'} sealed a block containing it, but the proposer selected a different block.`
+	if (result.stats.consideredByBuilders > 0) return `The relay accepted and simulated it, and ${result.stats.consideredByBuilders.toString()} builder${result.stats.consideredByBuilders === 1 ? '' : 's'} considered it, but none sealed a block containing it.`
+	if (result.stats.isSimulated) return 'The relay accepted and simulated it, but no builder reported considering it.'
+	return 'The relay accepted it, but did not report a successful simulation.'
+}
+
 export async function simulateBundle(
 	bundle: Bundle,
 	fundingAmountMin: bigint,
 	provider: ProviderStore,
 	signers: Signers,
 	blockInfo: BlockInfo,
+	targetBlock: bigint,
 	network: BouquetNetwork
 ): Promise<SimulationResponse> {
-	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
+	const blocksInFuture = targetBlock - blockInfo.blockNumber
+	if (blocksInFuture <= 0n) throw new Error('Simulation target block must be in the future')
+	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
-	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin, provider.provider)
-	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, blockInfo, maxBaseFee)
+	const bundleTransactions = await createBundleTransactions(bundle, signers, signingBlockInfo, blocksInFuture, fundingAmountMin, provider.provider)
+	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, signingBlockInfo, maxBaseFee)
 
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
 
@@ -129,7 +165,7 @@ export async function simulateBundle(
 		}
 		case 'relay': {
 			if (network.simulationRelayEndpoint === undefined) throw new Error('simulationRelayEndpoint is not defined')
-			const payload = JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'eth_callBundle', params: [{ txs: txs.map((x) => x.rawTransaction), blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
+			const payload = createRelaySimulationPayload(txs.map((x) => x.rawTransaction), targetBlock)
 			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 			const request = await fetch(network.simulationRelayEndpoint,
 				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
@@ -162,14 +198,20 @@ export async function simulateBundle(
 }
 
 let bundleId = 1
-export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, network: BouquetNetwork) {
-	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
+export async function sendBundle(bundle: Bundle, targetBlocks: readonly bigint[], fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, network: BouquetNetwork) {
+	if (targetBlocks.length === 0) throw new Error('At least one target block is required')
+	const blocksInFuture = targetBlocks.reduce((largestDistance, targetBlock) => {
+		const distance = targetBlock - blockInfo.blockNumber
+		if (distance <= 0n) throw new Error('Bundle target blocks must be in the future')
+		return distance > largestDistance ? distance : largestDistance
+	}, 0n)
 	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
+	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const transactions = (await getRawTransactionsAndCalculateFeesAndNonces(
-		await createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin, provider.provider),
+		await createBundleTransactions(bundle, signers, signingBlockInfo, blocksInFuture, fundingAmountMin, provider.provider),
 		provider.provider,
-		blockInfo,
+		signingBlockInfo,
 		maxBaseFee,
 	)).map((x) => x.rawTransaction)
 
@@ -206,28 +248,38 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				}
 			})
 
-			return { bundleTransactions, bundleIdentifier: ethers.keccak256(toUtf8Bytes(payloads.join('|'))) }
+			return { bundleTransactions, submissions: [{ targetBlock: targetBlocks[0], bundleIdentifier: ethers.keccak256(toUtf8Bytes(payloads.join('|'))) }] }
 		}
 		case 'relay': {
-			const payload = JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_sendBundle',
-				id: bundleId++,
-				params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
-			})
-			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
-
 			if (network.submissionRelayEndpoint === undefined) throw new Error('submissionRelayEndpoint is not defined')
-			const request = await fetch(network.submissionRelayEndpoint,
-				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
-			)
-			const response = await request.json()
-
-			if (response.error !== undefined && response.error !== null) {
-				throw {
-					message: response.error.message,
-					code: response.error.code,
+			const submissionRelayEndpoint = network.submissionRelayEndpoint
+			const submissionResults = await Promise.all(targetBlocks.map(async (targetBlock): Promise<RelayTargetSubmission> => {
+				try {
+					const payload = JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'eth_sendBundle',
+						id: bundleId++,
+						params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
+					})
+					const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
+					const request = await fetch(submissionRelayEndpoint,
+						{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
+					)
+					const response: unknown = await request.json()
+					if (!isRecord(response)) throw new Error('Relay returned an invalid bundle submission response')
+					if (isRecord(response.error) && typeof response.error.message === 'string') throw new Error(response.error.message)
+					if (!isRecord(response.result) || typeof response.result.bundleHash !== 'string') throw new Error('Relay did not return a bundle hash')
+					return { status: 'accepted', targetBlock, bundleIdentifier: response.result.bundleHash }
+				} catch (error) {
+					return { status: 'rejected', error }
 				}
+			}))
+			const submissions = submissionResults.flatMap((result) => result.status === 'accepted' ? [{ targetBlock: result.targetBlock, bundleIdentifier: result.bundleIdentifier }] : [])
+			if (submissions.length === 0) {
+				for (const submissionResult of submissionResults) {
+					if (submissionResult.status === 'rejected') throw submissionResult.error
+				}
+				throw new Error('Relay rejected every target block')
 			}
 
 			const bundleTransactions = transactions.map((signedTransaction) => {
@@ -240,8 +292,39 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				}
 			})
 
-			return { bundleTransactions, bundleIdentifier: response.result.bundleHash }
+			return { bundleTransactions, submissions }
 		}
+	}
+}
+
+export async function getBundleStats(bundleHash: string, targetBlock: bigint, provider: ProviderStore, network: BouquetNetwork): Promise<BundleStatsResult> {
+	if (network.submissionRelayEndpoint === undefined) return { status: 'unavailable' }
+	try {
+		const payload = JSON.stringify({
+			jsonrpc: '2.0',
+			method: 'flashbots_getBundleStatsV2',
+			id: bundleId++,
+			params: [{ bundleHash, blockNumber: `0x${targetBlock.toString(16)}` }],
+		})
+		const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
+		const request = await fetch(network.submissionRelayEndpoint, {
+			method: 'POST',
+			body: payload,
+			headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig },
+			signal: AbortSignal.timeout(5_000),
+		})
+		const response: unknown = await request.json()
+		if (!isRecord(response) || !isRecord(response.result)) return { status: 'unavailable' }
+		return {
+			status: 'available',
+			stats: {
+				isSimulated: response.result.isSimulated === true,
+				consideredByBuilders: getArrayLength(response.result.consideredByBuildersAt),
+				sealedByBuilders: getArrayLength(response.result.sealedByBuildersAt),
+			},
+		}
+	} catch {
+		return { status: 'unavailable' }
 	}
 }
 

@@ -58,7 +58,7 @@ export function createGlobalState() {
 		if (!bundle.value.containsFundingTx) return 0n
 		const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
 		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture)
-		return bundle.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + bundle.value.inputValue
+		return bundle.value.totalGas * (network.priorityFee + maxBaseFee) + bundle.value.inputValue
 	})
 
 	return { provider, blockInfo, bundle, bouquetSettings, signers, fundingAmountMin }

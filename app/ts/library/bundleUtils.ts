@@ -11,8 +11,12 @@ export interface FlashbotsBundleTransaction {
 
 export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigint) => {
 	if (blocksInFuture <= 0n) throw new Error('blocksInFuture needs to be positive')
-	return [...Array(blocksInFuture)].reduce((accumulator, _currentValue) => (accumulator * 1125n) / 1000n, baseFee) + 1n
+	let maxBaseFee = baseFee
+	for (let block = 0n; block < blocksInFuture; block++) maxBaseFee = (maxBaseFee * 1125n) / 1000n + 1n
+	return maxBaseFee
 }
+
+export const withPriorityFee = (blockInfo: BlockInfo, priorityFee: bigint): BlockInfo => ({ ...blockInfo, priorityFee })
 
 async function requestSimulatedCountsOnNetwork(provider: Pick<BrowserProvider, 'send'>): Promise<{ [address: string]: number }> {
 	const { payload } = await provider.send(

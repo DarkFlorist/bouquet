@@ -131,7 +131,7 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 	}
 
 	const withdrawAmount = useComputed(() => {
-		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 5n) + blockInfo.value.priorityFee;
+		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 5n) + bouquetNetwork.value.priorityFee;
 		let fee = maxFeePerGas * 21000n
 		let amount = signers.value.burnerBalance - fee
 		return { amount, fee, maxFeePerGas }
@@ -204,4 +204,3 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 		</div>
 	)
 }
-
