@@ -1,5 +1,3 @@
-export const MAX_RELAY_SUBMISSION_ATTEMPTS = 25
-
 export const shouldSubmitForBlock = ({ active, inProgress, lastBlock, currentBlock }: {
 	active: boolean
 	inProgress: boolean
@@ -7,4 +5,8 @@ export const shouldSubmitForBlock = ({ active, inProgress, lastBlock, currentBlo
 	currentBlock: bigint
 }) => active && !inProgress && currentBlock > lastBlock
 
-export const relayNonInclusionError = (networkName: string) => new Error(`Bundle was not included after ${MAX_RELAY_SUBMISSION_ATTEMPTS} target blocks on ${networkName}. The relay accepted the bundle but no builder included it. Review the priority fee and try again.`)
+export const describeBundleTarget = (currentBlock: bigint, targetBlock: bigint) => {
+	if (targetBlock <= currentBlock) return `Current block ${currentBlock.toString()}. Target block ${targetBlock.toString()} has passed; preparing the next target.`
+	const blocksAhead = targetBlock - currentBlock
+	return `Current block ${currentBlock.toString()}. Trying bundle inclusion in block ${targetBlock.toString()} (${blocksAhead.toString()} block${blocksAhead === 1n ? '' : 's'} ahead).`
+}

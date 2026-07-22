@@ -11,7 +11,7 @@ import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
 import { validateBundle } from '../library/rescue.js'
-import { MAX_RELAY_SUBMISSION_ATTEMPTS, relayNonInclusionError, shouldSubmitForBlock } from '../library/submission.js'
+import { describeBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
 import { useEffect } from 'preact/hooks'
 
 type PendingBundle = {
@@ -79,9 +79,11 @@ const SimulationResult = ({
 export const Bundles = ({
 	outstandingBundles,
 	bouquetNetwork,
+	blockInfo,
 }: {
 	outstandingBundles: Signal<PendingBundle>,
 	bouquetNetwork: Signal<BouquetNetwork>,
+	blockInfo: ReadonlySignal<BlockInfo>,
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
@@ -104,7 +106,7 @@ export const Bundles = ({
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>Attempting to get { bouquetNetwork.value.relayMode === 'mempool' ? 'transactions' : 'bundle' } included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
+						<p>{describeBundleTarget(blockInfo.value.blockNumber, bundle.targetBlock)} Max fee: {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas.</p>
 					</div>
 			)}
 		</div>
@@ -255,7 +257,6 @@ export const Submit = ({
 			})
 		} else {
 			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
-			if (bouquetNetwork.peek().relayMode === 'relay' && submissionStatus.peek().timesSubmited >= MAX_RELAY_SUBMISSION_ATTEMPTS) throw relayNonInclusionError(bouquetNetwork.peek().networkName)
 			// Remove old submissions
 			outstandingBundles.value = {
 				error: outstandingBundles.peek().error,
@@ -344,7 +345,7 @@ export const Submit = ({
 							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : (bouquetNetwork.value.relayMode === 'mempool' ? `Accept the Risks and Submit`: `Submit to ${ bouquetNetwork.value.relayMode }`)}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
-					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>
+					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork} blockInfo={blockInfo}/>
 				</div>
 			)}
 		</>
