@@ -165,10 +165,20 @@ export const Submit = ({
 	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
 
 	useSignalEffect(() => {
-		if (blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
-			bundleSubmission(blockInfo.value.blockNumber)
-		}
+		const blockNumber = blockInfo.value.blockNumber
+		if (provider.value === undefined || bundle.value === undefined || blockNumber <= submissionStatus.value.lastBlock) return
+		void bundleSubmission(blockNumber).catch(setSubmissionError)
 	})
+
+	function setSubmissionError(error: unknown) {
+		const submissionError = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+			? new Error(error.message)
+			: new Error('Unexpected error while processing bundle submission.')
+		batch(() => {
+			submissionStatus.value = { ...submissionStatus.peek(), active: false }
+			outstandingBundles.value = { ...outstandingBundles.peek(), error: submissionError }
+		})
+	}
 
 	async function bundleSubmission(blockNumber: bigint) {
 		submissionStatus.value = { ...submissionStatus.peek(), lastBlock: blockNumber }
@@ -249,11 +259,7 @@ export const Submit = ({
 					}
 				} catch (err) {
 					console.error('SendBundle error', err)
-					const error = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? new Error(err.message) : new Error('Unknown Error')
-					batch(() => {
-						submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: submissionStatus.peek().timesSubmited }
-						outstandingBundles.value = { ...outstandingBundles.peek(), error }
-					})
+					setSubmissionError(err)
 				}
 			}
 		}

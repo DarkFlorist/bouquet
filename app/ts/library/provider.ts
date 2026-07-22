@@ -50,7 +50,8 @@ export const connectBrowserProvider = async (
 		priorityFee: bigint
 	}>,
 	signers: Signal<Signers> | undefined,
-	bouquetSettings: Signal<BouquetSettings>
+	bouquetSettings: Signal<BouquetSettings>,
+	options: { detectInterceptor?: boolean } = {},
 ) => {
 	if (!window.ethereum || !window.ethereum.request) throw new Error('No injected wallet detected')
 	await window.ethereum.request({ method: 'eth_requestAccounts' }).catch((err: { code: number }) => {
@@ -113,8 +114,9 @@ export const connectBrowserProvider = async (
 		provider.removeListener('block', blockCallback)
 	}
 
-	const [getSimulationStack] = await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.1'] })])
-	const isInterceptor = getSimulationStack.status === 'fulfilled'
+	const isInterceptor = options.detectInterceptor === false
+		? false
+		: (await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.1'] })]))[0].status === 'fulfilled'
 
 	await addProvider(store, provider, clearEvents, isInterceptor)
 }

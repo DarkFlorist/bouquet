@@ -4,7 +4,7 @@ import { Transaction, Wallet, verifyAuthorization } from 'ethers'
 import { createBundleTransactions, getRawTransactionsAndCalculateFeesAndNonces, getTransactionCountBeforeSimulation } from '../app/js/library/bundleUtils.js'
 import { createBundle } from '../app/js/library/bundle.js'
 import { createClearDelegationTransaction, createRescueBundle, getActiveEip7702DelegationTarget, isClearDelegationTransaction, parseEip7702DelegationTarget, validateBundle } from '../app/js/library/rescue.js'
-import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection } from '../app/js/library/interceptorImport.js'
+import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../app/js/library/interceptorImport.js'
 import { GetSimulationStackReply } from '../app/js/types/interceptorTypes.js'
 
 const chainId = 11155111n
@@ -31,6 +31,16 @@ test('waits for the wallet connection before requesting the Interceptor simulati
 	finishConnection()
 	assert.equal(await importRequest, 'simulation stack')
 	assert.equal(stackRequestCount, 1)
+})
+
+test('turns simulation stack provider failures into actionable messages', () => {
+	assert.equal(
+		simulationStackRequestError({ code: 123456, name: 'EthereumJsonRpcError' }).message,
+		'Interceptor encountered an internal error while exporting the simulation stack. Close any pending Interceptor request and try again.',
+	)
+	assert.equal(simulationStackRequestError({ code: 4001 }).message, 'Simulation stack export was rejected in Interceptor.')
+	assert.equal(simulationStackRequestError({ code: -32601 }).message, 'Wallet does not support returning simulations')
+	assert.equal(simulationStackRequestError({ code: -32000, message: 'Request already pending' }).message, 'Interceptor could not return the simulation stack: Request already pending')
 })
 
 const clearDelegation = {

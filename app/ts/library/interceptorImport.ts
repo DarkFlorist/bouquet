@@ -10,6 +10,18 @@ export async function requestInterceptorStackAfterConnection<T>(
 	return requestStack()
 }
 
+export function simulationStackRequestError(error: unknown): Error {
+	if (typeof error !== 'object' || error === null) return new Error('Interceptor could not return the simulation stack. Please try again.')
+	const code = 'code' in error && typeof error.code === 'number' ? error.code : undefined
+	const message = 'message' in error && typeof error.message === 'string' ? error.message.trim() : ''
+	if (code === -32601) return new Error('Wallet does not support returning simulations')
+	if (code === 4001) return new Error('Simulation stack export was rejected in Interceptor.')
+	if (code === 123456) return new Error('Interceptor encountered an internal error while exporting the simulation stack. Close any pending Interceptor request and try again.')
+	if (message !== '') return new Error(`Interceptor could not return the simulation stack: ${ message }`)
+	if (code !== undefined) return new Error(`Interceptor could not return the simulation stack (error ${ code }). Please try again.`)
+	return new Error('Interceptor could not return the simulation stack. Please try again.')
+}
+
 export function convertInterceptorTransactions(transactions: GetSimulationStackReply): TransactionList {
 	return transactions.map((transaction) => {
 		if (transaction.chainId === undefined) throw new Error('Transaction is missing its chain ID')

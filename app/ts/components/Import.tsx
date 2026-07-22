@@ -8,7 +8,7 @@ import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
 import { createBundle } from '../library/bundle.js'
-import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection } from '../library/interceptorImport.js'
+import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../library/interceptorImport.js'
 import { CreateClearDelegation } from './CreateClearDelegation.js'
 
 export async function importFromInterceptor(
@@ -27,21 +27,17 @@ export async function importFromInterceptor(
 
 	const { payload } = await requestInterceptorStackAfterConnection(
 		async () => {
-			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
+			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings, { detectInterceptor: false })
 		},
 		() => ethereum
 			.request({
 				method: 'interceptor_getSimulationStack',
 				params: ['1.0.1'],
 			})
-			.catch((err: { code: number }) => {
-				if (err?.code === -32601) {
-					throw new Error('Wallet does not support returning simulations')
-				} else {
-					throw new Error(`Unknown Error: ${JSON.stringify(err)}`)
-				}
-			}),
+			.catch((error: unknown) => { throw simulationStackRequestError(error) }),
 	)
+	const connectedProvider = provider.peek()
+	if (connectedProvider !== undefined) provider.value = { ...connectedProvider, isInterceptor: true }
 
 	const tryParse = GetSimulationStackReply.safeParse(payload)
 	if (!tryParse.success) throw new Error('Wallet does not support returning simulations')
