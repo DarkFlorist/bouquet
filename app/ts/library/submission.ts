@@ -13,3 +13,5 @@ export const describeBundleTarget = (currentBlock: bigint, targetBlock: bigint) 
 }
 
 export const latestBundleTarget = <T extends { targetBlock: bigint }>(bundles: readonly T[]): T | undefined => bundles.reduce<T | undefined>((latest, bundle) => latest === undefined || bundle.targetBlock > latest.targetBlock ? bundle : latest, undefined)
+
+export const hasTargetBlockBeenMined = (currentBlock: bigint, targetBlock: bigint) => targetBlock <= currentBlock

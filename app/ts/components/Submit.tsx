@@ -11,7 +11,7 @@ import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
 import { validateBundle } from '../library/rescue.js'
-import { describeBundleTarget, latestBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
+import { describeBundleTarget, hasTargetBlockBeenMined, latestBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
 import { useEffect } from 'preact/hooks'
 
 type PendingBundle = {
@@ -104,7 +104,7 @@ export const Bundles = ({
 						</div>
 					</div>} />
 				: <>
-					{outstandingBundles.value.missedTargets.slice(-5).map((targetBlock) => <p key={targetBlock.toString()} class='text-sm text-white/60'>Bundle for block {targetBlock.toString()} was not included. Continued with a newer target.</p>)}
+					{outstandingBundles.value.missedTargets.slice(-5).map((targetBlock) => <p key={targetBlock.toString()} class='text-sm text-white/60'>Bundle for block {targetBlock.toString()} was not included.</p>)}
 					{latestPendingBundle === undefined ? null : <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
@@ -265,13 +265,13 @@ export const Submit = ({
 			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
 			// Remove old submissions
 			const currentOutstandingBundles = outstandingBundles.peek()
-			const expiredBundles = Object.values(currentOutstandingBundles.bundles).filter((pendingBundle) => pendingBundle.targetBlock < blockNumber)
+			const expiredBundles = Object.values(currentOutstandingBundles.bundles).filter((pendingBundle) => hasTargetBlockBeenMined(blockNumber, pendingBundle.targetBlock))
 			outstandingBundles.value = {
 				error: currentOutstandingBundles.error,
 				success: currentOutstandingBundles.success,
 				missedTargets: [...new Set([...currentOutstandingBundles.missedTargets, ...expiredBundles.map((pendingBundle) => pendingBundle.targetBlock)])].slice(-10),
 				bundles: Object.keys(currentOutstandingBundles.bundles)
-					.filter(tx => currentOutstandingBundles.bundles[tx].targetBlock >= blockNumber)
+					.filter(tx => !hasTargetBlockBeenMined(blockNumber, currentOutstandingBundles.bundles[tx].targetBlock))
 					.reduce((obj: {
 						[bundleHash: string]: {
 							targetBlock: bigint,
