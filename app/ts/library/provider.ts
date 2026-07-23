@@ -9,6 +9,7 @@ import { getOrCreateRelayAuthSigner } from './relayAuth.js'
 export type ProviderStore = {
 	provider: BrowserProvider
 	_clearEvents: () => unknown
+	startFastBlockPolling: (onError: (error: unknown) => void) => () => void
 	authSigner: Wallet,
 	walletAddress: EthereumAddress
 	chainId: bigint,
@@ -19,6 +20,7 @@ const addProvider = async (
 	store: Signal<ProviderStore | undefined>,
 	provider: BrowserProvider,
 	clearEvents: () => unknown,
+	startFastBlockPolling: (onError: (error: unknown) => void) => () => void,
 	isInterceptor: boolean
 ) => {
 	const [signer, network] = await Promise.all([provider.getSigner(), provider.getNetwork()])
@@ -34,6 +36,7 @@ const addProvider = async (
 		walletAddress: parsedAddress.value,
 		chainId: network.chainId,
 		_clearEvents: clearEvents,
+		startFastBlockPolling,
 		isInterceptor
 	}
 }
@@ -64,6 +67,26 @@ export const connectBrowserProvider = async (
 	})
 
 	const provider = new BrowserProvider(window.ethereum, 'any')
+	let fastBlockPollingTimer: ReturnType<typeof globalThis.setInterval> | undefined
+
+	const stopFastBlockPolling = () => {
+		if (fastBlockPollingTimer === undefined) return
+		globalThis.clearInterval(fastBlockPollingTimer)
+		fastBlockPollingTimer = undefined
+	}
+
+	const startFastBlockPolling = (onError: (error: unknown) => void) => {
+		stopFastBlockPolling()
+		fastBlockPollingTimer = globalThis.setInterval(() => {
+			void provider.getBlock('latest')
+				.then((latestBlock) => {
+					if (latestBlock === null) throw new Error('Could not retrieve the latest block while submitting the bundle.')
+					return updateLatestBlock(latestBlock, store, blockInfo, signers)
+				})
+				.catch(onError)
+		}, 3_000)
+		return stopFastBlockPolling
+	}
 
 	const blockCallback = async (blockNumber: number) => {
 		const block = await provider.getBlock(blockNumber)
@@ -109,6 +132,7 @@ export const connectBrowserProvider = async (
 	provider.on('block', blockCallback)
 
 	const clearEvents = () => {
+		stopFastBlockPolling()
 		window.ethereum?.removeListener('disconnect', disconnectEventCallback)
 		window.ethereum?.removeListener('accountsChanged', accountsChangedCallback)
 		window.ethereum?.removeListener('chainChanged', chainChangedCallback)
@@ -119,7 +143,7 @@ export const connectBrowserProvider = async (
 		? false
 		: (await Promise.allSettled([window.ethereum.request({ method: 'interceptor_getSimulationStack', params: ['1.0.1'] })]))[0].status === 'fulfilled'
 
-	await addProvider(store, provider, clearEvents, isInterceptor)
+	await addProvider(store, provider, clearEvents, startFastBlockPolling, isInterceptor)
 }
 
 export async function updateLatestBlock(
@@ -130,7 +154,10 @@ export async function updateLatestBlock(
 ) {
 	const baseFee = block.baseFeePerGas ? block.baseFeePerGas : 0n
 	blockInfo.value = { ...blockInfo.value, blockNumber: BigInt(block.number ?? 0n), baseFee }
-	if (provider.value && signers && signers.value.burner) {
-		provider.value.provider.getBalance(signers.value.burner.address).then((burnerBalance) => signers.value = { ...signers.value, burnerBalance})
-	}
+	const providerStore = provider.peek()
+	const burner = signers?.peek().burner
+	if (providerStore === undefined || signers === undefined || burner === undefined) return
+	const burnerBalance = await providerStore.provider.getBalance(burner.address)
+	if (provider.peek() !== providerStore || signers.peek().burner?.address !== burner.address) return
+	signers.value = { ...signers.peek(), burnerBalance }
 }

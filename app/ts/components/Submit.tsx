@@ -185,19 +185,23 @@ export const Submit = ({
 	})
 
 	useEffect(() => {
-		const timer = globalThis.setInterval(() => {
+		let stopFastBlockPolling: (() => void) | undefined
+		const synchronizeFastBlockPolling = () => {
+			stopFastBlockPolling?.()
+			stopFastBlockPolling = undefined
 			const providerStore = provider.peek()
 			if (!submissionStatus.peek().active || providerStore === undefined) return
-			void providerStore.provider.getBlock('latest')
-				.then((latestBlock) => {
-					if (latestBlock === null) throw new Error('Could not retrieve the latest block while submitting the bundle.')
-					blockInfo.value = { ...blockInfo.peek(), blockNumber: BigInt(latestBlock.number), baseFee: latestBlock.baseFeePerGas ?? 0n }
-				})
-				.catch((error) => {
-					if (submissionStatus.peek().active) setSubmissionError(error)
-				})
-		}, 3_000)
-		return () => globalThis.clearInterval(timer)
+			stopFastBlockPolling = providerStore.startFastBlockPolling((error) => {
+				if (submissionStatus.peek().active) setSubmissionError(error)
+			})
+		}
+		const unsubscribeFromSubmissionStatus = submissionStatus.subscribe(synchronizeFastBlockPolling)
+		const unsubscribeFromProvider = provider.subscribe(synchronizeFastBlockPolling)
+		return () => {
+			unsubscribeFromSubmissionStatus()
+			unsubscribeFromProvider()
+			stopFastBlockPolling?.()
+		}
 	}, [])
 
 	function setSubmissionError(error: unknown) {
