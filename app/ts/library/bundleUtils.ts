@@ -39,19 +39,38 @@ async function getSimulatedCountsOnNetwork(provider: BrowserProvider): Promise<{
 	}
 }
 
-export async function getTransactionCountBeforeSimulation(provider: Pick<BrowserProvider, 'getTransactionCount' | 'send'>, address: string): Promise<number> {
-	const normalizedAddress = getAddress(address)
-	const simulatedCounts = await requestSimulatedCountsOnNetwork(provider)
-	const transactionCount = await provider.getTransactionCount(normalizedAddress, 'latest') - (simulatedCounts[normalizedAddress] ?? 0)
-	if (transactionCount < 0) throw new Error('Interceptor returned an invalid authorization nonce for this simulation stack.')
-	return transactionCount
-}
-
-export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: FlashbotsBundleTransaction[], provider: BrowserProvider, blockInfo: BlockInfo, maxBaseFee: bigint) => {
+export const getRawTransactionsAndCalculateFeesAndNonces = async (
+	bundle: Bundle,
+	signers: Signers,
+	provider: BrowserProvider,
+	blockInfo: BlockInfo,
+	blocksInFuture: bigint,
+	fundingAmountMin: bigint,
+	maxBaseFee: bigint,
+) => {
 	const transactions: { rawTransaction: string, transaction: TransactionRequest } [] = []
-	const inSimulation = await getSimulatedCountsOnNetwork(provider)
+	const unsignedAuthorizationAuthorities = [...new Set(bundle.transactions
+		.filter(isClearDelegationTransaction)
+		.flatMap((transaction) => (transaction.authorizationList ?? []).flatMap((authorization) =>
+			authorization.authority === undefined || authorization.r !== undefined ? [] : [getAddress(addressString(authorization.authority))]
+		))
+	)]
+	const inSimulation = unsignedAuthorizationAuthorities.length > 0
+		? await requestSimulatedCountsOnNetwork(provider)
+		: await getSimulatedCountsOnNetwork(provider)
 	const accNonces: { [address: string]: number } = {}
-	for (const tx of bundle) {
+	const getNonceBeforeSimulation = async (address: string): Promise<number> => {
+		const normalizedAddress = getAddress(address)
+		if (normalizedAddress in accNonces) return accNonces[normalizedAddress]
+		const transactionCount = await provider.getTransactionCount(normalizedAddress, 'latest') - (inSimulation[normalizedAddress] ?? 0)
+		if (transactionCount < 0) throw new Error('Interceptor returned an invalid nonce for this simulation stack.')
+		accNonces[normalizedAddress] = transactionCount
+		return transactionCount
+	}
+	const authorizationNonces: { [address: string]: bigint } = {}
+	for (const authority of unsignedAuthorizationAuthorities) authorizationNonces[authority] = BigInt(await getNonceBeforeSimulation(authority))
+	const bundleTransactions = await createBundleTransactions(bundle, signers, blockInfo, blocksInFuture, fundingAmountMin, authorizationNonces)
+	for (const tx of bundleTransactions) {
 		tx.transaction.maxPriorityFeePerGas = blockInfo.priorityFee
 		tx.transaction.maxFeePerGas = blockInfo.priorityFee + maxBaseFee
 		if (!tx.transaction.from) throw new Error('BundleTransaction missing from address')
@@ -59,7 +78,7 @@ export const getRawTransactionsAndCalculateFeesAndNonces = async (bundle: Flashb
 		// Fetch and increment nonces from network, reduce the fetch amount by amount of transactions made on the simulation stack
 		const sender = getAddress(tx.transaction.from.toString())
 		if (!(sender in accNonces)) {
-			accNonces[sender] = await provider.getTransactionCount(sender, 'latest') - (inSimulation[sender] ?? 0)
+			accNonces[sender] = await getNonceBeforeSimulation(sender)
 		}
 		tx.transaction.nonce = accNonces[sender]
 		accNonces[sender] += 1
@@ -80,7 +99,7 @@ export const createBundleTransactions = async (
 	blockInfo: BlockInfo,
 	blocksInFuture: bigint,
 	fundingAmountMin: bigint,
-	provider: Pick<BrowserProvider, 'getTransactionCount' | 'send'>,
+	authorizationNonces: Readonly<{ [address: string]: bigint }>,
 ): Promise<FlashbotsBundleTransaction[]> => {
 	const gasPrice = blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const fundingWalletGas = bundle.transactions.reduce((total, transaction) => transaction.from === 'FUNDING' ? total + transaction.gasLimit : total, 0n)
@@ -135,9 +154,8 @@ export const createBundleTransactions = async (
 				if (isDelegationClear && authorityAddress === signer.address) throw new Error('The funding wallet must be different from the compromised account')
 				const authoritySigner = signers.bundleSigners[authorityAddress]
 				if (!authoritySigner) throw new Error(`No signer provided for authorization authority ${addressString(authorization.authority)}`)
-				const authorizationNonce = isDelegationClear
-					? BigInt(await getTransactionCountBeforeSimulation(provider, authorityAddress))
-					: authorization.nonce
+				const authorizationNonce = isDelegationClear ? authorizationNonces[getAddress(authorityAddress)] : authorization.nonce
+				if (authorizationNonce === undefined) throw new Error(`Missing current authorization nonce for ${authorityAddress}`)
 				resolvedAuthorizations.push(await authoritySigner.authorize({
 					address: addressString(authorization.address),
 					chainId: authorization.chainId,

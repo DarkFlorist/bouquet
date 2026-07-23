@@ -180,7 +180,7 @@ export const Submit = ({
 
 	useSignalEffect(() => {
 		const blockNumber = blockInfo.value.blockNumber
-		if (provider.value === undefined || bundle.value === undefined) return
+		if (!submissionStatus.value.active || provider.value === undefined || bundle.value === undefined) return
 		void runBundleSubmission(blockNumber)
 	})
 
@@ -192,7 +192,6 @@ export const Submit = ({
 				.then((latestBlock) => {
 					if (latestBlock === null) throw new Error('Could not retrieve the latest block while submitting the bundle.')
 					blockInfo.value = { ...blockInfo.peek(), blockNumber: BigInt(latestBlock.number), baseFee: latestBlock.baseFeePerGas ?? 0n }
-					return runBundleSubmission(BigInt(latestBlock.number))
 				})
 				.catch((error) => {
 					if (submissionStatus.peek().active) setSubmissionError(error)
@@ -335,7 +334,6 @@ export const Submit = ({
 			outstandingBundles.value = { bundles: {}, missedTargets: [], error: undefined, success: activate ? undefined : outstandingBundles.peek().success }
 			submissionStatus.value = { active: activate, lastBlock: activate ? 0n : submissionStatus.peek().lastBlock, timesSubmited: 0 }
 		})
-		if (activate) void runBundleSubmission(blockInfo.peek().blockNumber)
 	}
 
 	return (

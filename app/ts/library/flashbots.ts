@@ -1,6 +1,6 @@
 import { AddressLike, ethers, id, keccak256, toUtf8Bytes, Transaction } from 'ethers'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
-import { createBundleTransactions, getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces, withPriorityFee } from './bundleUtils.js'
+import { getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces, withPriorityFee } from './bundleUtils.js'
 import { ProviderStore } from './provider.js'
 import { BouquetNetwork } from '../types/bouquetTypes.js'
 import { EthSimulateV1CallResult, EthSimulateV1CallResults, EthSimulateV1Params, EthSimulateV1Result, JsonRpcResponse, TransactionType } from '../types/ethSimulateTypes.js'
@@ -85,8 +85,7 @@ export async function simulateBundle(
 	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
-	const bundleTransactions = await createBundleTransactions(bundle, signers, signingBlockInfo, blocksInFuture, fundingAmountMin, provider.provider)
-	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, signingBlockInfo, maxBaseFee)
+	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundle, signers, provider.provider, signingBlockInfo, blocksInFuture, fundingAmountMin, maxBaseFee)
 
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
 
@@ -189,9 +188,12 @@ export async function sendBundle(bundle: Bundle, targetBlocks: readonly bigint[]
 	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
 	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const transactions = (await getRawTransactionsAndCalculateFeesAndNonces(
-		await createBundleTransactions(bundle, signers, signingBlockInfo, blocksInFuture, fundingAmountMin, provider.provider),
+		bundle,
+		signers,
 		provider.provider,
 		signingBlockInfo,
+		blocksInFuture,
+		fundingAmountMin,
 		maxBaseFee,
 	)).map((x) => x.rawTransaction)
 
