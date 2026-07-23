@@ -27,7 +27,7 @@ export async function importFromInterceptor(
 
 	const { payload } = await requestInterceptorStackAfterConnection(
 		async () => {
-			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings, { detectInterceptor: false })
+			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings, { isInterceptor: true })
 		},
 		() => ethereum
 			.request({
@@ -36,8 +36,6 @@ export async function importFromInterceptor(
 			})
 			.catch((error: unknown) => { throw simulationStackRequestError(error) }),
 	)
-	const connectedProvider = provider.peek()
-	if (connectedProvider !== undefined) provider.value = { ...connectedProvider, isInterceptor: true }
 
 	const tryParse = GetSimulationStackReply.safeParse(payload)
 	if (!tryParse.success) throw new Error('Wallet does not support returning simulations')
