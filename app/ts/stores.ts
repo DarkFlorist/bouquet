@@ -1,7 +1,7 @@
 import { useComputed, useSignal } from '@preact/signals'
 import { Wallet } from 'ethers'
 import { DEFAULT_NETWORKS, getNetwork } from './constants.js'
-import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
+import { getFutureFeeProjection } from './library/bundleUtils.js'
 import { ProviderStore } from './library/provider.js'
 import { BlockInfo, Bundle, Signers } from './types/types.js'
 import { BouquetSettings, TransactionList } from './types/bouquetTypes.js'
@@ -62,8 +62,8 @@ export function createGlobalState() {
 		if (!bundle.value) return 0n
 		if (!bundle.value.containsFundingTx) return 0n
 		const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
-		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture)
-		return bundle.value.totalGas * (network.priorityFee + maxBaseFee) + bundle.value.inputValue
+		const maxFeePerGas = getFutureFeeProjection(blockInfo.value, network).maxFeePerGas
+		return bundle.value.totalGas * maxFeePerGas + bundle.value.inputValue
 	})
 
 	return { provider, blockInfo, bundle, bouquetSettings, signers, fundingAmountMin }

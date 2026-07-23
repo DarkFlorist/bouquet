@@ -13,7 +13,7 @@ import { importFromInterceptor } from './Import.js'
 import { convertInterceptorTransactions, markSyntheticFunding } from '../library/interceptorImport.js'
 import { EtherscanGetABIResult, EtherscanSourceCodeResult, SourcifyMetadataResult } from '../types/apiTypes.js'
 import { getNetwork } from '../constants.js'
-import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { getFutureFeeProjection } from '../library/bundleUtils.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -46,7 +46,7 @@ export const Transactions = ({
 	const decodedTransactions = useSignal<(JSXInternal.Element | null)[]>([])
 	const interceptorComparison = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
 	const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
-	const maxGasPrice = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture) + network.priorityFee
+	const maxGasPrice = getFutureFeeProjection(blockInfo.value, network).maxFeePerGas
 
 	function copyTransactions() {
 		if (!bundle.value) return

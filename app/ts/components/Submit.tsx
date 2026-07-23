@@ -1,6 +1,6 @@
 import { EtherSymbol, formatEther, formatUnits } from 'ethers'
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { getFutureFeeProjection } from '../library/bundleUtils.js'
 import { Button } from './Button.js'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
@@ -135,6 +135,7 @@ export const Submit = ({
 	blockInfo: Signal<BlockInfo>
 }) => {
 	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
+	const futureFeeProjection = useComputed(() => getFutureFeeProjection(blockInfo.value, bouquetNetwork.value))
 
 	// General component state
 	const showSettings = useSignal<boolean>(false)
@@ -306,7 +307,8 @@ export const Submit = ({
 				try {
 					const network = bouquetNetwork.peek()
 					const targetBlocks = getBundleTargetBlocks(blockNumber, network.blocksInFuture)
-					const gas = { priorityFee: network.priorityFee, baseFee: getMaxBaseFeeInFutureBlock(blockInfo.peek().baseFee, network.blocksInFuture) }
+					const { priorityFee, baseFee } = getFutureFeeProjection(blockInfo.peek(), network)
+					const gas = { priorityFee, baseFee }
 					const bundleRequest = await sendBundle(
 						bundle.value,
 						targetBlocks,
@@ -354,11 +356,11 @@ export const Submit = ({
 								<div style = 'padding-bottom: 10px;'>
 									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. Transactions are sent individually so some transactions may not make it onto the blockchain. This mode should only be used if a priate relay is unavailable for the network. Additionally, if a sweeper is active on your account there is a high risk that rescue attempts may fail, allowing the sweeper to steal your gas funds and other assets. Use this mode only as a last resort when no other options are available.`} />
 								</div>
-								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+								<p><span className='font-bold'>Gas:</span> {formatUnits(futureFeeProjection.value.baseFee, 'gwei')} gwei + {formatUnits(futureFeeProjection.value.priorityFee, 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
 								<p><span className='font-bold'>Transaction Simulation RPC:</span> { bouquetNetwork.value.mempoolSimulationRpcEndpoint }</p>
 							</> : <>
-								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+								<p><span className='font-bold'>Gas:</span> {formatUnits(futureFeeProjection.value.baseFee, 'gwei')} gwei + {formatUnits(futureFeeProjection.value.priorityFee, 'gwei')} gwei priority</p>
 								<div class='grid gap-2 py-2 md:grid-cols-2'>
 									<div class='flex min-w-0 flex-col gap-1 border border-white/20 bg-white/5 p-3'>
 										<span class='text-xs font-semibold uppercase tracking-wide text-white/50'>Simulation relay</span>

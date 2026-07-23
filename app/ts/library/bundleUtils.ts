@@ -16,6 +16,18 @@ export const getMaxBaseFeeInFutureBlock = (baseFee: bigint, blocksInFuture: bigi
 	return maxBaseFee
 }
 
+export const getFutureFeeProjection = (
+	blockInfo: Pick<BlockInfo, 'baseFee'>,
+	feeSettings: { blocksInFuture: bigint, priorityFee: bigint },
+) => {
+	const baseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, feeSettings.blocksInFuture)
+	return {
+		baseFee,
+		priorityFee: feeSettings.priorityFee,
+		maxFeePerGas: baseFee + feeSettings.priorityFee,
+	}
+}
+
 export const withPriorityFee = (blockInfo: BlockInfo, priorityFee: bigint): BlockInfo => ({ ...blockInfo, priorityFee })
 
 async function requestSimulatedCountsOnNetwork(provider: Pick<BrowserProvider, 'send'>): Promise<{ [address: string]: number }> {
@@ -101,7 +113,7 @@ export const createBundleTransactions = async (
 	fundingAmountMin: bigint,
 	authorizationNonces: Readonly<{ [address: string]: bigint }>,
 ): Promise<FlashbotsBundleTransaction[]> => {
-	const gasPrice = blockInfo.priorityFee + getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
+	const gasPrice = getFutureFeeProjection(blockInfo, { blocksInFuture, priorityFee: blockInfo.priorityFee }).maxFeePerGas
 	const fundingWalletGas = bundle.transactions.reduce((total, transaction) => transaction.from === 'FUNDING' ? total + transaction.gasLimit : total, 0n)
 	return Promise.all(bundle.transactions.map(async (bundleTransaction) => {
 		const { from, to, gasLimit, value, input, chainId, type, accessList, authorizationList } = bundleTransaction

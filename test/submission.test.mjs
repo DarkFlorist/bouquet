@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { describeBundleTarget, getBundleTargetBlocks, hasTargetBlockBeenMined, latestBundleTarget, shouldSubmitForBlock } from '../app/js/library/submission.js'
-import { getMaxBaseFeeInFutureBlock, withPriorityFee } from '../app/js/library/bundleUtils.js'
+import { getFutureFeeProjection, getMaxBaseFeeInFutureBlock, withPriorityFee } from '../app/js/library/bundleUtils.js'
 import { createRelaySimulationPayload } from '../app/js/library/flashbots.js'
 
 test('polling submits only a newer block while submission is active and idle', () => {
@@ -43,6 +43,20 @@ test('pending targets are refreshed closer to inclusion on the next block', () =
 test('maximum base fee compounds for every future block', () => {
 	assert.equal(getMaxBaseFeeInFutureBlock(1_000_000_000n, 1n), 1_125_000_001n)
 	assert.equal(getMaxBaseFeeInFutureBlock(1_000_000_000n, 3n), 1_423_828_128n)
+})
+
+test('future fee projection uses the configured target distance and priority fee', () => {
+	assert.deepEqual(
+		getFutureFeeProjection(
+			{ baseFee: 1_000_000_000n },
+			{ blocksInFuture: 3n, priorityFee: 2_000_000_000n },
+		),
+		{
+			baseFee: 1_423_828_128n,
+			priorityFee: 2_000_000_000n,
+			maxFeePerGas: 3_423_828_128n,
+		},
+	)
 })
 
 test('configured priority fee replaces the default used for signing', () => {
