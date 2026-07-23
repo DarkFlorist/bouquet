@@ -10,7 +10,7 @@ import { simulateBundle, sendBundle, checkBundleInclusion, SimulationResponseSuc
 import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
-import { validateBundle } from '../library/rescue.js'
+import { validateBundle } from '../library/bundleValidation.js'
 import { describeBundleTarget, getBundleTargetBlocks, hasTargetBlockBeenMined, latestBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
 import { useEffect } from 'preact/hooks'
 
