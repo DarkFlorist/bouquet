@@ -1,7 +1,7 @@
 import { ReadonlySignal, Signal, useSignal, useSignalEffect } from '@preact/signals'
-import { EtherSymbol, formatEther, getAddress, Interface, parseEther, TransactionDescription } from 'ethers'
+import { EtherSymbol, formatEther, getAddress, Interface, TransactionDescription } from 'ethers'
 import { JSXInternal } from 'preact/src/jsx.js'
-import { BlockInfo, Bundle, serialize, Signers } from '../types/types.js'
+import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { Button } from './Button.js'
 import { useAsyncState } from '../library/asyncState.js'
@@ -10,8 +10,10 @@ import { SingleNotice } from './Warns.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { addressString } from '../library/utils.js'
 import { importFromInterceptor } from './Import.js'
+import { convertInterceptorTransactions, markSyntheticFunding } from '../library/interceptorImport.js'
 import { EtherscanGetABIResult, EtherscanSourceCodeResult, SourcifyMetadataResult } from '../types/apiTypes.js'
 import { getNetwork } from '../constants.js'
+import { getFutureFeeProjection } from '../library/bundleUtils.js'
 
 function formatTransactionDescription(tx: TransactionDescription) {
 	if (tx.fragment.inputs.length === 0) return <>{`${tx.name}()`}</>
@@ -43,6 +45,8 @@ export const Transactions = ({
 	const interfaces = useSignal<{ [address: string]: Interface }>({})
 	const decodedTransactions = useSignal<(JSXInternal.Element | null)[]>([])
 	const interceptorComparison = useSignal<{ different: boolean, intervalId?: ReturnType<typeof setInterval> }>({ different: true })
+	const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
+	const maxGasPrice = getFutureFeeProjection(blockInfo.value, network).maxFeePerGas
 
 	function copyTransactions() {
 		if (!bundle.value) return
@@ -132,17 +136,13 @@ export const Transactions = ({
 		if (!provider.value || !provider.value.isInterceptor || !bundle.value) return false
 		try {
 			// fetch stack from Interceptor
-			const { payload } = await provider.value.provider.send('interceptor_getSimulationStack', ['1.0.0'])
+			const { payload } = await provider.value.provider.send('interceptor_getSimulationStack', ['1.0.1'])
 			const tryParse = GetSimulationStackReply.safeParse(payload)
 			if (!tryParse.success) return false
-			let parsedInterceptorTransactions = TransactionList.parse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
+			let parsedInterceptorTransactions = convertInterceptorTransactions(tryParse.value)
 			if (parsedInterceptorTransactions.length === 0) return false
 
-			// Detect 'make me rich'
-			if (parsedInterceptorTransactions.length >= 2 && parsedInterceptorTransactions[0].to === parsedInterceptorTransactions[1].from && parsedInterceptorTransactions[0].value === parseEther('200000')) {
-				const fundingAddrr = parsedInterceptorTransactions[0].from
-				parsedInterceptorTransactions = parsedInterceptorTransactions.map(tx => tx.from === fundingAddrr ? { ...tx, from: 'FUNDING' } : tx)
-			}
+			parsedInterceptorTransactions = markSyntheticFunding(parsedInterceptorTransactions)
 
 			// Compare
 			const interceptorValue = TransactionList.serialize(parsedInterceptorTransactions.filter(tx => tx.from !== 'FUNDING'))
@@ -190,6 +190,7 @@ export const Transactions = ({
 				</Button>
 			</div>
 			{interceptorComparison.value.different ? <SingleNotice variant='warn' title='Potentially Outdated Transaction List' description={<>The transactions imported in Bouquet differ from the current simulation in The Interceptor extension. <button onClick={() => importFromInterceptor(bundle, provider, blockInfo, signers, bouquetSettings)} class='underline text-white font-semibold'>Import From Interceptor</button> </>} /> : null}
+			{bundle.value?.rescueMode ? <SingleNotice variant='warn' title='EIP-7702 Rescue Mode' description='Bouquet will privately submit the delegation-clearing transaction first, followed by funding and asset sweeps in the same atomic bundle.' /> : null}
 			<div class='flex w-full flex-col gap-2'>
 				{bundle.value?.transactions.map((tx, index) => (
 					<div class='flex w-full min-h-[96px] border border-white/90'>
@@ -197,19 +198,21 @@ export const Transactions = ({
 							<span class='text-lg font-bold'>#{index}</span>
 						</div>
 						<div class='bg-gray-500/30 flex w-full justify-center flex-col gap-2 p-4 text-sm font-semibold'>
+							{tx.type === '7702' ? <div class='flex gap-2 items-center'><span class='w-10 text-right'>Type</span><span class='bg-black px-2 py-1 font-mono font-medium'>EIP-7702{tx.authorizationList?.some((authorization) => authorization.address === 0n) ? ' — Clears delegation' : ''}</span></div> : null}
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>From</span>
 								<span class='bg-black px-2 py-1 font-mono font-medium'>
 									{tx.from !== 'FUNDING' ? addressString(tx.from) : tx.from}
 								</span>
 							</div>
+							{tx.type === '7702' ? tx.authorizationList?.map((authorization) => <div class='flex gap-2 items-center'><span class='w-10 text-right'>Auth</span><span class='bg-black px-2 py-1 font-mono font-medium'>{authorization.authority !== undefined ? addressString(authorization.authority) : 'Signed authority'} → {addressString(authorization.address)}</span></div>) : null}
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>To</span>
 								<span class='bg-black px-2 py-1 font-mono font-medium'>{tx.to ? addressString(tx.to) : 'Contract Deployment'}</span>
 							</div>
 							<div class='flex gap-2 items-center'>
 								<span class='w-10 text-right'>Value</span>
-								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value + (tx.from === 'FUNDING' && bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * (blockInfo.value.baseFee + blockInfo.value.priorityFee): 0n))} + {EtherSymbol}{formatEther(tx.gasLimit * (blockInfo.value.baseFee + blockInfo.value.priorityFee))} Gas Fee</span>
+								<span class='bg-black px-2 py-1 font-mono font-medium'>{EtherSymbol}{formatEther(tx.value + (tx.from === 'FUNDING' && bundle.value && bundle.value.containsFundingTx ? bundle.value.totalGas * maxGasPrice: 0n))} + {EtherSymbol}{formatEther(tx.gasLimit * maxGasPrice)} Gas Fee</span>
 							</div>
 							{decodedTransactions.value[index] ? (
 								<div class='flex gap-2 items-center'>

@@ -1,12 +1,12 @@
 import { useComputed, useSignal } from '@preact/signals'
 import { Wallet } from 'ethers'
 import { DEFAULT_NETWORKS, getNetwork } from './constants.js'
-import { getMaxBaseFeeInFutureBlock } from './library/bundleUtils.js'
-import { EthereumAddress } from './types/ethereumTypes.js'
+import { getFutureFeeProjection } from './library/bundleUtils.js'
 import { ProviderStore } from './library/provider.js'
 import { BlockInfo, Bundle, Signers } from './types/types.js'
 import { BouquetSettings, TransactionList } from './types/bouquetTypes.js'
-import { addressString } from './library/utils.js'
+import { createBundle } from './library/bundle.js'
+import { migrateBundleIfNeeded } from './library/bundleMigrations.js'
 
 function fetchBurnerWalletFromStorage(): Wallet {
 	const burnerPrivateKey = localStorage.getItem('wallet')
@@ -17,7 +17,7 @@ function fetchBurnerWalletFromStorage(): Wallet {
 	}
 }
 
-function fetchBundleFromStorage(): Bundle | undefined {
+export function fetchBundleFromStorage(): Bundle | undefined {
 	const payload = JSON.parse(localStorage.getItem('payload') ?? 'null')
 	if (!payload) return undefined
 	const tryParse = TransactionList.safeParse(payload)
@@ -25,16 +25,16 @@ function fetchBundleFromStorage(): Bundle | undefined {
 		localStorage.removeItem('payload')
 		return undefined
 	}
-	const parsed = tryParse.value
+	return createBundle(tryParse.value)
+}
 
-	const uniqueToAddresses = [...new Set(parsed.map(({ from }) => from))]
-	const containsFundingTx = uniqueToAddresses.includes('FUNDING')
-	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => addressString(address))
-
-	const totalGas = parsed.reduce((sum, tx) => tx.gasLimit + sum, 0n)
-	const inputValue = parsed.reduce((sum, tx) => tx.from === 'FUNDING' ? tx.value + sum : sum, 0n)
-
-	return { transactions: parsed, containsFundingTx, uniqueSigners, totalGas, inputValue }
+export function initializeBundleFromStorage(): Bundle | undefined {
+	const storedBundle = fetchBundleFromStorage()
+	if (storedBundle === undefined) return undefined
+	const migratedBundle = migrateBundleIfNeeded(storedBundle)
+	if (migratedBundle === storedBundle) return storedBundle
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(migratedBundle.transactions)))
+	return migratedBundle
 }
 
 export function fetchSettingsFromStorage() {
@@ -50,7 +50,7 @@ export function createGlobalState() {
 	const provider = useSignal<ProviderStore | undefined>(undefined)
 	const blockInfo = useSignal<BlockInfo>({ blockNumber: 0n, baseFee: 0n, priorityFee: 10n ** 9n * 3n })
 	const signers = useSignal<Signers>({ burner: fetchBurnerWalletFromStorage(), burnerBalance: 0n, bundleSigners: {} })
-	const bundle = useSignal<Bundle | undefined>(fetchBundleFromStorage())
+	const bundle = useSignal<Bundle | undefined>(initializeBundleFromStorage())
 
 	// Sync burnerWallet to localStorage
 	signers.subscribe(({ burner }) => {
@@ -62,8 +62,8 @@ export function createGlobalState() {
 		if (!bundle.value) return 0n
 		if (!bundle.value.containsFundingTx) return 0n
 		const network = getNetwork(bouquetSettings.value, provider.value?.chainId || 1n)
-		const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, network.blocksInFuture)
-		return bundle.value.totalGas * (blockInfo.value.priorityFee + maxBaseFee) + bundle.value.inputValue
+		const maxFeePerGas = getFutureFeeProjection(blockInfo.value, network).maxFeePerGas
+		return bundle.value.totalGas * maxFeePerGas + bundle.value.inputValue
 	})
 
 	return { provider, blockInfo, bundle, bouquetSettings, signers, fundingAmountMin }

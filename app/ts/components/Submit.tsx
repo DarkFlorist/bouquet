@@ -1,25 +1,30 @@
 import { EtherSymbol, formatEther, formatUnits } from 'ethers'
 import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect } from '@preact/signals'
-import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { getFutureFeeProjection } from '../library/bundleUtils.js'
 import { Button } from './Button.js'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
 import { ProviderStore } from '../library/provider.js'
 import { SettingsModal } from './Settings.js'
 import { useAsyncState, AsyncProperty } from '../library/asyncState.js'
-import { simulateBundle, sendBundle, checkBundleInclusion, RelayResponseError, SimulationResponseSuccess } from '../library/flashbots.js'
+import { simulateBundle, sendBundle, checkBundleInclusion, SimulationResponseSuccess } from '../library/flashbots.js'
 import { SingleNotice } from './Warns.js'
 import { BouquetNetwork, BouquetSettings } from '../types/bouquetTypes.js'
 import { getNetwork } from '../constants.js'
+import { validateBundle } from '../library/bundleValidation.js'
+import { describeBundleTarget, getBundleTargetBlocks, hasTargetBlockBeenMined, latestBundleTarget, shouldSubmitForBlock } from '../library/submission.js'
+import { useEffect } from 'preact/hooks'
 
 type PendingBundle = {
 	bundles: {
 		[bundleIdentifier: string]: {
+			bundleHash: string,
 			targetBlock: bigint,
 			gas: { priorityFee: bigint, baseFee: bigint }
 			transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
 			included: boolean
 		}
 	}
+	missedTargets: { targetBlock: bigint, diagnostic: string }[]
 	error?: Error,
 	success?: {
 		targetBlock: bigint,
@@ -76,16 +81,19 @@ const SimulationResult = ({
 export const Bundles = ({
 	outstandingBundles,
 	bouquetNetwork,
+	blockInfo,
 }: {
 	outstandingBundles: Signal<PendingBundle>,
 	bouquetNetwork: Signal<BouquetNetwork>,
+	blockInfo: ReadonlySignal<BlockInfo>,
 }) => {
 	if (outstandingBundles.value.error) return <SingleNotice variant='error' title='Error Sending Bundle' description={<p class='font-medium w-full break-all'>{outstandingBundles.value.error.message}</p>} />
 
 	const blockExplorerBaseUrl = bouquetNetwork.value !== undefined ? bouquetNetwork.value.blockExplorer : undefined
+	const latestPendingBundle = latestBundleTarget(Object.values(outstandingBundles.value.bundles))
 
 	return (
-		<div class='flex flex-col-reverse gap-4'>
+		<div class='flex flex-col gap-3'>
 			{outstandingBundles.value.success
 				? <SingleNotice variant='success' title= { bouquetNetwork.value.relayMode === 'mempool' ? 'Transactions included!' : 'Bundle Included!' } description={<div>
 						<h3 class='text-md'><b>{outstandingBundles.value.success.transactions.length}</b> { `transactions were included in block${ outstandingBundles.value.success.includedInBlocks.length > 1 ? 's' : '' }` } <b>{ outstandingBundles.value.success.includedInBlocks.join(',') }</b></h3>
@@ -96,14 +104,17 @@ export const Bundles = ({
 							)}
 						</div>
 					</div>} />
-				: Object.values(outstandingBundles.value.bundles).map((bundle) => <div class='flex items-center gap-2 text-white'>
+				: <>
+					{outstandingBundles.value.missedTargets.slice(-5).map(({ targetBlock, diagnostic }) => <p key={targetBlock.toString()} class='text-sm text-white/60'>Bundle for block {targetBlock.toString()} was not included. {diagnostic}</p>)}
+					{latestPendingBundle === undefined ? null : <div class='flex items-center gap-2 text-white'>
 						<svg class='animate-spin h-4 w-4 text-white' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 							<circle class='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' stroke-width='4'></circle>
 							<path class='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
 						</svg>
-						<p>Attempting to get { bouquetNetwork.value.relayMode === 'mempool' ? 'transactions' : 'bundle' } included before block {bundle.targetBlock.toString(10)} with max fee of {Number(formatUnits(bundle.gas.baseFee + bundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas</p>
-					</div>
-			)}
+						<p>{describeBundleTarget(blockInfo.value.blockNumber, latestPendingBundle.targetBlock)} Max fee: {Number(formatUnits(latestPendingBundle.gas.baseFee + latestPendingBundle.gas.priorityFee, 'gwei')).toPrecision(3)} gwei per gas.</p>
+					</div>}
+				</>
+			}
 		</div>
 	)
 }
@@ -124,13 +135,17 @@ export const Submit = ({
 	blockInfo: Signal<BlockInfo>
 }) => {
 	const bouquetNetwork = useComputed(() => getNetwork(bouquetSettings.value, provider.value?.chainId || 1n))
+	const futureFeeProjection = useComputed(() => getFutureFeeProjection(blockInfo.value, bouquetNetwork.value))
 
 	// General component state
 	const showSettings = useSignal<boolean>(false)
 
 	const missingRequirements = useComputed(() => {
 		if (!bundle.value) return 'No transactions imported yet.'
-		const missingSigners = bundle.value.uniqueSigners.length !== Object.keys(signers.value.bundleSigners).length
+		const validationError = validateBundle(bundle.value)
+		if (validationError !== undefined) return validationError
+		if (bundle.value.rescueMode && bouquetNetwork.value.relayMode !== 'relay') return 'EIP-7702 rescue bundles require a private relay network.'
+		const missingSigners = bundle.value.uniqueSigners.some((address) => signers.value.bundleSigners[address] === undefined)
 		const insufficientBalance = signers.value.burnerBalance < fundingAmountMin.value
 		if (missingSigners && insufficientBalance) return 'Missing private keys for signing accounts and funding wallet has insufficent balance.'
 		if (missingSigners) return 'Missing private keys for signing accounts.'
@@ -144,27 +159,78 @@ export const Submit = ({
 	async function simulateCallback() {
 		if (!provider.value) throw 'User not connected'
 		if (!bundle.value) throw 'No imported bundle found'
+		const network = getNetwork(bouquetSettings.peek(), provider.value.chainId)
+		const targetBlock = blockInfo.peek().blockNumber + network.blocksInFuture
 		const simulationResult = await simulateBundle(
 			bundle.value,
 			fundingAmountMin.peek(),
 			provider.value,
 			signers.peek(),
 			blockInfo.peek(),
-			getNetwork(bouquetSettings.peek(), provider.value.chainId)
+			targetBlock,
+			network
 		)
-		if ('error' in simulationResult) throw new Error((simulationResult as RelayResponseError).error.message)
+		if ('error' in simulationResult) throw new Error(simulationResult.error.message)
 		else return simulationResult
 	}
 
 	// Submissions
 	const submissionStatus = useSignal<{ active: boolean, lastBlock: bigint, timesSubmited: number }>({ active: false, lastBlock: 0n, timesSubmited: 0 })
-	const outstandingBundles = useSignal<PendingBundle>({ bundles: {} })
+	const submissionInProgress = useSignal(false)
+	const outstandingBundles = useSignal<PendingBundle>({ bundles: {}, missedTargets: [] })
 
 	useSignalEffect(() => {
-		if (blockInfo.value.blockNumber > submissionStatus.value.lastBlock) {
-			bundleSubmission(blockInfo.value.blockNumber)
-		}
+		const blockNumber = blockInfo.value.blockNumber
+		if (!submissionStatus.value.active || provider.value === undefined || bundle.value === undefined) return
+		void runBundleSubmission(blockNumber)
 	})
+
+	useEffect(() => {
+		let stopFastBlockPolling: (() => void) | undefined
+		const synchronizeFastBlockPolling = () => {
+			stopFastBlockPolling?.()
+			stopFastBlockPolling = undefined
+			const providerStore = provider.peek()
+			if (!submissionStatus.peek().active || providerStore === undefined) return
+			stopFastBlockPolling = providerStore.startFastBlockPolling((error) => {
+				if (submissionStatus.peek().active) setSubmissionError(error)
+			})
+		}
+		const unsubscribeFromSubmissionStatus = submissionStatus.subscribe(synchronizeFastBlockPolling)
+		const unsubscribeFromProvider = provider.subscribe(synchronizeFastBlockPolling)
+		return () => {
+			unsubscribeFromSubmissionStatus()
+			unsubscribeFromProvider()
+			stopFastBlockPolling?.()
+		}
+	}, [])
+
+	function setSubmissionError(error: unknown) {
+		const submissionError = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+			? new Error(error.message)
+			: new Error('Unexpected error while processing bundle submission.')
+		batch(() => {
+			submissionStatus.value = { ...submissionStatus.peek(), active: false }
+			outstandingBundles.value = { ...outstandingBundles.peek(), error: submissionError }
+		})
+	}
+
+	async function runBundleSubmission(blockNumber: bigint) {
+		if (!shouldSubmitForBlock({
+			active: submissionStatus.peek().active,
+			inProgress: submissionInProgress.peek(),
+			lastBlock: submissionStatus.peek().lastBlock,
+			currentBlock: blockNumber,
+		})) return
+		submissionInProgress.value = true
+		try {
+			await bundleSubmission(blockNumber)
+		} catch (error) {
+			setSubmissionError(error)
+		} finally {
+			submissionInProgress.value = false
+		}
+	}
 
 	async function bundleSubmission(blockNumber: bigint) {
 		submissionStatus.value = { ...submissionStatus.peek(), lastBlock: blockNumber }
@@ -181,6 +247,7 @@ export const Submit = ({
 			batch(() => {
 				const checkedBundles = Object.keys(outstandingBundles.peek().bundles).reduce((checked: {
 					[bundleHash: string]: {
+						bundleHash: string,
 						targetBlock: bigint,
 						gas: { priorityFee: bigint, baseFee: bigint }
 						transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
@@ -194,10 +261,11 @@ export const Submit = ({
 					}
 					return checked
 				}, {})
-				outstandingBundles.value = {
-					error: outstandingBundles.peek().error,
-					bundles: checkedBundles,
-					success: Object.values(checkedBundles).find(x => x.included)
+					outstandingBundles.value = {
+						error: outstandingBundles.peek().error,
+						bundles: checkedBundles,
+						missedTargets: outstandingBundles.peek().missedTargets,
+						success: Object.values(checkedBundles).find(x => x.included)
 				}
 				submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: 0 }
 				simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
@@ -205,34 +273,45 @@ export const Submit = ({
 		} else {
 			if (bouquetNetwork.peek().relayMode === 'mempool' && submissionStatus.peek().timesSubmited > 0) return // don't resubmit on mempool mode
 			// Remove old submissions
+			const currentOutstandingBundles = outstandingBundles.peek()
+			const expiredBundles = Object.values(currentOutstandingBundles.bundles).filter((pendingBundle) => hasTargetBlockBeenMined(blockNumber, pendingBundle.targetBlock))
+			const missedTargets = new Map(currentOutstandingBundles.missedTargets.map((missedTarget) => [missedTarget.targetBlock, missedTarget]))
+			for (const expiredBundle of expiredBundles) {
+				missedTargets.set(expiredBundle.targetBlock, {
+					targetBlock: expiredBundle.targetBlock,
+					diagnostic: bouquetNetwork.peek().relayMode === 'relay' ? 'The relay accepted the bundle submission.' : '',
+				})
+			}
 			outstandingBundles.value = {
-				error: outstandingBundles.peek().error,
-				success: outstandingBundles.peek().success,
-				bundles: Object.keys(outstandingBundles.peek().bundles)
-					.filter(tx => outstandingBundles.peek().bundles[tx].targetBlock + 1n > blockNumber)
+				error: currentOutstandingBundles.error,
+				success: currentOutstandingBundles.success,
+				missedTargets: [...missedTargets.values()].sort((left, right) => left.targetBlock < right.targetBlock ? -1 : left.targetBlock > right.targetBlock ? 1 : 0).slice(-10),
+				bundles: Object.keys(currentOutstandingBundles.bundles)
+					.filter(tx => !hasTargetBlockBeenMined(blockNumber, currentOutstandingBundles.bundles[tx].targetBlock))
 					.reduce((obj: {
 						[bundleHash: string]: {
+							bundleHash: string,
 							targetBlock: bigint,
 							gas: { priorityFee: bigint, baseFee: bigint }
 							transactions: { signedTransaction: string, hash: string, account: string, nonce: bigint }[]
 							included: boolean
 						}
 					}, bundleHash) => {
-						obj[bundleHash] = outstandingBundles.peek().bundles[bundleHash]
+							obj[bundleHash] = currentOutstandingBundles.bundles[bundleHash]
 						return obj
 					}, {})
 			}
-
 			// Try Submit
 			if (submissionStatus.value.active && !outstandingBundles.value.success) {
 				submissionStatus.value = { ...submissionStatus.peek(), timesSubmited: submissionStatus.peek().timesSubmited + 1 }
 				try {
-					const targetBlock = blockNumber + bouquetNetwork.peek().blocksInFuture
-					const gas = blockInfo.peek()
-					gas.priorityFee = bouquetNetwork.value.priorityFee
+					const network = bouquetNetwork.peek()
+					const targetBlocks = getBundleTargetBlocks(blockNumber, network.blocksInFuture)
+					const { priorityFee, baseFee } = getFutureFeeProjection(blockInfo.peek(), network)
+					const gas = { priorityFee, baseFee }
 					const bundleRequest = await sendBundle(
 						bundle.value,
-						targetBlock,
+						targetBlocks,
 						fundingAmountMin.peek(),
 						provider.value,
 						signers.peek(),
@@ -240,28 +319,27 @@ export const Submit = ({
 						bouquetNetwork.peek()
 					)
 
-					if (!(bundleRequest.bundleIdentifier in outstandingBundles.peek().bundles)) {
-						outstandingBundles.value = { ...outstandingBundles.peek(),  bundles: {...outstandingBundles.peek().bundles, [bundleRequest.bundleIdentifier]: { targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false } } }
+					const nextBundles = { ...outstandingBundles.peek().bundles }
+					for (const submission of bundleRequest.submissions) {
+						const attemptIdentifier = `${submission.bundleIdentifier}:${submission.targetBlock.toString()}`
+						if (!(attemptIdentifier in nextBundles)) nextBundles[attemptIdentifier] = { bundleHash: submission.bundleIdentifier, targetBlock: submission.targetBlock, gas, transactions: bundleRequest.bundleTransactions, included: false }
 					}
+					outstandingBundles.value = { ...outstandingBundles.peek(), bundles: nextBundles }
 				} catch (err) {
 					console.error('SendBundle error', err)
-					const error = err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' ? new Error(err.message) : new Error('Unknown Error')
-					batch(() => {
-						submissionStatus.value = { active: false, lastBlock: blockNumber, timesSubmited: submissionStatus.peek().timesSubmited }
-						outstandingBundles.value = { ...outstandingBundles.peek(), error }
-					})
+					setSubmissionError(err)
 				}
 			}
 		}
 	}
 
 	async function toggleSubmission() {
+		const activate = !submissionStatus.peek().active
 		batch(() => {
 			simulationPromise.value = { ...simulationPromise.value, state: 'inactive' }
-			outstandingBundles.value = { bundles: !outstandingBundles.peek().success ? outstandingBundles.peek().bundles : {}, error: undefined, success: submissionStatus.peek().active ? outstandingBundles.peek().success : undefined }
-			submissionStatus.value = { ...submissionStatus.peek(), active: !submissionStatus.peek().active }
+			outstandingBundles.value = { bundles: {}, missedTargets: [], error: undefined, success: activate ? undefined : outstandingBundles.peek().success }
+			submissionStatus.value = { active: activate, lastBlock: activate ? 0n : submissionStatus.peek().lastBlock, timesSubmited: 0 }
 		})
-		bundleSubmission(blockInfo.peek().blockNumber)
 	}
 
 	return (
@@ -273,17 +351,27 @@ export const Submit = ({
 			) : (
 				<div className='flex flex-col w-full gap-4'>
 					<div>
+						<p><span className='font-bold'>Current block:</span> {blockInfo.value.blockNumber.toString()}</p>
 						{ bouquetNetwork.value.relayMode === 'mempool' ? <>
 								<div style = 'padding-bottom: 10px;'>
 									<SingleNotice variant = 'warn' title = 'Mempool mode is dangerous' description = { `You are currently using Mempool mode. Transactions are sent individually so some transactions may not make it onto the blockchain. This mode should only be used if a priate relay is unavailable for the network. Additionally, if a sweeper is active on your account there is a high risk that rescue attempts may fail, allowing the sweeper to steal your gas funds and other assets. Use this mode only as a last resort when no other options are available.`} />
 								</div>
-								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
+								<p><span className='font-bold'>Gas:</span> {formatUnits(futureFeeProjection.value.baseFee, 'gwei')} gwei + {formatUnits(futureFeeProjection.value.priorityFee, 'gwei')} gwei priority</p>
 								<p><span className='font-bold'>Transaction Submit RPC:</span> { bouquetNetwork.value.mempoolSubmitRpcEndpoint }</p>
 								<p><span className='font-bold'>Transaction Simulation RPC:</span> { bouquetNetwork.value.mempoolSimulationRpcEndpoint }</p>
 							</> : <>
-								<p><span className='font-bold'>Gas:</span> {formatUnits(getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, bouquetNetwork.value.blocksInFuture), 'gwei')} gwei + {formatUnits(bouquetNetwork.value.priorityFee.toString(), 'gwei')} gwei priority</p>
-								<p><span className='font-bold'>Relays:</span> simulation:{bouquetNetwork.value.simulationRelayEndpoint}, submit:{bouquetNetwork.value.submissionRelayEndpoint} (Block {blockInfo.value.blockNumber.toString()})</p>
-								<p>Transactions will be attempt to be included in the block {bouquetNetwork.value.blocksInFuture.toString()} blocks from now.</p>
+								<p><span className='font-bold'>Gas:</span> {formatUnits(futureFeeProjection.value.baseFee, 'gwei')} gwei + {formatUnits(futureFeeProjection.value.priorityFee, 'gwei')} gwei priority</p>
+								<div class='grid gap-2 py-2 md:grid-cols-2'>
+									<div class='flex min-w-0 flex-col gap-1 border border-white/20 bg-white/5 p-3'>
+										<span class='text-xs font-semibold uppercase tracking-wide text-white/50'>Simulation relay</span>
+										<span class='break-all font-mono text-xs text-white/80'>{bouquetNetwork.value.simulationRelayEndpoint}</span>
+									</div>
+									<div class='flex min-w-0 flex-col gap-1 border border-white/20 bg-white/5 p-3'>
+										<span class='text-xs font-semibold uppercase tracking-wide text-white/50'>Submission relay</span>
+										<span class='break-all font-mono text-xs text-white/80'>{bouquetNetwork.value.submissionRelayEndpoint}</span>
+									</div>
+								</div>
+								<p>Transactions will be attempt to be included in the block {bouquetNetwork.value.blocksInFuture.toString()} blocks from current block.</p>
 							</>
 						}
 
@@ -295,7 +383,7 @@ export const Submit = ({
 							{submissionStatus.value.active ? (bouquetNetwork.value.relayMode === 'relay' ? `Stop submitting to relay` : `Stop tracking the transactions`) : (bouquetNetwork.value.relayMode === 'mempool' ? `Accept the Risks and Submit`: `Submit to ${ bouquetNetwork.value.relayMode }`)}</Button>
 					</div>
 					<SimulationResult state={simulationPromise} />
-					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork}/>
+					<Bundles outstandingBundles={outstandingBundles} bouquetNetwork={bouquetNetwork} blockInfo={blockInfo}/>
 				</div>
 			)}
 		</>

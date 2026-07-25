@@ -1,15 +1,15 @@
 import { batch, Signal, useSignal } from '@preact/signals'
 import { useState } from 'preact/hooks'
-import { parseEther } from 'ethers'
 import { connectBrowserProvider, ProviderStore } from '../library/provider.js'
 import { GetSimulationStackReply } from '../types/interceptorTypes.js'
 import { Button } from './Button.js'
-import { Bundle, serialize, Signers } from '../types/types.js'
-import { EthereumAddress } from '../types/ethereumTypes.js'
+import { Bundle, Signers } from '../types/types.js'
 import { BouquetSettings, TransactionList } from '../types/bouquetTypes.js'
 import { ImportModal } from './ImportModal.js'
 import { SingleNotice } from './Warns.js'
-import { addressString } from '../library/utils.js'
+import { createBundle } from '../library/bundle.js'
+import { convertInterceptorTransactions, markSyntheticFunding, requestInterceptorStackAfterConnection, simulationStackRequestError } from '../library/interceptorImport.js'
+import { CreateClearDelegation } from './CreateClearDelegation.js'
 
 export async function importFromInterceptor(
 	bundle: Signal<Bundle | undefined>,
@@ -23,41 +23,37 @@ export async function importFromInterceptor(
 	bouquetSettings: Signal<BouquetSettings>
 ) {
 	if (!window.ethereum || !window.ethereum.request) throw Error('No Ethereum wallet detected')
-	connectBrowserProvider(provider, blockInfo, signers, bouquetSettings)
+	const ethereum = window.ethereum
 
-	const { payload } = await window.ethereum
-		.request({
-			method: 'interceptor_getSimulationStack',
-			params: ['1.0.0'],
-		})
-		.catch((err: { code: number }) => {
-			if (err?.code === -32601) {
-				throw new Error('Wallet does not support returning simulations')
-			} else {
-				throw new Error(`Unknown Error: ${JSON.stringify(err)}`)
-			}
-		})
+	const { payload } = await requestInterceptorStackAfterConnection(
+		async () => {
+			if (provider.peek() === undefined) await connectBrowserProvider(provider, blockInfo, signers, bouquetSettings, { isInterceptor: true })
+		},
+		() => ethereum
+			.request({
+				method: 'interceptor_getSimulationStack',
+				params: ['1.0.1'],
+			})
+			.catch((error: unknown) => { throw simulationStackRequestError(error) }),
+	)
 
 	const tryParse = GetSimulationStackReply.safeParse(payload)
 	if (!tryParse.success) throw new Error('Wallet does not support returning simulations')
 	if (tryParse.value.length === 0) throw new Error('You have no transactions on your simulation')
 
-	const converted = TransactionList.safeParse(serialize(GetSimulationStackReply, tryParse.value).map(({ from, to, value, input, gasLimit, chainId }) => ({ from, to, value, input, gasLimit, chainId })))
-	if (!converted.success) throw new Error('Malformed simulation stack')
-
-	if (converted.value.length >= 2 && converted.value[0].to === converted.value[1].from && converted.value[0].value === parseEther('200000')) {
-		const fundingAddr = converted.value[0].from
-		converted.value = converted.value.map(tx => tx.from === fundingAddr ? { ...tx, from: 'FUNDING' } : tx)
+	let converted: TransactionList
+	try {
+		converted = convertInterceptorTransactions(tryParse.value)
+	} catch {
+		throw new Error('Malformed simulation stack')
 	}
 
-	const uniqueToAddresses = [...new Set(converted.value.map(({ from }) => from))]
-	const containsFundingTx = uniqueToAddresses.includes('FUNDING')
-	const uniqueSigners = uniqueToAddresses.filter((address): address is EthereumAddress => address !== 'FUNDING').map(address => addressString(address))
+	converted = markSyntheticFunding(converted)
 
-	const totalGas = converted.value.reduce((sum, tx) => tx.gasLimit + sum, 0n)
+	const containsFundingTx = converted.some((transaction) => transaction.from === 'FUNDING')
 
 	// Take addresses that recieved funding, determine spend deficit - gas fees
-	const fundingRecipients = new Set(converted.value.reduce((result: bigint[], tx) => (tx.to && tx.from === 'FUNDING' ? [...result, tx.to] : result), []))
+	const fundingRecipients = new Set(converted.reduce((result: bigint[], tx) => (tx.to && tx.from === 'FUNDING' ? [...result, tx.to] : result), []))
 
 	const spenderDeficits = tryParse.value.reduce((amounts: { [account: string]: { deficit: bigint, credit: bigint } }, tx) => {
 		if (!fundingRecipients.has(tx.from)) return amounts
@@ -90,13 +86,15 @@ export async function importFromInterceptor(
 	const inputValue = Object.values(spenderDeficits).reduce((sum, spender) => spender.deficit + sum, 0n)
 
 	// Copy value and set, input of funding to inputValue
-	const transactions = [...converted.value]
+	const transactions = [...converted]
 	if (containsFundingTx) {
-		transactions[0] = { ...transactions[0], value: inputValue }
+		const fundingIndex = transactions.findIndex((transaction) => transaction.from === 'FUNDING')
+		transactions[fundingIndex] = { ...transactions[fundingIndex], value: inputValue }
 	}
 
-	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(transactions)))
-	bundle.value = { transactions, containsFundingTx, uniqueSigners, totalGas, inputValue }
+	const importedBundle = createBundle(transactions)
+	localStorage.setItem('payload', JSON.stringify(TransactionList.serialize(importedBundle.transactions)))
+	bundle.value = importedBundle
 }
 
 export const Import = ({
@@ -164,6 +162,7 @@ export const Import = ({
 				) : (
 					''
 				)}
+				<CreateClearDelegation bundle={bundle} provider={provider} signers={signers} blockInfo={blockInfo} />
 			</div>
 		</>
 	)

@@ -143,6 +143,12 @@ export const EthereumAccessList = t.ReadonlyArray(
 )
 export type EthereumAccessList = t.Static<typeof EthereumAccessList>
 
+export const EthereumSignatureParity = t.Union(
+	t.Literal('0x0').withParser(LiteralConverterParserFactory('0x0', 'even' as const)),
+	t.Literal('0x1').withParser(LiteralConverterParserFactory('0x1', 'odd' as const)),
+)
+export type EthereumSignatureParity = t.Static<typeof EthereumSignatureParity>
+
 export const EthereumBlockTag = t.Union(EthereumQuantitySmall, EthereumBytes32, t.Literal('latest'), t.Literal('pending'))
 export type EthereumBlockTag = t.Static<typeof EthereumBlockTag>
 

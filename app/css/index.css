@@ -576,6 +576,10 @@ input[type='number'] {
 	display: flex;
 }
 
+.grid {
+	display: grid;
+}
+
 .hidden {
 	display: none;
 }
@@ -663,6 +667,10 @@ input[type='number'] {
 	width: 100vw;
 }
 
+.min-w-0 {
+	min-width: 0px;
+}
+
 .max-w-full {
 	max-width: 100%;
 }
@@ -697,10 +705,6 @@ input[type='number'] {
 	flex-direction: column;
 }
 
-.flex-col-reverse {
-	flex-direction: column-reverse;
-}
-
 .flex-wrap {
 	flex-wrap: wrap;
 }
@@ -731,6 +735,10 @@ input[type='number'] {
 
 .gap-2 {
 	gap: 0.5rem;
+}
+
+.gap-3 {
+	gap: 0.75rem;
 }
 
 .gap-4 {
@@ -789,6 +797,10 @@ input[type='number'] {
 	border-color: rgb(148 163 184 / 0.3);
 }
 
+.border-white\/20 {
+	border-color: rgb(255 255 255 / 0.2);
+}
+
 .border-white\/50 {
 	border-color: rgb(255 255 255 / 0.5);
 }
@@ -838,8 +850,16 @@ input[type='number'] {
 	background-color: rgb(255 255 255 / 0.1);
 }
 
+.bg-white\/5 {
+	background-color: rgb(255 255 255 / 0.05);
+}
+
 .p-2 {
 	padding: 0.5rem;
+}
+
+.p-3 {
+	padding: 0.75rem;
 }
 
 .p-4 {
@@ -952,13 +972,26 @@ input[type='number'] {
 	font-weight: 600;
 }
 
+.uppercase {
+	text-transform: uppercase;
+}
+
 .leading-tight {
 	line-height: 1.25;
+}
+
+.tracking-wide {
+	letter-spacing: 0.025em;
 }
 
 .text-accent {
 	--tw-text-opacity: 1;
 	color: rgb(108 207 246 / var(--tw-text-opacity));
+}
+
+.text-gray-400 {
+	--tw-text-opacity: 1;
+	color: rgb(156 163 175 / var(--tw-text-opacity));
 }
 
 .text-gray-500 {
@@ -985,8 +1018,16 @@ input[type='number'] {
 	color: rgb(255 255 255 / 0.5);
 }
 
+.text-white\/60 {
+	color: rgb(255 255 255 / 0.6);
+}
+
 .text-white\/75 {
 	color: rgb(255 255 255 / 0.75);
+}
+
+.text-white\/80 {
+	color: rgb(255 255 255 / 0.8);
 }
 
 .underline {
@@ -1224,6 +1265,10 @@ input[type='number'] {
 }
 
 @media (min-width: 768px) {
+	.md\:grid-cols-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
 	.md\:pt-24 {
 		padding-top: 6rem;
 	}

@@ -1,15 +1,37 @@
 import * as funtypes from 'funtypes'
-import { EthereumAddress, EthereumInput, EthereumQuantity } from './ethereumTypes.js'
+import { EthereumAccessList, EthereumAddress, EthereumInput, EthereumQuantity, EthereumSignatureParity } from './ethereumTypes.js'
+
+export type Eip7702Authorization = funtypes.Static<typeof Eip7702Authorization>
+export const Eip7702Authorization = funtypes.Intersect(
+	funtypes.Object({
+		chainId: EthereumQuantity,
+		address: EthereumAddress,
+		nonce: EthereumQuantity,
+	}).asReadonly(),
+	funtypes.Partial({
+		authority: EthereumAddress,
+		r: EthereumQuantity,
+		s: EthereumQuantity,
+		yParity: EthereumSignatureParity,
+	}).asReadonly(),
+)
 
 export type TransactionList = funtypes.Static<typeof TransactionList>
-export const TransactionList = funtypes.ReadonlyArray(funtypes.Object({
-	from: funtypes.Union(EthereumAddress, funtypes.Literal('FUNDING')),
-	to: funtypes.Union(EthereumAddress, funtypes.Null),
-	value: EthereumQuantity,
-	input: EthereumInput,
-	chainId: EthereumQuantity,
-	gasLimit: EthereumQuantity
-}).asReadonly())
+export const TransactionList = funtypes.ReadonlyArray(funtypes.Intersect(
+	funtypes.Object({
+		from: funtypes.Union(EthereumAddress, funtypes.Literal('FUNDING')),
+		to: funtypes.Union(EthereumAddress, funtypes.Null),
+		value: EthereumQuantity,
+		input: EthereumInput,
+		chainId: EthereumQuantity,
+		gasLimit: EthereumQuantity,
+	}).asReadonly(),
+	funtypes.Partial({
+		type: funtypes.Union(funtypes.Literal('1559'), funtypes.Literal('7702')),
+		accessList: EthereumAccessList,
+		authorizationList: funtypes.ReadonlyArray(Eip7702Authorization),
+	}).asReadonly(),
+))
 
 export type PopulatedTransactionList = funtypes.Static<typeof PopulatedTransactionList>
 export const PopulatedTransactionList = funtypes.ReadonlyArray(funtypes.Object({

@@ -1,6 +1,6 @@
 import { AddressLike, ethers, id, keccak256, toUtf8Bytes, Transaction } from 'ethers'
 import { BlockInfo, Bundle, Signers } from '../types/types.js'
-import { createBundleTransactions, getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces } from './bundleUtils.js'
+import { getMaxBaseFeeInFutureBlock, getRawTransactionsAndCalculateFeesAndNonces, withPriorityFee } from './bundleUtils.js'
 import { ProviderStore } from './provider.js'
 import { BouquetNetwork } from '../types/bouquetTypes.js'
 import { EthSimulateV1CallResult, EthSimulateV1CallResults, EthSimulateV1Params, EthSimulateV1Result, JsonRpcResponse, TransactionType } from '../types/ethSimulateTypes.js'
@@ -58,18 +58,34 @@ export type SimulationResponseSuccess = {
 
 export type SimulationResponse = SimulationResponseSuccess | RelayResponseError
 
+type RelayTargetSubmission =
+	| { status: 'accepted', targetBlock: bigint, bundleIdentifier: string }
+	| { status: 'rejected', error: unknown }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
+
+export const createRelaySimulationPayload = (transactions: readonly string[], targetBlock: bigint) => JSON.stringify({
+	jsonrpc: '2.0',
+	id: 0,
+	method: 'eth_callBundle',
+	params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, stateBlockNumber: 'latest' }],
+})
+
 export async function simulateBundle(
 	bundle: Bundle,
 	fundingAmountMin: bigint,
 	provider: ProviderStore,
 	signers: Signers,
 	blockInfo: BlockInfo,
+	targetBlock: bigint,
 	network: BouquetNetwork
 ): Promise<SimulationResponse> {
-	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
-	const bundleTransactions = createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin)
-	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundleTransactions, provider.provider, blockInfo, maxBaseFee)
+	const blocksInFuture = targetBlock - blockInfo.blockNumber
+	if (blocksInFuture <= 0n) throw new Error('Simulation target block must be in the future')
+	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
+	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
+	const txs = await getRawTransactionsAndCalculateFeesAndNonces(bundle, signers, provider.provider, signingBlockInfo, blocksInFuture, fundingAmountMin, maxBaseFee)
 
 	const bigIntify = (ethersValue: ethers.BigNumberish | null | undefined | AddressLike) => ethersValue ? BigInt(ethersValue.toString()) : undefined
 
@@ -128,7 +144,7 @@ export async function simulateBundle(
 		}
 		case 'relay': {
 			if (network.simulationRelayEndpoint === undefined) throw new Error('simulationRelayEndpoint is not defined')
-			const payload = JSON.stringify({ jsonrpc: '2.0', id: 0, method: 'eth_callBundle', params: [{ txs: txs.map((x) => x.rawTransaction), blockNumber: `0x${blockInfo.blockNumber.toString(16)}`, stateBlockNumber: 'latest' }] })
+			const payload = createRelaySimulationPayload(txs.map((x) => x.rawTransaction), targetBlock)
 			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
 			const request = await fetch(network.simulationRelayEndpoint,
 				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
@@ -161,13 +177,23 @@ export async function simulateBundle(
 }
 
 let bundleId = 1
-export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, network: BouquetNetwork) {
-	if (network.blocksInFuture <= 0n) throw new Error('Blocks in future is negative or zero')
-	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, network.blocksInFuture)
+export async function sendBundle(bundle: Bundle, targetBlocks: readonly bigint[], fundingAmountMin: bigint, provider: ProviderStore, signers: Signers, blockInfo: BlockInfo, network: BouquetNetwork) {
+	if (targetBlocks.length === 0) throw new Error('At least one target block is required')
+	const blocksInFuture = targetBlocks.reduce((largestDistance, targetBlock) => {
+		const distance = targetBlock - blockInfo.blockNumber
+		if (distance <= 0n) throw new Error('Bundle target blocks must be in the future')
+		return distance > largestDistance ? distance : largestDistance
+	}, 0n)
+	if (bundle.rescueMode && network.relayMode !== 'relay') throw new Error('EIP-7702 rescue bundles require a private relay')
+	const signingBlockInfo = withPriorityFee(blockInfo, network.priorityFee)
+	const maxBaseFee = getMaxBaseFeeInFutureBlock(blockInfo.baseFee, blocksInFuture)
 	const transactions = (await getRawTransactionsAndCalculateFeesAndNonces(
-		createBundleTransactions(bundle, signers, blockInfo, network.blocksInFuture, fundingAmountMin),
+		bundle,
+		signers,
 		provider.provider,
-		blockInfo,
+		signingBlockInfo,
+		blocksInFuture,
+		fundingAmountMin,
 		maxBaseFee,
 	)).map((x) => x.rawTransaction)
 
@@ -204,28 +230,38 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				}
 			})
 
-			return { bundleTransactions, bundleIdentifier: ethers.keccak256(toUtf8Bytes(payloads.join('|'))) }
+			return { bundleTransactions, submissions: [{ targetBlock: targetBlocks[0], bundleIdentifier: ethers.keccak256(toUtf8Bytes(payloads.join('|'))) }] }
 		}
 		case 'relay': {
-			const payload = JSON.stringify({
-				jsonrpc: '2.0',
-				method: 'eth_sendBundle',
-				id: bundleId++,
-				params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
-			})
-			const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
-
 			if (network.submissionRelayEndpoint === undefined) throw new Error('submissionRelayEndpoint is not defined')
-			const request = await fetch(network.submissionRelayEndpoint,
-				{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
-			)
-			const response = await request.json()
-
-			if (response.error !== undefined && response.error !== null) {
-				throw {
-					message: response.error.message,
-					code: response.error.code,
+			const submissionRelayEndpoint = network.submissionRelayEndpoint
+			const submissionResults = await Promise.all(targetBlocks.map(async (targetBlock): Promise<RelayTargetSubmission> => {
+				try {
+					const payload = JSON.stringify({
+						jsonrpc: '2.0',
+						method: 'eth_sendBundle',
+						id: bundleId++,
+						params: [{ txs: transactions, blockNumber: `0x${targetBlock.toString(16)}`, revertingTxHashes: [] }]
+					})
+					const flashbotsSig = `${await provider.authSigner.getAddress()}:${await provider.authSigner.signMessage(id(payload))}`
+					const request = await fetch(submissionRelayEndpoint,
+						{ method: 'POST', body: payload, headers: { 'Content-Type': 'application/json', 'X-Flashbots-Signature': flashbotsSig } }
+					)
+					const response: unknown = await request.json()
+					if (!isRecord(response)) throw new Error('Relay returned an invalid bundle submission response')
+					if (isRecord(response.error) && typeof response.error.message === 'string') throw new Error(response.error.message)
+					if (!isRecord(response.result) || typeof response.result.bundleHash !== 'string') throw new Error('Relay did not return a bundle hash')
+					return { status: 'accepted', targetBlock, bundleIdentifier: response.result.bundleHash }
+				} catch (error) {
+					return { status: 'rejected', error }
 				}
+			}))
+			const submissions = submissionResults.flatMap((result) => result.status === 'accepted' ? [{ targetBlock: result.targetBlock, bundleIdentifier: result.bundleIdentifier }] : [])
+			if (submissions.length === 0) {
+				for (const submissionResult of submissionResults) {
+					if (submissionResult.status === 'rejected') throw submissionResult.error
+				}
+				throw new Error('Relay rejected every target block')
 			}
 
 			const bundleTransactions = transactions.map((signedTransaction) => {
@@ -238,7 +274,7 @@ export async function sendBundle(bundle: Bundle, targetBlock: bigint, fundingAmo
 				}
 			})
 
-			return { bundleTransactions, bundleIdentifier: response.result.bundleHash }
+			return { bundleTransactions, submissions }
 		}
 	}
 }

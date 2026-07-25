@@ -51,7 +51,7 @@ declare global {
 }
 
 export type BlockInfo = { blockNumber: bigint; baseFee: bigint; priorityFee: bigint }
-export type Bundle = { transactions: TransactionList; containsFundingTx: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
+export type Bundle = { transactions: TransactionList; containsFundingTx: boolean; rescueMode: boolean; totalGas: bigint; inputValue: bigint; uniqueSigners: string[] }
 export type Signers = { burner: Wallet | undefined; burnerBalance: bigint; bundleSigners: { [account: string]: Wallet } }
 
 export type PromiseState = 'pending' | 'resolved' | 'rejected'

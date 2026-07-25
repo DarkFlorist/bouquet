@@ -2,7 +2,7 @@ import { batch, ReadonlySignal, Signal, useComputed, useSignal, useSignalEffect 
 import { EtherSymbol, formatEther, getAddress, JsonRpcProvider, Wallet } from 'ethers'
 import { JSX } from 'preact/jsx-runtime'
 import { useAsyncState } from '../library/asyncState.js'
-import { getMaxBaseFeeInFutureBlock } from '../library/bundleUtils.js'
+import { getFutureFeeProjection } from '../library/bundleUtils.js'
 import { ProviderStore } from '../library/provider.js'
 import { addressString } from '../library/utils.js'
 import { EthereumAddress } from '../types/ethereumTypes.js'
@@ -131,9 +131,9 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 	}
 
 	const withdrawAmount = useComputed(() => {
-		let maxFeePerGas = getMaxBaseFeeInFutureBlock(blockInfo.value.baseFee, 5n) + blockInfo.value.priorityFee;
-		let fee = maxFeePerGas * 21000n
-		let amount = signers.value.burnerBalance - fee
+		const maxFeePerGas = getFutureFeeProjection(blockInfo.value, bouquetNetwork.value).maxFeePerGas
+		const fee = maxFeePerGas * 21000n
+		const amount = signers.value.burnerBalance - fee
 		return { amount, fee, maxFeePerGas }
 	})
 
@@ -204,4 +204,3 @@ const WithdrawModal = ({ display, blockInfo, signers, provider, bouquetNetwork }
 		</div>
 	)
 }
-
