@@ -1,0 +1,10 @@
+import { RuntypeBase } from '../runtype';
+import { Array as Arr, ReadonlyArray } from './array';
+import { InternalRecord, RecordFields } from './Object';
+import { Record, KeyRuntypeBase, ReadonlyRecord } from './Record';
+import { Tuple, ReadonlyTuple } from './tuple';
+export declare type Readonly<T extends RuntypeBase> = T extends InternalRecord<infer TFields, infer TPartial, false> ? InternalRecord<TFields, TPartial, true> : T extends Arr<infer TElement> ? ReadonlyArray<TElement> : T extends Tuple<infer TElements> ? ReadonlyTuple<TElements> : T extends Record<infer K, infer V> ? ReadonlyRecord<K, V> : unknown;
+export declare function Readonly<TFields extends RecordFields, TPartial extends boolean>(input: InternalRecord<TFields, TPartial, false>): InternalRecord<TFields, TPartial, true>;
+export declare function Readonly<TElement extends RuntypeBase>(input: Arr<TElement>): ReadonlyArray<TElement>;
+export declare function Readonly<TElements extends readonly RuntypeBase<unknown>[] = readonly RuntypeBase<unknown>[]>(input: Tuple<TElements>): ReadonlyTuple<TElements>;
+export declare function Readonly<K extends KeyRuntypeBase, V extends RuntypeBase<unknown>>(record: Record<K, V>): ReadonlyRecord<K, V>;
